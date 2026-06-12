@@ -2,34 +2,41 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極・TCGエンジン - 完全開通版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>極・TCGエンジン - スマホ完全対応＆タッチ操作編</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #05050a;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; overflow: hidden;
-            user-select: none;
+            height: 100dvh; /* スマホのブラウザバーを考慮した高さ */
+            color: white; font-family: 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden; touch-action: none; /* スマホのスクロールやズームを防止 */
+            user-select: none; -webkit-user-select: none;
         }
         #gameContainer {
             position: relative; box-shadow: 0 0 60px rgba(255, 215, 0, 0.15);
             border: 4px solid #1a1a2e; border-radius: 12px; background-color: #0b0c16;
+            width: 100vw; max-width: 800px; /* スマホの横幅にピッタリ合わせる */
+            aspect-ratio: 1 / 1; /* 正方形を維持 */
         }
-        canvas { display: block; }
+        canvas { 
+            display: block; width: 100%; height: 100%; touch-action: none;
+        }
         #instructions {
-            margin-top: 15px; font-size: 13px; color: #a2b4ce; text-align: center; line-height: 1.6;
+            margin-top: 10px; font-size: 11px; color: #a2b4ce; text-align: center; line-height: 1.4;
+            padding: 0 10px;
         }
     </style>
 </head>
 <body>
 
 <div id="gameContainer">
+    <!-- キャンバスの内部解像度は800x800のまま、CSSでスマホサイズに縮小します -->
     <canvas id="tcgCanvas" width="800" height="800"></canvas>
 </div>
 <div id="instructions">
-    【完全開通】ゾンビゲームの消し忘れコードを全撤去し、確実に起動するようになりました！<br>
-    【視認性バッチリ】エルフとヒーラーのカードは文字が自動で「黒色」になり、劇的に読みやすくなっています。<br>
-    【黄金比率】クラス専用カード30枚(75%)＋ニュートラル10枚(25%)の、個性が際立つ40枚デッキ！
+    【スマホ完全対応】指でカードをドラッグして場に出したり、敵にターゲットの矢印を伸ばせるようになりました！<br>
+    画面がスマホサイズに最適化され、タッチ操作でもスクロールが誤爆しないよう調整済です。
 </div>
 
 <script>
@@ -97,7 +104,7 @@ function getTextColor(hex) {
         let g = parseInt(hex.substring(3, 5), 16);
         let b = parseInt(hex.substring(5, 7), 16);
         let luminance = (r * 299 + g * 587 + b * 114) / 1000;
-        return luminance > 140 ? '#111111' : '#ffffff'; // 明るい背景なら黒文字
+        return luminance > 140 ? '#111111' : '#ffffff'; 
     } catch(e) { return '#ffffff'; }
 }
 
@@ -153,7 +160,7 @@ const DECKS = {
         { name: 'レディアンス', type: 'FOLLOWER', cost: 4, atk: 3, hp: 3, maxHp: 3, ability: ['FANFARE_HEAL_ALL_2'], desc: '味方全体を2回復', color: '#fdd835' },
         { name: 'ガーディアン', type: 'FOLLOWER', cost: 5, atk: 4, hp: 5, maxHp: 5, ability: ['WARD'], desc: '【守護】', color: '#ffee58' },
         { name: 'テミスの審判', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD'], desc: 'お互いのフォロワー\nを全て破壊する！', color: '#fff176' },
-        { name: 'ムーンアルミラージ', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, maxHp: 5, ability: ['STORM', 'TURN_END_HEAL_FULL'], desc: '【疾走】\n終了時全回復', color: '#fff59d' },
+        { name: 'ムーンアルミラージ', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, maxHp: 5, ability: ['STORM', 'TURN_END_HEAL_FULL'], desc: '【疾走】\nターン終了時全回復', color: '#fff59d' },
         { name: 'ジャンヌダルク', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, maxHp: 5, ability: ['FANFARE_AOE_2', 'SPELL_BUFF_ALL_0_2'], desc: '敵全体2ダメ\n味方体力+2', color: '#fff9c4' },
         { name: 'イージス', type: 'FOLLOWER', cost: 9, atk: 8, hp: 12, maxHp: 12, ability: ['WARD'], desc: '【守護】絶対無敵', color: '#fffde7' },
         { name: '神魔裁判所', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_KILL_RANDOM'], desc: 'ランダムな敵を破壊', color: '#ffb300' }
@@ -168,15 +175,15 @@ const DECKS = {
         { name: '吸血鬼', type: 'FOLLOWER', cost: 6, atk: 6, hp: 6, maxHp: 6, ability: ['FANFARE_HEAL_3_DMG_3'], desc: '敵に3ダメ\n顔面3回復', color: '#e57373' },
         { name: 'メアリー', type: 'FOLLOWER', cost: 8, atk: 6, hp: 6, maxHp: 6, ability: ['FANFARE_BURN_FACE_5'], desc: '顔面に5ダメージ！', color: '#ef9a9a' },
         { name: 'セクシーヴァンパイア', type: 'FOLLOWER', cost: 9, atk: 5, hp: 5, maxHp: 5, ability: ['FANFARE_BURN_FACE_4_HEAL_4'], desc: '顔面4ダメ＆4回復', color: '#ffcdd2' },
-        { name: 'ダークジェネラル', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, maxHp: 3, ability: ['STORM'], desc: '【疾走】', color: '#ff8a80' }
+        { name: '漆黒の契約', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_DRAW_2_SELF_DMG_3'], desc: '自分3ダメ＆2枚引く', color: '#7f0000' }
     ],
     NECRO: [
-        { name: 'スパルトイ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, maxHp: 2, ability: ['DEATH_SUMMON_SKELETON'], desc: '破壊時:骨を出す', color: '#4a148c' },
-        { name: 'スカルビースト', type: 'FOLLOWER', cost: 3, atk: 1, hp: 1, maxHp: 1, ability: ['FANFARE_SUMMON_SKELETON_2'], desc: '出た時:骨2体出す', color: '#6a1b9a' },
-        { name: 'ウルズ', type: 'FOLLOWER', cost: 4, atk: 3, hp: 3, maxHp: 3, ability: ['FANFARE_NECRO_2_DRAW_1'], desc: 'ネクロ(2):1枚ドロー', color: '#7b1fa2' },
-        { name: 'ケルベロス', type: 'FOLLOWER', cost: 5, atk: 3, hp: 3, maxHp: 3, ability: ['FANFARE_ADD_FIREBALL'], desc: '手札に火力魔法追加', color: '#8e24aa' },
+        { name: 'スケルトン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, maxHp: 1, ability: [], desc: '骨。', color: '#4a148c' },
+        { name: 'ゾンビ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, maxHp: 2, ability: [], desc: '腐肉。', color: '#6a1b9a' },
+        { name: 'アサシン', type: 'FOLLOWER', cost: 3, atk: 3, hp: 3, maxHp: 3, ability: ['FANFARE_NECRO_2_BUFF_1_1'], desc: 'ネクロ(2):+1/+1', color: '#7b1fa2' },
         { name: '死の祝福', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_SUMMON_ZOMBIE_3_WARD'], desc: '2/2を3体召喚\nネクロ(6):守護付与', color: '#9c27b0' },
-        { name: 'ヘクター', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, maxHp: 5, ability: ['FANFARE_NECRO_4_BUFF_2_2'], desc: 'ネクロ(4):\n味方全体+2/+2！', color: '#ab47bc' },
+        { name: '腐敗の王', type: 'FOLLOWER', cost: 5, atk: 4, hp: 5, maxHp: 5, ability: ['FANFARE_NECRO_4_TARGET_ENEMY_4'], desc: 'ネクロ(4):\n敵に4ダメージ', color: '#ba68c8' },
+        { name: '幽霊船', type: 'FOLLOWER', cost: 4, atk: 4, hp: 4, maxHp: 4, ability: ['DEATH_SUMMON_SKELETON'], desc: '破壊時:骨を出す', color: '#ab47bc' },
         { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, maxHp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:モルディカイ\n自身を場に出す(無限)', color: '#ba68c8' },
         { name: 'デスタイラント', type: 'FOLLOWER', cost: 6, atk: 3, hp: 3, maxHp: 3, ability: ['STORM', 'FANFARE_NECRO_6_BUFF_5_5'], desc: '【疾走】\nネクロ(6):+5/+5！', color: '#ce93d8' },
         { name: '怨霊の呼び声', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_SUMMON_GHOST_2'], desc: '1/1疾走を2体出す', color: '#e1bee7' },
@@ -185,13 +192,14 @@ const DECKS = {
     DRAGON: [
         { name: '竜の託宣', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_RAMP_1'], desc: 'PP最大値を+1する', color: '#004d40' },
         { name: 'アイラ', type: 'FOLLOWER', cost: 3, atk: 2, hp: 2, maxHp: 2, ability: ['DEATH_RAMP_1'], desc: '破壊時:PP最大値+1', color: '#00695c' },
-        { name: 'サラマンダー', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_TARGET_ENEMY_4'], desc: '敵に4ダメージ', color: '#00897b' },
         { name: '水竜神の巫女', type: 'FOLLOWER', cost: 5, atk: 4, hp: 5, maxHp: 5, ability: ['FANFARE_RAMP_1', 'TURN_END_HEAL_2'], desc: 'PP+1＆終了時2回復', color: '#26a69a' },
         { name: 'フォルテ', type: 'FOLLOWER', cost: 6, atk: 5, hp: 1, maxHp: 1, ability: ['STORM'], desc: '【疾走】', color: '#4db6ac' },
         { name: 'ウロボロス', type: 'FOLLOWER', cost: 8, atk: 8, hp: 4, maxHp: 4, ability: ['FANFARE_TARGET_ENEMY_3', 'DEATH_HEAL_3'], desc: '出た時3ダメ\n破壊時3回復', color: '#80cbc4' },
         { name: 'ジェネシスドラゴン', type: 'FOLLOWER', cost: 10, atk: 7, hp: 9, maxHp: 9, ability: ['STORM'], desc: '【疾走】', color: '#e0f2f1' },
         { name: '銀河の暗黒卿', type: 'FOLLOWER', cost: 10, atk: 8, hp: 8, maxHp: 8, ability: ['SPELL_WIPE_BOARD'], desc: '盤面を完全リセット', color: '#00251a' },
-        { name: '竜の闘気', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_RAMP_1_DRAW_2'], desc: 'PP+1し、2枚ドロー', color: '#00bfa5' }
+        { name: '竜の闘気', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_RAMP_1_DRAW_2'], desc: 'PP+1し、2枚ドロー', color: '#00bfa5' },
+        { name: 'サラマンダー', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_TARGET_ENEMY_4'], desc: '敵に4ダメージ', color: '#00897b' },
+        { name: 'ファフニール', type: 'FOLLOWER', cost: 9, atk: 8, hp: 8, maxHp: 8, ability: ['FANFARE_AOE_2'], desc: '出た時:敵全体2ダメ', color: '#b2dfdb' }
     ],
     NEMESIS: [
         { name: '魔鉄の獅子', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, maxHp: 2, ability: ['FANFARE_ADD_DECK_ARTIFACT'], desc: 'デッキにAFを追加', color: '#006064' },
@@ -200,7 +208,10 @@ const DECKS = {
         { name: 'サフィラ', type: 'FOLLOWER', cost: 6, atk: 4, hp: 4, maxHp: 4, ability: ['STORM'], desc: '【疾走】', color: '#26c6da' },
         { name: 'マグナレガシー', type: 'FOLLOWER', cost: 8, atk: 8, hp: 8, maxHp: 8, ability: ['FANFARE_AOE_4'], desc: '敵全体に4ダメージ', color: '#80deea' },
         { name: '加速装置', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_DRAW_2_ADD_AF'], desc: '2ドロー＆AF追加', color: '#b2ebf2' },
-        { name: '虚数物体', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_HEAL_LEADER_5'], desc: 'リーダー5回復', color: '#e0f7fa' }
+        { name: '虚数物体', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_HEAL_LEADER_5'], desc: 'リーダー5回復', color: '#e0f7fa' },
+        { name: 'オートマトン', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, maxHp: 3, ability: ['WARD'], desc: '【守護】', color: '#00838f' },
+        { name: '製造術', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_ADD_DECK_ARTIFACT'], desc: 'デッキにAFを追加', color: '#00acc1' },
+        { name: 'シルヴァ', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, maxHp: 5, ability: ['FANFARE_FACE_DMG_3'], desc: '顔面に3ダメージ', color: '#4dd0e1' }
     ],
     ELF: [
         { name: 'メイ', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, maxHp: 1, ability: ['FANFARE_TARGET_ENEMY_1'], desc: '出た時:敵1体に1ダメ', color: '#689f38' },
@@ -215,6 +226,13 @@ const DECKS = {
         { name: '白銀の矢', type: 'SPELL', cost: 8, atk: 0, hp: 0, ability: ['SPELL_SILVER_BOLT'], desc: 'プレイ枚数×2の\nダメージを顔面に！', color: '#dcedc8' }
     ]
 };
+
+const SATAN_DECK = [
+    { name: 'アスタロトの宣告', type: 'SPELL', cost: 10, atk: 0, hp: 0, ability: ['SPELL_FACE_TO_1'], desc: '敵リーダーの体力を\n1にする！', color: '#000000' },
+    { name: 'ディースの裁き', type: 'SPELL', cost: 7, atk: 0, hp: 0, ability: ['SPELL_BURN_FACE_7_HEAL_7'], desc: '敵に7ダメ、自分7回復', color: '#330000' },
+    { name: '沈黙の魔将', type: 'FOLLOWER', cost: 6, atk: 8, hp: 8, maxHp: 8, ability: ['STORM'], desc: '【疾走】', color: '#111111' },
+    { name: 'サタンズサーヴァント', type: 'FOLLOWER', cost: 5, atk: 13, hp: 13, maxHp: 13, ability: [], desc: '超絶スタッツ', color: '#222222' }
+];
 
 const ALL_CARDS = Object.keys(DECKS).reduce((acc, key) => acc.concat(DECKS[key]), []);
 
@@ -271,7 +289,13 @@ function initGame(playerDeckKey) {
 }
 
 let audioCtx = null;
-function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function initAudio() { 
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+    } else if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
 function playTone(freq, type, duration, vol=0.1) {
     if (!audioCtx) return;
     const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
@@ -333,7 +357,6 @@ function executeAbility(card, isPlayer, targetEnemy = null) {
     let myBoard = isPlayer ? playerBoard : enemyBoard;
     let myHand = isPlayer ? playerHand : enemyHand;
     let myDeck = isPlayer ? playerDeck : enemyDeck;
-    
     let abilityStr = card.ability.join(',');
 
     if (abilityStr.includes('SPELL_KILL_TARGET')) { if (targetEnemy) { targetEnemy.hp = 0; playSpellSound(); showPopup(`破壊した！`, '#ff0000'); } }
@@ -389,7 +412,7 @@ function executeAbility(card, isPlayer, targetEnemy = null) {
     }
     if (abilityStr.includes('SPELL_SUMMON_ZOMBIE_3_WARD')) {
         let hasNecro = ((isPlayer && playerGrave >= 6) || (!isPlayer && enemyGrave >= 6));
-        if (hasNecro) { if (isPlayer) playerGrave -= 6; else enemyGrave -= 6; playSpellSound(); showPopup(`ネクロマンス(6):慢面守護！`, '#aa00ff'); }
+        if (hasNecro) { if (isPlayer) playerGrave -= 6; else enemyGrave -= 6; playSpellSound(); showPopup(`ネクロマンス(6):全てに守護！`, '#aa00ff'); }
         for (let i = 0; i < 3; i++) { if (myBoard.length < 5) { let zombie = createCard(DECKS['NECRO'][1]); if (hasNecro) zombie.ability.push('WARD'); zombie.ready = false; myBoard.push(zombie); } }
     }
 
@@ -419,11 +442,30 @@ function executeAbility(card, isPlayer, targetEnemy = null) {
         if (abilityStr.includes('HEAL_2')) { if(isPlayer) playerHP=Math.min(20, playerHP+2); else enemyHP=Math.min(20, enemyHP+2); }
         if (abilityStr.includes('SELF_DMG_2')) { if(isPlayer) playerHP-=2; else enemyHP-=2; }
     }
+
     checkDeath();
 }
 
-canvas.addEventListener('mousedown', (e) => {
-    initAudio(); const rect = canvas.getBoundingClientRect(); const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+// --- スマホ用タッチ操作対応 ---
+function getPointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    let clientX = e.clientX; let clientY = e.clientY;
+
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY;
+    }
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+function handleInputStart(e) {
+    if (e.cancelable) e.preventDefault();
+    initAudio();
+    const pos = getPointerPos(e);
+    const mx = pos.x; const my = pos.y;
 
     if (gameState === 'SELECT') {
         const keys = Object.keys(DECKS);
@@ -450,17 +492,21 @@ canvas.addEventListener('mousedown', (e) => {
         }
     }
     if (mx >= 650 && mx <= 780 && my >= 375 && my <= 425) endTurn();
-});
+}
 
-canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect(); mousePos.x = e.clientX - rect.left; mousePos.y = e.clientY - rect.top;
+function handleInputMove(e) {
+    if (e.cancelable) e.preventDefault();
+    const pos = getPointerPos(e);
+    mousePos.x = pos.x; mousePos.y = pos.y;
     if (draggedCard) { draggedCard.card.x = mousePos.x - dragOffset.x; draggedCard.card.y = mousePos.y - dragOffset.y; }
-});
+}
 
-canvas.addEventListener('mouseup', (e) => {
+function handleInputEnd(e) {
+    if (e.cancelable) e.preventDefault();
     if (gameState !== 'BATTLE') return;
     if (!draggedCard && !activeAttacker) return;
-    const rect = canvas.getBoundingClientRect(); const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+    const pos = getPointerPos(e);
+    const mx = pos.x; const my = pos.y;
 
     if (draggedCard && draggedCard.type === 'HAND') {
         let c = draggedCard.card;
@@ -514,7 +560,14 @@ canvas.addEventListener('mouseup', (e) => {
         checkDeath(); activeAttacker = null;
     }
     checkWinLoss();
-});
+}
+
+canvas.addEventListener('mousedown', handleInputStart);
+canvas.addEventListener('touchstart', handleInputStart, {passive: false});
+canvas.addEventListener('mousemove', handleInputMove);
+canvas.addEventListener('touchmove', handleInputMove, {passive: false});
+canvas.addEventListener('mouseup', handleInputEnd);
+canvas.addEventListener('touchend', handleInputEnd, {passive: false});
 
 function processTurnEndEffects(isPlayer) {
     let board = isPlayer ? playerBoard : enemyBoard;
@@ -745,12 +798,6 @@ function drawBattle() {
         let p = popups[i]; ctx.fillStyle = p.color; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 10; ctx.shadowColor = '#000'; ctx.fillText(p.text, 400, p.y);
         p.y -= 1; p.timer--; ctx.shadowBlur = 0; if (p.timer <= 0) popups.splice(i, 1);
     }
-}
-
-function draw() {
-    if (gameState === 'SELECT') drawSelectScreen();
-    else if (gameState === 'BATTLE') drawBattle();
-    else if (gameState === 'GAMEOVER') { drawBattle(); drawGameOver(); }
 }
 
 function gameLoop() { draw(); requestAnimationFrame(gameLoop); }
