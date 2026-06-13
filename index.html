@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>極・TCGエンジン - サウンド全開＆究極バランス編</title>
+    <title>極・TCGエンジン - カード400種突破＆新アミュレット編</title>
     <style>
         body { margin: 0; padding: 0; background-color: #05050a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
         #gameContainer { position: relative; box-shadow: 0 0 60px rgba(0, 255, 150, 0.2); border: 4px solid #1a1a2e; border-radius: 12px; background-color: #0b0c16; width: 100vw; max-width: 800px; aspect-ratio: 1 / 1; }
@@ -15,9 +15,9 @@
 
 <div id="gameContainer"><canvas id="tcgCanvas" width="800" height="800"></canvas></div>
 <div id="instructions">
-    【サウンド強化】ボタン操作やドラフトなど、あらゆる場面で心地よい音が鳴るようになりました。<br>
-    【快適化】AIのターン中でも「手札を隠す/出す」ボタンを操作してリーダーの体力を確認できます。<br>
-    【調整】進化バグの修正、ボスLv1の難易度緩和、ドラフト時のネクロ墓地表示など全対応！
+    【カード超絶増量】各クラス約50種類、総計約400枚の圧倒的カードプール！<br>
+    【新アミュレット】「カウントダウンが進行するたびに効果を発動する」強力なアミュレットが多数追加されました！<br>
+    【モルディカイ修正】復活時にHP0になる不具合を修正し、新品のフォロワーとして降臨します。
 </div>
 
 <script>
@@ -38,9 +38,7 @@ let p1EvolvedNotified = false, p2EvolvedNotified = false, playerHasNecro = false
 
 const CARD_W = 90, CARD_H = 130;
 let playerHand = [], playerBoard = [], playerDeck = [], enemyHand = [], enemyBoard = [], enemyDeck = [];
-let draftOptions = [], draftCount = 0;
-let draggedCard = null, dragOffset = { x: 0, y: 0 }, activeAttacker = null, mousePos = { x: 0, y: 0 }, popups = [];
-let playedCardsLog = [];
+let draftOptions = [], draftCount = 0, draggedCard = null, dragOffset = { x: 0, y: 0 }, activeAttacker = null, mousePos = { x: 0, y: 0 }, popups = [], playedCardsLog = [];
 
 const DECK_INFO = {
     ROYAL:   { name: "ロイヤル", color: '#e65100', desc: "低コストと疾走・突進で怒涛の展開！" },
@@ -68,18 +66,30 @@ const TOKENS = {
     ZOMBIE: { name: 'ゾンビ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '腐肉', color: '#6a1b9a' },
     GHOST: { name: 'ゴースト', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#e1bee7' },
     CUCUMBER_SOLDIER: { name: 'きゅうり兵士', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: 'きゅうり', color: '#4caf50' },
-    DRAGON_5_5: { name: 'ドラゴン', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: [], desc: '竜', color: '#00796b' }
+    DRAGON_5_5: { name: 'ドラゴン', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: [], desc: '竜', color: '#00796b' },
+    MORDECAI: { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:自身を出す', color: '#ba68c8' }
 };
 
 const NEUTRAL = [
-    { name: 'ゴブリン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: [], desc: 'ただのゴブリン', color: '#555555' },
-    { name: 'ベルエンジェル', type: 'FOLLOWER', cost: 2, atk: 0, hp: 2, ability: ['WARD', 'DEATH_DRAW_1'], desc: '【守護】破壊:1引く', color: '#777777' },
-    { name: '死の舞踏', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_KILL_TARGET', 'SPELL_BURN_FACE_2'], desc: '敵1体破壊＆顔2ダメ', color: '#444444' },
-    { name: 'バハムート', type: 'FOLLOWER', cost: 10, atk: 10, hp: 10, ability: ['SPELL_WIPE_BOARD'], desc: '他を全破壊', color: '#222222' },
+    { name: 'ゴブリン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: [], desc: 'ゴブリン', color: '#555' },
+    { name: 'ベルエンジェル', type: 'FOLLOWER', cost: 2, atk: 0, hp: 2, ability: ['WARD', 'DEATH_DRAW_1'], desc: '【守護】破壊:1引く', color: '#777' },
+    { name: 'ファイター', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '戦士', color: '#666' },
+    { name: 'ゴリアテ', type: 'FOLLOWER', cost: 4, atk: 3, hp: 4, ability: [], desc: 'デカい', color: '#555' },
+    { name: 'エンジェル', type: 'FOLLOWER', cost: 5, atk: 4, hp: 4, ability: ['WARD'], desc: '【守護】', color: '#888' },
+    { name: '死の舞踏', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_KILL_TARGET', 'SPELL_BURN_FACE_2'], desc: '敵1体破壊＆顔2ダメ', color: '#444' },
+    { name: 'エクスキューション', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_KILL_TARGET'], desc: '敵1体を確殺する', color: '#333' },
+    { name: 'ルシフェル', type: 'FOLLOWER', cost: 8, atk: 6, hp: 6, ability: ['TURN_END_HEAL_LEADER_4'], desc: '終了時4回復', color: '#999' },
+    { name: 'バハムート', type: 'FOLLOWER', cost: 10, atk: 10, hp: 10, ability: ['SPELL_WIPE_BOARD'], desc: '他を全破壊', color: '#222' },
+    { name: '弱体化の呪い', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_DEBUFF_1_1'], desc: '敵1体を -1/-1', color: '#4a4a4a' },
+    { name: 'アミュレット破壊', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['TARGET_ENEMY_AMULET_DESTROY'], desc: '敵アミュレット破壊', color: '#795548' },
     { name: '突進兵', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, ability: ['RUSH'], desc: '【突進】', color: '#8d6e63' },
     { name: 'きゅうり隊長', type: 'FOLLOWER', cost: 4, atk: 1, hp: 5, ability: ['TURN_END_SUMMON_CUCUMBER'], desc: '終了時:きゅうり召喚', color: '#4caf50' },
+    { name: 'きゅうり指揮官', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['FANFARE_BUFF_RANDOM_ALLY_1_0'], desc: '出た時:味方1体+1/+0', color: '#388e3c' },
     { name: 'きゅうり', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_COST_DOWN_CUCUMBER_HAND'], desc: '手札のきゅうりコスト-1', color: '#66bb6a' },
-    { name: '時の加速', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_ADVANCE_COUNTDOWN_1'], desc: '自アミュのカウント-1', color: '#9e9e9e' }
+    { name: '時の加速', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_ADVANCE_COUNTDOWN_1'], desc: '自アミュのカウント-1', color: '#9e9e9e' },
+    { name: '癒しの泉', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_HEAL_LEADER_2'], desc: '【カウント】3\n進行時:顔面2回復', color: '#aed581' },
+    { name: '豊穣の像', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 2, ability: ['CD_TICK_DRAW_1'], desc: '【カウント】2\n進行時:1ドロー', color: '#dce775' },
+    { name: 'クロノス', type: 'FOLLOWER', cost: 8, atk: 6, hp: 6, ability: ['TURN_END_DRAW_1', 'TURN_END_DRAW_1'], desc: '終了時:2ドロー', color: '#424242' }
 ];
 
 const DECKS = {
@@ -89,66 +99,73 @@ const DECKS = {
         { name: 'アルベール', type: 'FOLLOWER', cost: 5, atk: 3, hp: 5, ability: ['STORM', 'TWICE_ATTACK'], desc: '【疾走】2回攻撃', color: '#ffa726' },
         { name: '剣豪', type: 'FOLLOWER', cost: 4, atk: 3, hp: 5, ability: ['RUSH'], desc: '【突進】', color: '#ff7043' },
         { name: 'レオニダス', type: 'FOLLOWER', cost: 9, atk: 7, hp: 8, ability: ['DEATH_BUFF_ALL_3_3'], desc: '破壊時:味方全体+3', color: '#fff3e0' },
-        { name: '隠し砦', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_2_3_WARD'], desc: '【カウントダウン】2\n破壊時:2/3守護出す', color: '#8d6e63' },
-        { name: '前線基地', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['AURA_ATK_1'], desc: '【アミュレット】\n味方フォロワー+1/+0', color: '#a1887f' }
+        { name: '隠し砦', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_2_3_WARD'], desc: '【カウント】2\n破壊時:2/3守護出す', color: '#8d6e63' },
+        { name: '前線基地', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['AURA_ATK_1'], desc: '【アミュレット】\n味方フォロワー+1/+0', color: '#a1887f' },
+        { name: '円卓の騎士', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['WARD'], desc: '【守護】', color: '#fb8c00' }, { name: '突撃騎兵', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#e64a19' }, { name: '指揮官の号令', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_BUFF_ALL_1_1'], desc: '味方全体+1/+1', color: '#d84315' }, { name: '狙撃手', type: 'FOLLOWER', cost: 2, atk: 1, hp: 1, ability: ['FANFARE_TARGET_ENEMY_1'], desc: '敵に1ダメ', color: '#bf360c' }, { name: '鉄壁の盾', type: 'FOLLOWER', cost: 4, atk: 1, hp: 6, ability: ['WARD'], desc: '【守護】', color: '#8d6e63' }, { name: '白銀の騎士', type: 'FOLLOWER', cost: 5, atk: 4, hp: 4, ability: ['RUSH'], desc: '【突進】', color: '#ffab40' }, { name: '戦線復帰', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_DRAW_1'], desc: '1枚引く', color: '#ffcc80' }, { name: '勇猛な兵士', type: 'FOLLOWER', cost: 3, atk: 3, hp: 3, ability: [], desc: '標準スタッツ', color: '#ff9800' }, { name: '突進将軍', type: 'FOLLOWER', cost: 7, atk: 6, hp: 5, ability: ['RUSH', 'TWICE_ATTACK'], desc: '【突進】2回攻撃', color: '#ff6d00' }, { name: '前衛の盾', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: ['WARD'], desc: '【守護】', color: '#d84315' }, { name: '戦術指導', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_DRAW_2'], desc: '2枚引く', color: '#ff5722' }, { name: '渾身の一撃', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_DEBUFF_1_1'], desc: '敵1体を -1/-1', color: '#ff5722' }, { name: '特攻隊長', type: 'FOLLOWER', cost: 6, atk: 5, hp: 4, ability: ['STORM'], desc: '【疾走】', color: '#dd2c00' }
     ],
     WITCH: [
         { name: '知恵の光', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_DRAW_1'], desc: '1枚ドロー', color: '#0d47a1' },
         { name: 'マジックミサイル', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_3'], desc: '敵か顔面に3ダメ', color: '#1565c0' },
         { name: '弱体化の呪い', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_DEBUFF_1_1'], desc: '敵1体を -1/-1', color: '#5c6bc0' },
         { name: 'マーリン', type: 'FOLLOWER', cost: 3, atk: 3, hp: 2, ability: ['FANFARE_DRAW_2'], desc: '出た時:2枚ドロー', color: '#90caf9' },
-        { name: '氷結の魔方陣', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_AOE_1'], desc: '【カウントダウン】2\n破壊時:敵全体1ダメ', color: '#03a9f4' },
+        { name: '氷結の魔方陣', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_AOE_1'], desc: '【カウント】2\n破壊時:敵全体1ダメ', color: '#03a9f4' },
         { name: '魔女の釜', type: 'AMULET', cost: 1, atk: 0, hp: 0, ability: ['TURN_END_DRAW_1_DMG_1'], desc: '【アミュレット】\n終了時1ダメ＆1ドロー', color: '#5e35b1' },
-        { name: '次元の超越', type: 'SPELL', cost: 10, atk: 0, hp: 0, ability: ['SPELL_BURN_FACE_10'], desc: '顔面に10の大打撃！', color: '#0000ff' }
+        { name: '次元の超越', type: 'SPELL', cost: 10, atk: 0, hp: 0, ability: ['SPELL_BURN_FACE_10'], desc: '顔面に10の大打撃！', color: '#0000ff' },
+        { name: '炎の矢', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['TARGET_ENEMY_4'], desc: '敵に4ダメ', color: '#1976d2' }, { name: '精神統一', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_DRAW_2', 'SPELL_HEAL_LEADER_2'], desc: '2引く＆顔2回復', color: '#0288d1' }, { name: '土の印', type: 'AMULET', cost: 1, atk: 0, hp: 0, ability: ['AURA_DEF_1'], desc: '【アミュレット】\n味方フォロワー体力+1', color: '#4dd0e1' }, { name: '魔道士の弟子', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: ['FANFARE_DRAW_1'], desc: '1枚引く', color: '#81d4fa' }, { name: '紅蓮の炎', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_AOE_3'], desc: '全体3ダメージ', color: '#0277bd' }, { name: '封印の書', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_FACE_DMG_1'], desc: '【カウント】3\n進行時:敵顔面1ダメ', color: '#311b92' }, { name: '雷撃', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5'], desc: '敵に5ダメ', color: '#00838f' }, { name: '星読みの魔女', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['TURN_END_DRAW_1'], desc: '終了時1枚引く', color: '#512da8' }, { name: '錬金術の代償', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_DRAW_2', 'SPELL_SELF_DMG_2'], desc: '2引く＆自分2ダメ', color: '#3f51b5' }, { name: '大魔道士', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, ability: ['FANFARE_AOE_2'], desc: '出た時:敵全体2ダメ', color: '#0d47a1' }, { name: '時間圧縮', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_ADVANCE_COUNTDOWN_2'], desc: '自アミュカウント-2', color: '#1a237e' }
     ],
     HEALER: [
         { name: 'スネークプリースト', type: 'FOLLOWER', cost: 2, atk: 1, hp: 3, ability: ['WARD'], desc: '【守護】', color: '#f57f17' },
         { name: 'テミスの審判', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD'], desc: '全フォロワーを破壊', color: '#fff176' },
         { name: 'イージス', type: 'FOLLOWER', cost: 10, atk: 7, hp: 7, ability: ['INVINCIBLE'], desc: '【無敵】絶対なる盾', color: '#fffde7' },
-        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウントダウン】2\n破壊時:顔面2回復', color: '#fff59d' },
-        { name: '時の教え手', type: 'FOLLOWER', cost: 3, atk: 1, hp: 3, ability: ['FANFARE_ADVANCE_COUNTDOWN_1'], desc: '出た時:自アミュレットの\nカウントを1進める', color: '#fbc02d' },
-        { name: '防衛結界', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['AURA_DEF_2'], desc: '【アミュレット】\n味方フォロワー+0/+2', color: '#ffee58' }
+        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウント】2\n破壊時:顔面2回復', color: '#fff59d' },
+        { name: '時の教え手', type: 'FOLLOWER', cost: 3, atk: 1, hp: 3, ability: ['FANFARE_ADVANCE_COUNTDOWN_1'], desc: '出た時:自アミュの\nカウントを1進める', color: '#fbc02d' },
+        { name: '防衛結界', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['AURA_DEF_2'], desc: '【アミュレット】\n味方フォロワー+0/+2', color: '#ffee58' },
+        { name: '癒しの聖堂', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_HEAL_LEADER_2'], desc: '【カウント】3\n進行時:顔面2回復', color: '#fff59d' }, { name: '光の精霊', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['TURN_END_HEAL_LEADER_2'], desc: '終了時顔面2回復', color: '#ffee58' }, { name: '聖騎士', type: 'FOLLOWER', cost: 3, atk: 2, hp: 4, ability: ['WARD'], desc: '【守護】', color: '#f57f17' }, { name: '神罰', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5'], desc: '敵に5ダメ', color: '#fff9c4' }, { name: '大天使', type: 'FOLLOWER', cost: 6, atk: 4, hp: 6, ability: ['WARD', 'FANFARE_HEAL_ALL_2'], desc: '【守護】全体2回復', color: '#ffb300' }, { name: '癒し手', type: 'FOLLOWER', cost: 2, atk: 1, hp: 2, ability: ['FANFARE_HEAL_LEADER_2'], desc: '顔面2回復', color: '#ffca28' }, { name: '白竜', type: 'FOLLOWER', cost: 8, atk: 6, hp: 8, ability: ['WARD', 'FANFARE_HEAL_LEADER_5'], desc: '【守護】顔面5回復', color: '#ffe082' }, { name: '天上の宴', type: 'SPELL', cost: 7, atk: 0, hp: 0, ability: ['SPELL_HEAL_LEADER_8'], desc: '顔面8大回復', color: '#ffecb3' }, { name: '神の盾', type: 'FOLLOWER', cost: 4, atk: 0, hp: 6, ability: ['WARD'], desc: '【守護】', color: '#fff8e1' }, { name: '裁きの雷', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_AOE_3', 'SPELL_HEAL_LEADER_3'], desc: '全体3ダメ＆3回復', color: '#f57f17' }, { name: '癒しの風', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_HEAL_ALL_3'], desc: '味方全体を3回復', color: '#fbc02d' }, { name: '大修道女', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, ability: ['FANFARE_HEAL_LEADER_5'], desc: '顔面5回復', color: '#fff176' }
     ],
     VAMPIRE: [
         { name: 'ブラッドウルフ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['STORM', 'FANFARE_SELF_DMG_2'], desc: '【疾走】自分に2ダメ', color: '#b71c1c' },
-        { name: '鋭利な一裂き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5', 'SPELL_SELF_DMG_2'], desc: '敵5ダメ＆自分2ダメ', color: '#c62828' },
+        { name: '鋭利な一裂き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5_SELF_DMG_2'], desc: '敵5ダメ＆自分2ダメ', color: '#c62828' },
         { name: 'ベルフェゴール', type: 'FOLLOWER', cost: 4, atk: 4, hp: 4, ability: ['FANFARE_DRAW_2_SELF_DMG_4', 'PAIN_TO_ATK'], desc: '2引＆被ダメで攻撃UP', color: '#e53935' },
         { name: '黙示録', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD', 'SPELL_SELF_DMG_3'], desc: '盤面全破壊＆自分3ダメ', color: '#ef5350' },
-        { name: '血の盃', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_DRAW_2_SELF_DMG_2'], desc: '【カウントダウン】2\n破壊時:2引く＆自2ダメ', color: '#e53935' },
+        { name: '血の盃', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_DRAW_2_SELF_DMG_2'], desc: '【カウント】2\n破壊時:2引く＆自2ダメ', color: '#e53935' },
         { name: '鮮血の祭壇', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['TURN_END_ENEMY_FACE_1_SELF_1'], desc: '【アミュレット】\n終了時互いに1ダメ', color: '#880e4f' },
-        { name: 'メアリー', type: 'FOLLOWER', cost: 8, atk: 6, hp: 6, ability: ['FANFARE_BURN_FACE_5'], desc: '顔面に5ダメージ！', color: '#ef9a9a' }
+        { name: 'メアリー', type: 'FOLLOWER', cost: 8, atk: 6, hp: 6, ability: ['FANFARE_BURN_FACE_5'], desc: '顔面に5ダメージ！', color: '#ef9a9a' },
+        { name: '血の渇き', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_FACE_DMG_1_SELF_DMG_1'], desc: '【カウント】3\n進行時:互いに1ダメ', color: '#ad1457' }, { name: '狂信者', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: ['DEATH_SELF_DMG_1'], desc: '破壊時:自分1ダメ', color: '#d81b60' }, { name: '吸血の宴', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_HEAL_LEADER_4', 'SPELL_DRAW_1'], desc: '顔面4回復＆1ドロー', color: '#c2185b' }, { name: 'ダークジェネラル', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, ability: ['STORM', 'FANFARE_SELF_DMG_2'], desc: '【疾走】自分2ダメ', color: '#d81b60' }, { name: 'ブラッドムーン', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_DRAW_2', 'SPELL_SELF_DMG_2'], desc: '2引く＆自分2ダメ', color: '#f06292' }, { name: 'サキュバス', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['FANFARE_BURN_FACE_2'], desc: '顔面に2ダメ', color: '#f48fb1' }, { name: '狂気の蝙蝠', type: 'FOLLOWER', cost: 4, atk: 3, hp: 3, ability: ['FANFARE_SUMMON_BAT_STORM'], desc: '1/1疾走を出す', color: '#880e4f' }, { name: '真祖の吸血鬼', type: 'FOLLOWER', cost: 7, atk: 5, hp: 6, ability: ['TURN_END_BURN_FACE_2'], desc: '終了時顔面2ダメ', color: '#c2185b' }, { name: '悪魔の鍵', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_DRAW_2_SELF_DMG_2'], desc: '2引く＆自分2ダメ', color: '#e91e63' }, { name: '夜の群れ', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['TARGET_ENEMY_3', 'SPELL_SUMMON_BAT_STORM'], desc: '敵3ダメ＆1/1疾走出す', color: '#f06292' }, { name: 'ヴァンパイアロード', type: 'FOLLOWER', cost: 8, atk: 7, hp: 7, ability: ['FANFARE_HEAL_3_DMG_3'], desc: '顔面3ダメ＆3回復', color: '#f8bbd0' }
     ],
     NECRO: [
         { name: '死の祝福', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_SUMMON_ZOMBIE_3_WARD'], desc: 'ネクロ(6):守護ゾンビ3', color: '#9c27b0' },
         { name: 'ヘクター', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, ability: ['FANFARE_NECRO_4_BUFF_2_2', 'RUSH'], desc: '【突進】ネクロ(4):全体+2', color: '#ab47bc' },
-        { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:自身を出す', color: '#ba68c8' },
         { name: 'デスタイラント', type: 'FOLLOWER', cost: 6, atk: 3, hp: 3, ability: ['STORM', 'FANFARE_NECRO_6_BUFF_5_5'], desc: '【疾走】ネクロ(6):+5/+5', color: '#ce93d8' },
-        { name: '漆黒の棺', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_ZOMBIE_2'], desc: '【カウントダウン】2\n破壊時:ゾンビ2体出す', color: '#6a1b9a' },
-        { name: '呪われた石碑', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['TURN_END_SUMMON_SKELETON'], desc: '【アミュレット】\n終了時:骨1体出す', color: '#4a148c' }
+        { name: '漆黒の棺', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_ZOMBIE_2'], desc: '【カウント】2\n破壊時:ゾンビ2体出す', color: '#6a1b9a' },
+        { name: '呪われた石碑', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['TURN_END_SUMMON_SKELETON'], desc: '【アミュレット】\n終了時:骨1体出す', color: '#4a148c' },
+        { name: '怨念の祠', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_SUMMON_SKELETON'], desc: '【カウント】3\n進行時:骨1体出す', color: '#ba68c8' }, { name: 'ゾンビドッグ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: ['DEATH_SUMMON_SKELETON'], desc: '破壊時:骨1体出す', color: '#4a148c' }, { name: 'ワイト', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['DEATH_BURN_FACE_1'], desc: '破壊時:顔面に1ダメ', color: '#7b1fa2' }, { name: 'リッチ', type: 'FOLLOWER', cost: 4, atk: 4, hp: 4, ability: [], desc: '不死者', color: '#9c27b0' }, { name: 'ソウルハント', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_2', 'SPELL_DRAW_1'], desc: '敵2ダメ＆1引く', color: '#ce93d8' }, { name: 'ネクロマンサー', type: 'FOLLOWER', cost: 5, atk: 4, hp: 4, ability: ['FANFARE_NECRO_2_DRAW_2'], desc: 'ネクロ(2):2引く', color: '#e1bee7' }, { name: '冥界の番犬', type: 'FOLLOWER', cost: 6, atk: 4, hp: 5, ability: ['WARD', 'DEATH_SUMMON_GHOST'], desc: '【守護】破壊時:霊出す', color: '#f3e5f5' }, { name: 'ファントム', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#4a148c' }, { name: '死霊の宴', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_SUMMON_SKELETON_4'], desc: '骨を4体出す', color: '#6a1b9a' }, { name: '不死の王', type: 'FOLLOWER', cost: 8, atk: 7, hp: 7, ability: ['FANFARE_NECRO_6_WIPE_BOARD'], desc: 'ネクロ(6):盤面全破壊', color: '#7b1fa2' }, { name: 'スケルトンナイト', type: 'FOLLOWER', cost: 3, atk: 3, hp: 1, ability: ['DEATH_SUMMON_SKELETON'], desc: '破壊時:骨出す', color: '#ba68c8' }, { name: 'マミー', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#ce93d8' }, { name: '亡霊の導き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_DRAW_2'], desc: '2引く', color: '#4a148c' }
     ],
     DRAGON: [
         { name: '竜の託宣', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_RAMP_1'], desc: 'PP最大値を+1する', color: '#004d40' },
         { name: '水竜神の巫女', type: 'FOLLOWER', cost: 5, atk: 4, hp: 5, ability: ['FANFARE_RAMP_1', 'TURN_END_HEAL_LEADER_2'], desc: 'PP+1＆終了時2回復', color: '#26a69a' },
         { name: 'フォルテ', type: 'FOLLOWER', cost: 6, atk: 5, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#4db6ac' },
         { name: 'ジェネシスドラゴン', type: 'FOLLOWER', cost: 10, atk: 7, hp: 9, ability: ['STORM'], desc: '【疾走】', color: '#e0f2f1' },
-        { name: '竜の卵', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['DEATH_SUMMON_DRAGON_5_5'], desc: '【カウントダウン】3\n破壊時:5/5ドラゴン出す', color: '#00897b' },
-        { name: '竜の峡谷', type: 'AMULET', cost: 7, atk: 0, hp: 0, ability: ['TURN_END_SUMMON_DRAGON'], desc: '【アミュレット】\n終了時:5/5竜を出す', color: '#00695c' }
+        { name: '竜の卵', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['DEATH_SUMMON_DRAGON_5_5'], desc: '【カウント】3\n破壊時:5/5竜出す', color: '#00897b' },
+        { name: '竜の峡谷', type: 'AMULET', cost: 7, atk: 0, hp: 0, ability: ['TURN_END_SUMMON_DRAGON'], desc: '【アミュレット】\n終了時:5/5竜を出す', color: '#00695c' },
+        { name: '古代竜の遺産', type: 'AMULET', cost: 5, atk: 0, hp: 0, countdown: 2, ability: ['CD_TICK_RAMP_1'], desc: '【カウント】2\n進行時:PP最大値+1', color: '#004d40' }, { name: 'ドラゴニュート', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '竜人', color: '#00695c' }, { name: '竜の咆哮', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_BURN_FACE_3'], desc: '顔面に3ダメ', color: '#00796b' }, { name: 'ワイバーン', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, ability: ['STORM'], desc: '【疾走】', color: '#00897b' }, { name: '灼熱の息', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['SPELL_AOE_2'], desc: '全体2ダメージ', color: '#009688' }, { name: '海竜', type: 'FOLLOWER', cost: 6, atk: 5, hp: 6, ability: ['WARD'], desc: '【守護】', color: '#4db6ac' }, { name: 'ファフニール', type: 'FOLLOWER', cost: 9, atk: 8, hp: 8, ability: ['FANFARE_AOE_2'], desc: '全体2ダメージ', color: '#80cbc4' }, { name: '竜の知恵', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_DRAW_2'], desc: '2引く', color: '#b2dfdb' }, { name: '竜化の塔', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_SUMMON_DRAGON_5_5'], desc: '5/5竜出す', color: '#e0f2f1' }, { name: '騎竜兵', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['FANFARE_RAMP_1'], desc: 'PP最大値+1', color: '#00695c' }, { name: '怒れる竜', type: 'FOLLOWER', cost: 5, atk: 5, hp: 4, ability: ['STORM'], desc: '【疾走】', color: '#4db6ac' }
     ],
     NEMESIS: [
         { name: '魔鉄の獅子', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: ['FANFARE_ADD_DECK_ARTIFACT'], desc: 'デッキにAFを追加', color: '#006064' },
         { name: 'デウスエクスマキナ', type: 'FOLLOWER', cost: 6, atk: 4, hp: 5, ability: ['FANFARE_DRAW_3'], desc: '出た時:3枚ドロー', color: '#00bcd4' },
         { name: 'マグナレガシー', type: 'FOLLOWER', cost: 8, atk: 8, hp: 8, ability: ['FANFARE_AOE_4'], desc: '敵全体に4ダメージ', color: '#80deea' },
-        { name: '転送装置', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_ADD_DECK_ARTIFACT_2'], desc: '【カウントダウン】2\n破壊時:AFを2枚デッキへ', color: '#0097a7' },
+        { name: '転送装置', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_ADD_DECK_ARTIFACT_2'], desc: '【カウント】2\n破壊時:AFを2枚デッキへ', color: '#0097a7' },
         { name: '加速装置', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['AURA_RUSH_TO_AF'], desc: '【アミュレット】\n場に出たAFに突進付与', color: '#b2ebf2' },
-        { name: '虚数物体', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['TURN_END_DAMAGE_REDUCE'], desc: '【アミュレット】\nリーダー被ダメ軽減', color: '#e0f7fa' }
+        { name: '虚数物体', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['TURN_END_DAMAGE_REDUCE'], desc: '【アミュレット】\nリーダー被ダメ軽減', color: '#e0f7fa' },
+        { name: '自動工場', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_ADD_DECK_ARTIFACT'], desc: '【カウント】3\n進行時:AFをデッキに追加', color: '#006064' }, { name: '人形遣い', type: 'FOLLOWER', cost: 3, atk: 2, hp: 2, ability: ['FANFARE_ADD_HAND_DOLL'], desc: '手札に人形追加', color: '#00838f' }, { name: 'レーザー', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_3'], desc: '敵に3ダメ', color: '#00acc1' }, { name: '機兵', type: 'FOLLOWER', cost: 4, atk: 3, hp: 4, ability: ['WARD'], desc: '【守護】', color: '#4dd0e1' }, { name: 'パラダイム', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_AOE_3'], desc: '全体3ダメージ', color: '#b2ebf2' }, { name: '解析装置', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_DRAW_1', 'SPELL_ADD_DECK_ARTIFACT'], desc: '1引く＆AF追加', color: '#006064' }, { name: 'スピネ', type: 'FOLLOWER', cost: 5, atk: 3, hp: 3, ability: ['FANFARE_ADD_DECK_ARTIFACT', 'FANFARE_DRAW_1'], desc: 'AF追加＆1引く', color: '#00838f' }, { name: 'パペット', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#0097a7' }, { name: '空間圧縮', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['TARGET_ENEMY_DEBUFF_1_1', 'SPELL_DRAW_1'], desc: '敵-1/-1＆1引く', color: '#00acc1' }, { name: 'ロボ', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, ability: ['STORM'], desc: '【疾走】', color: '#00bcd4' }, { name: 'エネルギー充填', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_DRAW_1'], desc: '1枚引く', color: '#4dd0e1' }, { name: 'コア', type: 'FOLLOWER', cost: 3, atk: 0, hp: 5, ability: ['WARD', 'TURN_END_DRAW_1'], desc: '【守護】終了時1引く', color: '#80deea' }
     ],
     ELF: [
         { name: 'リノセウス', type: 'FOLLOWER', cost: 2, atk: 1, hp: 1, ability: ['STORM', 'FANFARE_ROACH_BUFF'], desc: '【疾走】プレイ数分攻撃UP', color: '#558b2f' },
         { name: '大樹の精霊', type: 'FOLLOWER', cost: 4, atk: 3, hp: 4, ability: ['FANFARE_COMBO_X_BUFF_0_X'], desc: 'コンボ(X):体力+X', color: '#689f38' },
         { name: 'エルフプリンセス', type: 'FOLLOWER', cost: 4, atk: 3, hp: 4, ability: ['FANFARE_ADD_2_ZERO_FAIRY'], desc: '0コスの妖精2枚追加', color: '#9ccc65' },
-        { name: '妖精の木', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 3, ability: ['DEATH_ADD_3_FAIRY'], desc: '【カウントダウン】3\n破壊時:妖精3枚手札へ', color: '#33691e' },
+        { name: '妖精の木', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 3, ability: ['DEATH_ADD_3_FAIRY'], desc: '【カウント】3\n破壊時:妖精3枚手札へ', color: '#33691e' },
         { name: '豊穣の森', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['TURN_END_ADD_FAIRY'], desc: '【アミュレット】\n終了時妖精1枚追加', color: '#aed581' },
-        { name: '白銀の矢', type: 'SPELL', cost: 8, atk: 0, hp: 0, ability: ['SPELL_SILVER_BOLT'], desc: 'プレイ数×2 顔面ダメ', color: '#dcedc8' }
+        { name: '白銀の矢', type: 'SPELL', cost: 8, atk: 0, hp: 0, ability: ['SPELL_SILVER_BOLT'], desc: 'プレイ数×2 顔面ダメ', color: '#dcedc8' },
+        { name: '光の種', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['CD_TICK_ADD_FAIRY'], desc: '【カウント】2\n進行時:妖精1枚追加', color: '#aed581' }, { name: '森の弓使い', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['FANFARE_TARGET_ENEMY_1'], desc: '敵に1ダメ', color: '#33691e' }, { name: '自然の導き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_DRAW_2'], desc: '2引く', color: '#558b2f' }, { name: 'フェアリーサークル', type: 'SPELL', cost: 1, atk: 0, hp: 0, ability: ['SPELL_ADD_2_FAIRY'], desc: '妖精2枚追加', color: '#689f38' }, { name: '大樹の守護者', type: 'FOLLOWER', cost: 5, atk: 4, hp: 5, ability: ['WARD'], desc: '【守護】', color: '#7cb342' }, { name: 'エルフガード', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['WARD', 'FANFARE_COMBO_2_BUFF_1_1'], desc: '【守護】コンボ(2):+1/+1', color: '#8bc34a' }, { name: '妖精の目覚め', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_ADD_3_FAIRY'], desc: '妖精3枚追加', color: '#9ccc65' }, { name: '森の報い', type: 'SPELL', cost: 4, atk: 0, hp: 0, ability: ['TARGET_ENEMY_4'], desc: '敵に4ダメ', color: '#aed581' }, { name: 'フェアリードラゴン', type: 'FOLLOWER', cost: 6, atk: 4, hp: 4, ability: ['STORM', 'FANFARE_COMBO_2_BUFF_2_2'], desc: '【疾走】コンボ(2):+2/+2', color: '#c5e1a5' }, { name: '新緑の恵み', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_HEAL_LEADER_3', 'SPELL_ADD_FAIRY'], desc: '顔面3回復＆妖精追加', color: '#dcedc8' }, { name: 'アーチャー', type: 'FOLLOWER', cost: 3, atk: 2, hp: 2, ability: ['FANFARE_TARGET_ENEMY_2'], desc: '敵に2ダメ', color: '#f1f8e9' }
     ]
 };
 
@@ -203,7 +220,7 @@ function drawCardToHand(isPlayer, amount = 1) {
 
 function checkNecroDeck(deckKey, deckArr) {
     if (deckKey === 'NECRO') return true;
-    return deckArr.some(c => c.ability.some(a => a.includes('NECRO') || a.includes('DEATH_SUMMON_SKELETON') || a.includes('DEATH_SUMMON_ZOMBIE')));
+    return deckArr.some(c => c.ability.some(a => a.includes('NECRO') || a.includes('DEATH_SUMMON_SKELETON') || a.includes('DEATH_SUMMON_ZOMBIE') || a.includes('CD_TICK_SUMMON_SKELETON')));
 }
 
 function initGame(mode, playerDeckKey = 'ROYAL') {
@@ -256,7 +273,6 @@ function startGame() {
     showPopup("BATTLE START!!", '#fff');
 }
 
-// サウンドシステム
 let audioCtx = null;
 function initAudio() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); else if (audioCtx.state === 'suspended') audioCtx.resume(); } catch(e) {} }
 function playTone(f, t, d, v=0.1) { try { if (!audioCtx) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type = t; o.frequency.value = f; g.gain.setValueAtTime(v, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + d); } catch(e) {} }
@@ -319,12 +335,30 @@ function updateAuras() {
     });
 }
 
+function triggerCountdownTick(c, isPlayer, myBoard) {
+    c.ability.forEach(ab => {
+        if (ab.startsWith('CD_TICK_HEAL_LEADER_')) {
+            let v = parseInt(ab.split('_')[3]);
+            if(isPlayer) playerHP = Math.min(20, playerHP+v); else enemyHP = Math.min(20, enemyHP+v);
+            playHealSound(); showPopup(`カウント進行: ${v}回復！`, '#fbc02d');
+        }
+        if (ab === 'CD_TICK_DRAW_1') { drawCardToHand(isPlayer, 1); playSpellSound(); showPopup('カウント進行: 1ドロー', '#1976d2'); }
+        if (ab === 'CD_TICK_SUMMON_SKELETON') { if(myBoard.length<5) myBoard.push(createCard(TOKENS.SKELETON)); playSummonSound(); }
+        if (ab === 'CD_TICK_FACE_DMG_1') { if(isPlayer) enemyHP-=1; else playerHP-=1; playDamageSound(); showPopup('進行: 顔面1ダメ', '#ff5722'); }
+        if (ab === 'CD_TICK_FACE_DMG_1_SELF_DMG_1') { if(isPlayer){enemyHP-=1;playerHP-=1;}else{playerHP-=1;enemyHP-=1;} playDamageSound(); }
+        if (ab === 'CD_TICK_ADD_DECK_ARTIFACT') { let deck = isPlayer ? playerDeck : enemyDeck; deck.push(createCard(TOKENS.ARTIFACT)); playSpellSound(); }
+        if (ab === 'CD_TICK_ADD_FAIRY') { let h = isPlayer ? playerHand : enemyHand; if(h.length<9) h.push(createCard(TOKENS.FAIRY)); playSpellSound(); }
+        if (ab === 'CD_TICK_RAMP_1') { if(isPlayer){playerMaxPP=Math.min(10,playerMaxPP+1);playerPP++;}else{enemyMaxPP=Math.min(10,enemyMaxPP+1);enemyPP++;} playSpellSound(); }
+    });
+}
+
 function processTurnStartCountdown(isPlayer) {
     try {
         let board = isPlayer ? playerBoard : enemyBoard;
         board.forEach(c => {
             if (c.type === 'AMULET' && c.countdown > 0) {
                 c.countdown--;
+                triggerCountdownTick(c, isPlayer, board);
                 if (c.countdown === 0) { c.hp = 0; showPopup('カウントダウン完了！', '#00bfa5'); }
                 else { showPopup(`カウント: ${c.countdown}`, '#00bfa5'); }
             }
@@ -358,7 +392,7 @@ function checkDeath() {
                     let aoeM = ab.match(/DEATH_AOE_(\d+)/);
                     if (aoeM) { let d = parseInt(aoeM[1]); enemyBoard.forEach(ec => { if(ec.type==='FOLLOWER' && !ec.ability.includes('INVINCIBLE')) ec.hp -= d; }); }
                     
-                    if (ab === 'DEATH_SUMMON_MORDECAI') { let m = createCard(c); m.hp = m.maxHp; m.ready = false; if(newPlayerBoard.length<5) newPlayerBoard.push(m); }
+                    if (ab === 'DEATH_SUMMON_MORDECAI') { if(newPlayerBoard.length<5) newPlayerBoard.push(createCard(TOKENS.MORDECAI)); }
                     
                     let buffM = ab.match(/DEATH_BUFF_ALL_(\d+)_(\d+)/);
                     if (buffM) { let a = parseInt(buffM[1]), h = parseInt(buffM[2]); newPlayerBoard.forEach(pc => { if(pc.type==='FOLLOWER'){pc.atk+=a; pc.baseAtk+=a; pc.hp+=h; pc.maxHp+=h; pc.baseHp+=h;} }); }
@@ -390,7 +424,7 @@ function checkDeath() {
                     let aoeM = ab.match(/DEATH_AOE_(\d+)/);
                     if (aoeM) { let d = parseInt(aoeM[1]); playerBoard.forEach(ec => { if(ec.type==='FOLLOWER' && !ec.ability.includes('INVINCIBLE')) ec.hp -= d; }); }
                     
-                    if (ab === 'DEATH_SUMMON_MORDECAI') { let m = createCard(c); m.hp = m.maxHp; m.ready = false; if(newEnemyBoard.length<5) newEnemyBoard.push(m); }
+                    if (ab === 'DEATH_SUMMON_MORDECAI') { if(newEnemyBoard.length<5) newEnemyBoard.push(createCard(TOKENS.MORDECAI)); }
                     
                     let buffM = ab.match(/DEATH_BUFF_ALL_(\d+)_(\d+)/);
                     if (buffM) { let a = parseInt(buffM[1]), h = parseInt(buffM[2]); newEnemyBoard.forEach(pc => { if(pc.type==='FOLLOWER'){pc.atk+=a; pc.baseAtk+=a; pc.hp+=h; pc.maxHp+=h; pc.baseHp+=h;} }); }
@@ -446,7 +480,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
         let myDeck = isPlayer ? playerDeck : enemyDeck;
 
         card.ability.forEach(ab => {
-            // 全破壊系（アミュレットは巻き込まない）
+            // 全破壊系
             if (ab.includes('WIPE_BOARD')) {
                 if (ab.includes('NECRO_6_')) { if(isPlayer) playerGrave-=6; else enemyGrave-=6; }
                 targetBoard.forEach(c => { if(c.type==='FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; }); 
@@ -496,7 +530,11 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 if (ab.includes('DRAW_2')) drawCardToHand(isPlayer, 2);
             }
             else if (ab.includes('ADVANCE_COUNTDOWN_1')) {
-                myBoard.forEach(c => { if (c.type === 'AMULET' && c.countdown > 0) { c.countdown--; if (c.countdown === 0) c.hp = 0; } });
+                myBoard.forEach(c => { if (c.type === 'AMULET' && c.countdown > 0) { c.countdown--; triggerCountdownTick(c, isPlayer, myBoard); if (c.countdown === 0) c.hp = 0; } });
+                showPopup('カウント加速！', '#00bfa5');
+            }
+            else if (ab.includes('ADVANCE_COUNTDOWN_2')) {
+                myBoard.forEach(c => { if (c.type === 'AMULET' && c.countdown > 0) { c.countdown--; triggerCountdownTick(c, isPlayer, myBoard); if(c.countdown>0){c.countdown--; triggerCountdownTick(c, isPlayer, myBoard);} if (c.countdown === 0) c.hp = 0; } });
                 showPopup('カウント加速！', '#00bfa5');
             }
             else if (ab.includes('TUTOR_COST_1')) {
@@ -506,6 +544,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
 
             // 生成系
             else if (ab.includes('ADD_2_FAIRY')) { if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); showPopup(`妖精2枚追加！`, '#8bc34a'); }
+            else if (ab.includes('ADD_3_FAIRY')) { for(let i=0; i<3; i++){ if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY));} showPopup(`妖精3枚追加！`, '#8bc34a'); }
             else if (ab.includes('ADD_2_ZERO_FAIRY')) { if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); showPopup(`0コス妖精2枚！`, '#aed581'); }
             else if (ab === 'SPELL_SUMMON_ZOMBIE_3_WARD') {
                 let hasNecro = (isPlayer ? playerGrave >= 6 : enemyGrave >= 6); 
@@ -518,9 +557,9 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
             else if (ab === 'FANFARE_COMBO_X_BUFF_0_X') { if(cardsPlayedThisTurn > 0){ card.hp += cardsPlayedThisTurn; card.baseHp += cardsPlayedThisTurn; card.maxHp += cardsPlayedThisTurn; showPopup(`コンボ！体力+${cardsPlayedThisTurn}！`, '#689f38'); } }
             
             // ドロー
-            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END')) { drawCardToHand(isPlayer, 1); }
-            else if (ab.includes('DRAW_2') && !ab.includes('DEATH') && !ab.includes('TURN_END')) { drawCardToHand(isPlayer, 2); showPopup(`2枚ドロー！`, '#1976d2'); }
-            else if (ab.includes('DRAW_3') && !ab.includes('DEATH') && !ab.includes('TURN_END')) { drawCardToHand(isPlayer, 3); showPopup(`3枚ドロー！`, '#039be5'); }
+            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { drawCardToHand(isPlayer, 1); }
+            else if (ab.includes('DRAW_2') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { drawCardToHand(isPlayer, 2); showPopup(`2枚ドロー！`, '#1976d2'); }
+            else if (ab.includes('DRAW_3') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { drawCardToHand(isPlayer, 3); showPopup(`3枚ドロー！`, '#039be5'); }
             
             // ネクロマンス
             else if (ab.includes('NECRO_4_TARGET_ENEMY_')) { 
@@ -555,7 +594,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
 
             // 回復＆AoE
             let healM = ab.match(/HEAL_LEADER_(\d+)/) || ab.match(/FANFARE_HEAL_(\d+)/);
-            if (healM && !ab.includes('DEATH') && !ab.includes('TURN_END')) {
+            if (healM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) {
                 let h = parseInt(healM[1]);
                 if (isPlayer) playerHP = Math.min(20, playerHP + h); else enemyHP = Math.min(20, enemyHP + h); playHealSound(); showPopup(`顔面${h}回復！`, '#fbc02d');
             }
@@ -567,7 +606,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
             }
 
             let selfDmgM = ab.match(/SELF_DMG_(\d+)/);
-            if (selfDmgM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('ATTACK')) { 
+            if (selfDmgM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('ATTACK') && !ab.includes('CD_TICK')) { 
                 let d = parseInt(selfDmgM[1]);
                 if (isPlayer) playerHP -= d; else enemyHP -= d; playDamageSound(); showPopup(`自身に${d}ダメ！`, '#b71c1c'); 
             }
@@ -579,13 +618,13 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
             }
 
             let aoeM = ab.match(/AOE_(\d+)/);
-            if (aoeM && !ab.includes('DEATH')) {
+            if (aoeM && !ab.includes('DEATH') && !ab.includes('CD_TICK')) {
                 let d = parseInt(aoeM[1]);
                 targetBoard.forEach(c => { if(c.type==='FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= d; }); playDamageSound(); showPopup(`全体に${d}ダメージ！`, '#1e88e5');
             }
             
             let faceM = ab.match(/FACE_DMG_(\d+)/) || ab.match(/BURN_FACE_(\d+)/);
-            if (faceM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('NECRO')) {
+            if (faceM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('NECRO') && !ab.includes('CD_TICK')) {
                 let d = parseInt(faceM[1]);
                 if (isPlayer) enemyHP -= d; else playerHP -= d; playDamageSound(); showPopup(`顔面に${d}ダメ！`, '#ff5722');
             }
@@ -652,7 +691,7 @@ function handleInputStart(e) {
         return; 
     }
     
-    // AIターン中でも手札表示ボタンだけは機能する！
+    // AIターン中でも手札表示ボタンだけは機能
     if (isAITurn) {
         if (mx >= 680 && mx <= 780 && my >= 650 && my <= 700) { playClickSound(); isHandHidden = !isHandHidden; return; }
         return;
