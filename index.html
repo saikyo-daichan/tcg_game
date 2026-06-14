@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>極・TCGエンジン - バグ修正＆バトル演出強化版</title>
+    <title>SAIKYO DAICHAN</title>
     <style>
         body { 
             margin: 0; padding: 0; background-color: #05050a; 
@@ -29,6 +29,7 @@
     <canvas id="tcgCanvas" width="800" height="800"></canvas>
 </div>
 <div id="instructions">
+    [v3.01b]<br>
     【演出強化】カードが攻撃する時に相手に向かって飛び出すアニメーションと、破壊された時にバラバラに散るパーティクル演出を追加！<br>
     【バグ修正】リーダーの体力がNaN（数値エラー）になりゲームが終了しなくなる致命的なバグを完全に修正しました。<br>
 </div>
@@ -175,7 +176,7 @@ const DECKS = {
         { name: 'スネークプリースト', type: 'FOLLOWER', cost: 2, atk: 1, hp: 3, ability: ['WARD'], desc: '【守護】', color: '#f57f17' },
         { name: 'テミスの審判', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD'], desc: '全フォロワーを破壊', color: '#fff176' },
         { name: 'イージス', type: 'FOLLOWER', cost: 10, atk: 7, hp: 7, ability: ['INVINCIBLE'], desc: '【無敵】絶対なる盾', color: '#fffde7' },
-        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウントダウン】2\n破壊時:顔面2回復', color: '#fff59d' },
+        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウント】2\n破壊時:顔面2回復', color: '#fff59d' },
         { name: '時の教え手', type: 'FOLLOWER', cost: 3, atk: 1, hp: 3, ability: ['FANFARE_ADVANCE_COUNTDOWN_1'], desc: '出た時:自アミュの\nカウントを1進める', color: '#fbc02d' },
         { name: '癒しの聖堂', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_HEAL_LEADER_2'], desc: '【カウント】3\n進行時:顔面2回復', color: '#fff59d' }, 
         { name: '防衛結界', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['AURA_DEF_2'], desc: '【アミュレット】\n味方フォロワー+0/+2', color: '#ffee58' },
@@ -186,7 +187,7 @@ const DECKS = {
     ],
     VAMPIRE: [
         { name: 'ブラッドウルフ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['STORM', 'FANFARE_SELF_DMG_2'], desc: '【疾走】自分に2ダメ', color: '#b71c1c' },
-        { name: '鋭利な一裂き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5_SELF_DMG_2'], desc: '敵5ダメ＆自分2ダメ', color: '#c62828' },
+        { name: '鋭利な一裂き', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_5', 'SPELL_SELF_DMG_2'], desc: '敵5ダメ＆自分2ダメ', color: '#c62828' },
         { name: 'ベルフェゴール', type: 'FOLLOWER', cost: 4, atk: 4, hp: 4, ability: ['FANFARE_DRAW_2_SELF_DMG_4', 'PAIN_TO_ATK'], desc: '2引＆被ダメで攻撃UP', color: '#e53935' },
         { name: '黙示録', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD', 'SPELL_SELF_DMG_3'], desc: '盤面全破壊＆自分3ダメ', color: '#ef5350' },
         { name: '血の盃', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_DRAW_2_SELF_DMG_2'], desc: '【カウント】2\n破壊時:2引く＆自2ダメ', color: '#e53935' },
@@ -367,44 +368,6 @@ function startGame() {
     playMenuSound();
     showPopup("BATTLE START!!", '#fff');
 }
-
-// ==========================================
-// サウンドシステム
-// ==========================================
-let audioCtx = null;
-function initAudio() { 
-    try { 
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
-        else if (audioCtx.state === 'suspended') audioCtx.resume(); 
-    } catch(e) {} 
-}
-function playTone(f, t, d, v=0.1, delay=0) { 
-    try { 
-        if (!audioCtx) return; 
-        setTimeout(() => {
-            const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); 
-            o.type = t; o.frequency.value = f; 
-            g.gain.setValueAtTime(v, audioCtx.currentTime); 
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); 
-            o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + d); 
-        }, delay * 1000);
-    } catch(e) {} 
-}
-function playSummonSound() { playTone(300, 'triangle', 0.15); playTone(600, 'triangle', 0.1, 0.05); }
-function playAttackSound() { playTone(150, 'sawtooth', 0.12, 0.15); }
-function playDamageSound() { playTone(80, 'sawtooth', 0.25, 0.2); }
-function playSpellSound() { playTone(800, 'sine', 0.2, 0.1); playTone(1200, 'sine', 0.3, 0.1, 0.1); }
-function playHealSound() { playTone(523.25, 'triangle', 0.15, 0.1); playTone(783.99, 'triangle', 0.2, 0.1, 0.08); }
-function playErrorSound() { playTone(100, 'square', 0.1, 0.1); }
-function playEvolveSound() { 
-    playTone(600, 'sine', 0.1); playTone(800, 'square', 0.1, 0.1, 0.1); playTone(1200, 'sine', 0.4, 0.2, 0.2); 
-}
-function playClickSound() { playTone(1200, 'sine', 0.05, 0.05); }
-function playDraftSelectSound() { playTone(800, 'square', 0.1, 0.05); setTimeout(()=>playTone(1200, 'square', 0.1, 0.05), 100); }
-function playMenuSound() { playTone(600, 'triangle', 0.1, 0.05); setTimeout(()=>playTone(900, 'triangle', 0.15, 0.05), 100); }
-
-function showPopup(text, color='#fff') { popups.push({ text: text, color: color, y: 400, timer: 70 }); }
-function showEnemyPlayNotification(c) { playedCardsLog.push({ card: createCard(c), timer: 120 }); }
 
 // ==========================================
 // ロジック処理
@@ -1180,8 +1143,9 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
 function drawMainMenu() {
     ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f2fe';
-    ctx.fillText('SHADOW BATTLES', canvas.width/2, 150); ctx.shadowBlur = 0;
+    ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
+    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v3.01b`, 10, 20);
 
     const modes = [
         { y: 250, label: '通常対戦', color: '#1e88e5', desc: '好きなデッキを選んでAIと戦う' },
@@ -1282,6 +1246,7 @@ function drawBattle() {
             ctx.fillStyle = evolveMode ? '#000' : '#ffeb3b'; ctx.fillText(`進化(EP:${playerEP})`, 60, 580);
         }
 
+        // 敵のプレイ履歴表示
         playedCardsLog.forEach((log, i) => {
             ctx.save(); ctx.globalAlpha = Math.min(1, log.timer / 20);
             log.card.x = 20; log.card.y = 150 + i * 140;
