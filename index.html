@@ -6,18 +6,45 @@
     <title>SAIKYO DAICHAN</title>
     <style>
         body { 
-            margin: 0; padding: 0; background-color: #05050a; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 100dvh; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; 
-            overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #05050a; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100dvh; 
+            color: white; 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            overflow: hidden; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-user-select: none; 
         }
         #gameContainer { 
-            position: relative; box-shadow: 0 0 60px rgba(0, 255, 150, 0.2); 
-            border: 4px solid #1a1a2e; border-radius: 12px; background-color: #0b0c16; 
-            width: 100vw; max-width: 800px; aspect-ratio: 1 / 1; 
+            position: relative; 
+            box-shadow: 0 0 60px rgba(0, 255, 150, 0.2); 
+            border: 4px solid #1a1a2e; 
+            border-radius: 12px; 
+            background-color: #0b0c16; 
+            width: 100vw; 
+            max-width: 800px; 
+            aspect-ratio: 1 / 1; 
         }
-        canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-        #instructions { margin-top: 10px; font-size: 12px; color: #a2b4ce; text-align: center; line-height: 1.4; padding: 0 10px; }
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%; 
+            touch-action: none; 
+        }
+        #instructions { 
+            margin-top: 10px; 
+            font-size: 12px; 
+            color: #a2b4ce; 
+            text-align: center; 
+            line-height: 1.4; 
+            padding: 0 10px; 
+        }
     </style>
 </head>
 <body>
@@ -26,20 +53,29 @@
     <canvas id="tcgCanvas" width="800" height="800"></canvas>
 </div>
 <div id="instructions">
-    【操作方法】カードをドラッグ＆ドロップでプレイします。敵を対象にする場合は直接敵にドロップしてください。<br>
-    ※アップデート詳細は右下の「📗」、設定は右上の「🔧」から確認できます。
+    【操作方法】カードをドラッグ＆ドロップしてプレイします。<br>
+    ※設定は左下「🔧」、アップデート詳細は右下「📗」から確認できます。
 </div>
 
 <script>
+// ==========================================
+// エラー監視システム
+// ==========================================
 window.onerror = function(msg) {
     const cvs = document.getElementById('tcgCanvas');
     if (cvs) { 
         const ctx = cvs.getContext('2d'); 
-        ctx.fillStyle = 'rgba(10,0,0,0.9)'; ctx.fillRect(0, 0, cvs.width, cvs.height); 
-        ctx.fillStyle = '#ff3333'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center'; 
+        ctx.fillStyle = 'rgba(10,0,0,0.9)'; 
+        ctx.fillRect(0, 0, cvs.width, cvs.height); 
+        ctx.fillStyle = '#ff3333'; 
+        ctx.font = 'bold 24px sans-serif'; 
+        ctx.textAlign = 'center'; 
         ctx.fillText('エラーを検知・復旧しました', 400, 350); 
-        ctx.fillStyle = '#fff'; ctx.font = '12px sans-serif'; ctx.fillText(msg, 400, 400); 
+        ctx.fillStyle = '#fff'; 
+        ctx.font = '12px sans-serif'; 
+        ctx.fillText(msg, 400, 400); 
     }
+    console.error(msg); 
     return false;
 };
 
@@ -54,18 +90,39 @@ let gameMode = 'NORMAL';
 let bossLevel = 1; 
 let winMessage = ""; 
 
-let turn = 1, globalTurn = 1;                 
-let pMaxHP = 20, eMaxHP = 20, playerHP = 20, enemyHP = 20;
-let playerPP = 1, playerMaxPP = 1, enemyPP = 1, enemyMaxPP = 1;
-let playerEP = 0, enemyEP = 0, playerMaxEP = 2, enemyMaxEP = 3;
-let playerGrave = 0, enemyGrave = 0, playerGold = 0, cardsPlayedThisTurn = 0;
+let turn = 1;
+let globalTurn = 1;                 
+let pMaxHP = 20;
+let eMaxHP = 20;
+let playerHP = 20;
+let enemyHP = 20;
+let playerPP = 1;
+let playerMaxPP = 1;
+let enemyPP = 1;
+let enemyMaxPP = 1;
+let playerEP = 0;
+let enemyEP = 0;
+let playerMaxEP = 2;
+let enemyMaxEP = 3;
+let playerGrave = 0;
+let enemyGrave = 0;
+let playerGold = 0;
+let cardsPlayedThisTurn = 0;
 
-let playerDeckType = '', enemyDeckType = '';
-let isHandHidden = false, evolveMode = false, isAITurn = false, hasEvolvedThisTurn = false;
-let isPlayerFirst = true, coinTossTimer = 0, coinTossState = 0;
+let playerDeckType = '';
+let enemyDeckType = '';
+let isHandHidden = false;
+let evolveMode = false;
+let isAITurn = false;
+let hasEvolvedThisTurn = false;
+let isPlayerFirst = true;
+let coinTossTimer = 0;
+let coinTossState = 0;
 
-let p1EvolvedNotified = false, p2EvolvedNotified = false;
-let playerHasNecro = false, enemyHasNecro = false;
+let p1EvolvedNotified = false;
+let p2EvolvedNotified = false;
+let playerHasNecro = false;
+let enemyHasNecro = false;
 
 // 設定項目
 let masterVolume = 0.5;
@@ -73,25 +130,72 @@ let sleeveColor = 0; // 0:Red, 1:Blue, 2:Green
 const SLEEVE_COLORS = ['#d32f2f', '#1976d2', '#388e3c'];
 const SLEEVE_NAMES = ['レッド', 'ブルー', 'グリーン'];
 
-const CARD_W = 90, CARD_H = 130;
-let playerHand = [], playerBoard = [], playerDeck = [];
-let enemyHand = [], enemyBoard = [], enemyDeck = [];
-let draftOptions = [], draftCount = 0;
-let draggedCard = null, dragOffset = { x: 0, y: 0 }, activeAttacker = null;
+const CARD_W = 90;
+const CARD_H = 130;
+let playerHand = [];
+let playerBoard = [];
+let playerDeck = [];
+let enemyHand = [];
+let enemyBoard = [];
+let enemyDeck = [];
+
+let draftOptions = [];
+let draftCount = 0;
+let draggedCard = null;
+let dragOffset = { x: 0, y: 0 };
+let activeAttacker = null;
 let mousePos = { x: 0, y: 0 };
-let popups = [], playedCardsLog = [], particles = []; 
+let popups = [];
+let playedCardsLog = [];
+let particles = []; 
 
 // ==========================================
-// アップデート履歴データ
+// セーブ＆ロード機能
+// ==========================================
+function saveData() {
+    try {
+        const data = {
+            gold: playerGold,
+            volume: masterVolume,
+            sleeve: sleeveColor
+        };
+        localStorage.setItem('saikyo_daichan_save', JSON.stringify(data));
+    } catch(e) { console.error("Save Error", e); }
+}
+
+function loadData() {
+    try {
+        const dataStr = localStorage.getItem('saikyo_daichan_save');
+        if (dataStr) {
+            const data = JSON.parse(dataStr);
+            if (data.gold !== undefined) playerGold = data.gold;
+            if (data.volume !== undefined) masterVolume = data.volume;
+            if (data.sleeve !== undefined) sleeveColor = data.sleeve;
+        }
+    } catch(e) { console.error("Load Error", e); }
+}
+
+// 起動時にデータをロード
+loadData();
+
+// ==========================================
+// アップデート履歴データ (新しい順)
 // ==========================================
 const UPDATE_LOGS = [
+    {
+        version: "v3.13h",
+        notes: [
+            "・【新機能】端末セーブ機能を実装（所持金・設定を自動保存）",
+            "・【バグ修正】進化ポイント(EP)が0スタートになるバグを完全修正",
+            "・【UI改善】設定ボタン(🔧)を左下に移動し、所持金表示との被りを解消"
+        ]
+    },
     {
         version: "v3.12g",
         notes: [
             "・【新機能】設定(🔧)を追加し、音量・スリーブ色を変更可能に",
-            "・【演出強化】コイントスの演出改善、盤面に山札とスリーブを表示",
-            "・【バグ修正】後攻2PP開始バグ、進化ターンのズレを完全修正",
-            "・【バグ修正】きゅうり指揮官のバフ効果が正常に発動するように修正"
+            "・【演出】盤面に山札とスリーブを表示。コイントスのタメ演出を追加",
+            "・【バグ修正】後攻2PP開始バグ、きゅうり指揮官のバフを修正"
         ]
     },
     {
@@ -111,6 +215,9 @@ const UPDATE_LOGS = [
     }
 ];
 
+// ==========================================
+// クラス情報・ユーティリティ
+// ==========================================
 const DECK_INFO = {
     ROYAL:   { name: "ロイヤル", color: '#e65100', desc: "低コストと疾走・突進で怒涛の展開！" },
     WITCH:   { name: "ウィッチ", color: '#0d47a1', desc: "デバフと魔法バーンで焼き尽くす！" },
@@ -130,15 +237,27 @@ function getTextColor(hex) {
     try { 
         if (!hex) return '#fff'; 
         if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
-        let r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
+        let r = parseInt(hex.substring(1,3),16);
+        let g = parseInt(hex.substring(3,5),16);
+        let b = parseInt(hex.substring(5,7),16);
         return ((r * 299 + g * 587 + b * 114) / 1000) > 140 ? '#111' : '#fff'; 
-    } catch(e) { return '#fff'; }
+    } catch(e) { 
+        return '#fff'; 
+    }
 }
 
-function getPlayerTurnNum() { return Math.ceil((globalTurn + (isPlayerFirst ? 0 : 1)) / 2); }
-function getEnemyTurnNum() { return Math.ceil((globalTurn + (!isPlayerFirst ? 0 : 1)) / 2); }
-function canPlayerEvolve() { return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); }
-function canEnemyEvolve() { return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); }
+function getPlayerTurnNum() { 
+    return Math.floor((globalTurn + (isPlayerFirst ? 1 : 0)) / 2); 
+}
+function getEnemyTurnNum() { 
+    return Math.floor((globalTurn + (!isPlayerFirst ? 1 : 0)) / 2); 
+}
+function canPlayerEvolve() { 
+    return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); 
+}
+function canEnemyEvolve() { 
+    return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); 
+}
 
 // ==========================================
 // トークン・カードデータ定義
@@ -320,6 +439,10 @@ function createCard(base) {
 
 function buildDeck(deckKey) {
     let deck = [];
+    if (deckKey === 'SATAN') {
+        SATAN_DECK.forEach(c => { deck.push(createCard(c)); deck.push(createCard(c)); deck.push(createCard(c)); });
+        return deck.sort(() => Math.random() - 0.5);
+    }
     let classPool = [...DECKS[deckKey]]; 
     classPool.sort(() => Math.random() - 0.5);
     for(let i=0; i<30; i++) {
@@ -411,9 +534,12 @@ function startGameAfterToss() {
     if (isPlayerFirst) { playerMaxPP = 1; playerPP = 1; }
     else { enemyMaxPP = 1; enemyPP = 1; }
     
-    playerEP = 0; enemyEP = 0; 
+    // ★進化可能ターンまでEPは持っているが使えないように修正
     playerMaxEP = isPlayerFirst ? 2 : 3;
     enemyMaxEP = isPlayerFirst ? 3 : 2;
+    playerEP = playerMaxEP; 
+    enemyEP = enemyMaxEP; 
+    
     playerGrave = 0; enemyGrave = 0; cardsPlayedThisTurn = 0; evolveMode = false;
     hasEvolvedThisTurn = false;
     p1EvolvedNotified = false; p2EvolvedNotified = false;
@@ -436,55 +562,6 @@ function startGameAfterToss() {
     } else {
         isAITurn = false;
     }
-}
-
-// ==========================================
-// サウンドシステム
-// ==========================================
-let audioCtx = null;
-function initAudio() { 
-    try { 
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
-        else if (audioCtx.state === 'suspended') audioCtx.resume(); 
-    } catch(e) {} 
-}
-
-function playTone(f, t, d, v=0.1, delay=0) { 
-    try { 
-        if (!audioCtx) return; 
-        v = v * masterVolume * 2; // ボリューム反映
-        if (v <= 0) return;
-        setTimeout(() => {
-            const o = audioCtx.createOscillator(); 
-            const g = audioCtx.createGain(); 
-            o.type = t; 
-            o.frequency.value = f; 
-            g.gain.setValueAtTime(v, audioCtx.currentTime); 
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); 
-            o.connect(g); 
-            g.connect(audioCtx.destination); 
-            o.start(); 
-            o.stop(audioCtx.currentTime + d); 
-        }, delay * 1000);
-    } catch(e) {} 
-}
-
-function playSummonSound() { playTone(300, 'triangle', 0.15); playTone(600, 'triangle', 0.1, 0.05); }
-function playAttackSound() { playTone(150, 'sawtooth', 0.12, 0.15); }
-function playDamageSound() { playTone(80, 'sawtooth', 0.25, 0.2); }
-function playSpellSound() { playTone(800, 'sine', 0.2, 0.1); playTone(1200, 'sine', 0.3, 0.1, 0.1); }
-function playHealSound() { playTone(523.25, 'triangle', 0.15, 0.1); playTone(783.99, 'triangle', 0.2, 0.1, 0.08); }
-function playErrorSound() { playTone(100, 'square', 0.1, 0.1); }
-function playEvolveSound() { playTone(600, 'sine', 0.1); playTone(800, 'square', 0.1, 0.1, 0.1); playTone(1200, 'sine', 0.4, 0.2, 0.2); }
-function playClickSound() { playTone(1200, 'sine', 0.05, 0.05); }
-function playDraftSelectSound() { playTone(800, 'square', 0.1, 0.05); setTimeout(()=>playTone(1200, 'square', 0.1, 0.05), 100); }
-function playMenuSound() { playTone(600, 'triangle', 0.1, 0.05); setTimeout(()=>playTone(900, 'triangle', 0.15, 0.05), 100); }
-
-function showPopup(text, color='#fff') { 
-    popups.push({ text: text, color: color, y: 400, timer: 70 }); 
-}
-function showEnemyPlayNotification(c) { 
-    playedCardsLog.push({ card: createCard(c), timer: 120 }); 
 }
 
 // ==========================================
@@ -720,7 +797,6 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
 
     let reqGrave = getRequiredGrave(c);
     // ネクロマンスが足りなくてもプレイはできるように変更
-    // 足りない場合は警告音のみ鳴らす
     if (reqGrave > 0 && myGrave < reqGrave) {
         if(isPlayer) playErrorSound(); 
     }
@@ -772,7 +848,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 if (ab.includes('NECRO_6_')) { 
                     if (isPlayer && playerGrave >= 6) playerGrave -= 6; 
                     else if (!isPlayer && enemyGrave >= 6) enemyGrave -= 6; 
-                    else return; // ネクロ不足は不発
+                    else return; 
                 }
                 targetBoard.forEach(c => { if(c.type==='FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; }); 
                 myBoard.forEach(c => { if(c !== card && c.type==='FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; }); 
@@ -1026,7 +1102,13 @@ function handleInputStart(e) {
     
     // 設定画面
     if (gameState === 'SETTINGS') {
-        if (my >= 20 && my <= 60 && mx >= 20 && mx <= 120) { playClickSound(); gameState = 'MAIN_MENU'; return; }
+        // 戻るボタン
+        if (my >= 20 && my <= 60 && mx >= 20 && mx <= 120) { 
+            playClickSound(); 
+            saveData(); 
+            gameState = 'MAIN_MENU'; 
+            return; 
+        }
         if (my >= 250 && my <= 350 && mx >= 200 && mx <= 600) {
             masterVolume = (mx - 200) / 400;
             if (masterVolume < 0) masterVolume = 0;
@@ -1050,14 +1132,14 @@ function handleInputStart(e) {
     }
 
     if (gameState === 'MAIN_MENU') {
-        // 設定ボタン (🔧) 右上
-        if (mx >= 710 && my >= 20 && my <= 100) { playClickSound(); gameState = 'SETTINGS'; return; }
-        // アプデ履歴ボタン (📗) 右下
-        if (mx >= 600 && my >= 680) { playClickSound(); gameState = 'UPDATE_NOTES'; return; }
-
         if (my >= 250 && my <= 350) { playClickSound(); gameState = 'SELECT'; gameMode = 'NORMAL'; return; }
         if (my >= 400 && my <= 500) { playClickSound(); initGame('DRAFT'); return; }
         if (my >= 550 && my <= 650) { playClickSound(); gameState = 'BOSS_SELECT'; return; }
+        
+        // アプデ履歴ボタン (📗) 右下
+        if (mx >= 710 && mx <= 790 && my >= 710 && my <= 790) { playClickSound(); gameState = 'UPDATE_NOTES'; return; }
+        // 設定ボタン (🔧) 左下
+        if (mx >= 20 && mx <= 100 && my >= 710 && my <= 790) { playClickSound(); gameState = 'SETTINGS'; return; }
         return;
     }
     
@@ -1100,7 +1182,9 @@ function handleInputStart(e) {
         return; 
     }
     
-    // バトル画面
+    // ==========================================
+    // バトル画面の操作
+    // ==========================================
     if (isAITurn || gameState === 'COIN_TOSS') {
         if (gameState === 'BATTLE' && mx >= 650 && my >= 620 && my <= 720) { playClickSound(); isHandHidden = !isHandHidden; return; }
         return;
@@ -1132,7 +1216,7 @@ function handleInputStart(e) {
             if (evolveMode && !c.isEvolved && c.type === 'FOLLOWER') {
                 playerEP--; 
                 c.isEvolved = true; 
-                c.evolveTimer = 30;
+                c.evolveTimer = 30; // フリップアニメーション
                 c.atk += 2; c.hp += 2; c.maxHp += 2; c.baseAtk += 2; c.baseHp += 2;
                 
                 // 行動未済なら突進付与
@@ -1238,7 +1322,7 @@ function handleInputEnd(e) {
             activeAttacker.card.attackTargetX = targetForAnim === 'FACE' ? 400 : targetForAnim.x + CARD_W/2;
             activeAttacker.card.attackTargetY = targetForAnim === 'FACE' ? 100 : targetForAnim.y + CARD_H/2;
 
-            if (activeAttacker.card.ability.includes('ATTACK_LEADER_DMG_1')) enemyHP -= 1;
+            if (activeAttacker.card.ability.includes('ATTACK_LEADER_DMG_1')) playerHP -= 1;
             if (activeAttacker.card.ability.includes('HEAL_FULL_ON_KILL') && activeAttacker.card.hp > 0) activeAttacker.card.hp = activeAttacker.card.maxHp;
             activeAttacker.card.attacksLeft--; if (activeAttacker.card.attacksLeft <= 0) activeAttacker.card.ready = false;
         }
@@ -1362,7 +1446,7 @@ async function enemyAITask() {
                     let bestTrade = null; let bestScore = -100;
                     playerBoard.forEach(pf => {
                         if (pf.type !== 'FOLLOWER' || pf.ability.includes('INVINCIBLE')) return;
-                        if (pf.ability.includes('DEATH_SUMMON_MORDECAI') && pf.atk < 7 && pf.hp < 7) return; // モルディカイ無視
+                        if (pf.ability.includes('DEATH_SUMMON_MORDECAI') && pf.atk < 7 && pf.hp < 7) return; 
                         
                         let canKill = (attacker.atk >= pf.hp || attacker.ability.includes('ATTACK_KILL')); 
                         let willDie = (!attacker.ability.includes('INVINCIBLE') && (attacker.hp <= pf.atk || pf.ability.includes('ATTACK_KILL')));
@@ -1421,8 +1505,17 @@ async function enemyAITask() {
 
 function checkWinLoss() {
     if (playerHP <= 0 || enemyHP <= 0) {
-        gameState = 'GAMEOVER'; 
-        if (playerHP <= 0) winMessage = 'YOU LOSE...'; else { winMessage = 'YOU WIN!!'; playerGold += 100; showPopup("100 G獲得！", '#ffd700'); }
+        if (gameState !== 'GAMEOVER') {
+            gameState = 'GAMEOVER'; 
+            if (playerHP <= 0) {
+                winMessage = 'YOU LOSE...'; 
+            } else { 
+                winMessage = 'YOU WIN!!'; 
+                playerGold += 100; 
+                showPopup("100 G獲得！", '#ffd700'); 
+            }
+            saveData(); // 勝敗決定時にセーブ
+        }
     }
 }
 
@@ -1524,9 +1617,6 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
     }
 }
 
-// ------------------------------------------
-// UI画面描画
-// ------------------------------------------
 function drawUpdateNotesScreen() {
     ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center';
@@ -1577,7 +1667,7 @@ function drawMainMenu() {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f2fe';
     ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
-    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v3.12g`, 10, 20);
+    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v3.13h`, 10, 20);
 
     const modes = [
         { y: 250, label: '通常対戦', color: '#1e88e5', desc: '好きなデッキを選んでAIと戦う' },
@@ -1596,10 +1686,10 @@ function drawMainMenu() {
     ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('📗', 750, 760);
     ctx.font = '12px sans-serif'; ctx.fillText('アプデ履歴', 750, 782);
 
-    // 右上: 設定
-    ctx.fillStyle = '#222'; ctx.fillRect(710, 20, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(710, 20, 80, 80);
-    ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔧', 750, 70);
-    ctx.font = '12px sans-serif'; ctx.fillText('設定', 750, 92);
+    // 左下: 設定 (所持金と被らないように移動)
+    ctx.fillStyle = '#222'; ctx.fillRect(20, 710, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 710, 80, 80);
+    ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔧', 60, 760);
+    ctx.font = '12px sans-serif'; ctx.fillText('設定', 60, 782);
 }
 
 function drawCoinToss() {
@@ -1617,11 +1707,11 @@ function drawCoinToss() {
         if (isFront) {
             ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#f57f17'; ctx.lineWidth = 4; ctx.stroke();
-            ctx.fillStyle = '#d84315'; ctx.font = 'bold 32px sans-serif'; ctx.fillText('表', 0, 12);
+            ctx.fillStyle = '#d84315'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('表', 0, 12);
         } else {
             ctx.fillStyle = '#ce93d8'; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#8e24aa'; ctx.lineWidth = 4; ctx.stroke();
-            ctx.fillStyle = '#4a148c'; ctx.font = 'bold 32px sans-serif'; ctx.fillText('裏', 0, 12);
+            ctx.fillStyle = '#4a148c'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('裏', 0, 12);
         }
         ctx.restore();
     } else if (coinTossState === 2) {
