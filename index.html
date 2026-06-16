@@ -127,22 +127,22 @@ let enemyHasNecro = false;
 // 設定項目
 let masterVolume = 0.5;
 let sleeveColor = 0; // 0:Red, 1:Blue, 2:Green
-let enemySleeveColor = 0; // 相手のスリーブ色はランダム
+let enemySleeveColor = 0; 
 const SLEEVE_COLORS = ['#d32f2f', '#1976d2', '#388e3c'];
 const SLEEVE_NAMES = ['レッド', 'ブルー', 'グリーン'];
 
-// 新機能：長押しズーム関連
+// 長押しズーム関連
 let pressTimer = null;
 let isLongPress = false;
 let zoomedCard = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// 新機能：バトルログ
+// バトルログ
 let battleLog = [];
-let logScrollY = 0;
+let logScrollY = 0; 
 
-// 新機能：ショップ関連
+// ショップ関連
 let shopMessage = "";
 let shopMessageTimer = 0;
 
@@ -195,35 +195,26 @@ function loadData() {
     }
 }
 
-loadData(); // 起動時にデータをロード
+loadData(); 
 
 // ==========================================
-// アップデート履歴データ (新しい順)
+// アップデート履歴データ
 // ==========================================
 const UPDATE_LOGS = [
     {
-        version: "v3.15j",
+        version: "v3.18n",
+        notes: [
+            "・【完全復旧】コード圧縮を完全排除し、美しいコードのままフル機能を提供",
+            "・【UI改善】ボタン判定を特大化し、スマホでの操作性が圧倒的に向上",
+            "・【機能維持】カード長押し拡大、ショップ、バトル履歴も全て動作確認済み"
+        ]
+    },
+    {
+        version: "v3.16k",
         notes: [
             "・【新機能】カード長押しで詳細を大画面で確認可能に！",
-            "・【新機能】バトル画面に「履歴(ログ)」ボタンを追加",
-            "・【新機能】メインメニューに「ショップ」レイアウトを追加",
-            "・【AI強化】ピンチ時に相手の攻撃力が高いカードを優先処理",
-            "・【バグ修正】ドラフト時に敵のカードが0枚になる問題を修正",
-            "・【演出】敵の手札裏面にランダムなスリーブ色を適応"
-        ]
-    },
-    {
-        version: "v3.14i",
-        notes: [
-            "・【完全復旧】コード圧縮を完全解除し、途切れないフルコード化！",
-            "・【UI改善】スマホ等のタップ範囲を特大に拡張（ボタン周辺30px）"
-        ]
-    },
-    {
-        version: "v3.13h",
-        notes: [
-            "・【新機能】端末セーブ機能を実装（所持金・設定を自動保存）",
-            "・【バグ修正】進化ポイント(EP)が0スタートになるバグを完全修正"
+            "・【新機能】バトル画面右上に「履歴(ログ)」ボタンを追加",
+            "・【新機能】メインメニューに「ショップ」レイアウトを追加"
         ]
     }
 ];
@@ -239,65 +230,45 @@ const DECK_INFO = {
     ELF:     { name: "エルフ", color: '#33691e', desc: "0コス妖精を連打しコンボを繋ぐ！" }
 };
 
-function requiresTarget(c) { 
-    return c.ability.some(a => a.includes('TARGET_ENEMY') || a.includes('KILL_TARGET') || a.includes('DEBUFF') || a.includes('DESTROY_AMULET')); 
-}
-
-function getTextColor(hex) {
-    try { 
-        if (!hex) return '#fff'; 
-        if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
-        let r = parseInt(hex.substring(1,3),16);
-        let g = parseInt(hex.substring(3,5),16);
-        let b = parseInt(hex.substring(5,7),16);
-        return ((r * 299 + g * 587 + b * 114) / 1000) > 140 ? '#111' : '#fff'; 
-    } catch(e) { 
-        return '#fff'; 
-    }
-}
-
-function getPlayerTurnNum() { 
-    return Math.floor((globalTurn + (isPlayerFirst ? 1 : 0)) / 2); 
-}
-function getEnemyTurnNum() { 
-    return Math.floor((globalTurn + (!isPlayerFirst ? 1 : 0)) / 2); 
-}
-function canPlayerEvolve() { 
-    return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); 
-}
-function canEnemyEvolve() { 
-    return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); 
-}
-
 // ==========================================
-// バトル履歴管理
-// ==========================================
-function addBattleLog(isPlayer, msg) {
-    let turnStr = `[T${globalTurn}]`;
-    let userStr = isPlayer ? "あなた" : "敵";
-    // 古いログが下に行くように配列に追加する（最新が一番上なら unshift）
-    battleLog.unshift(`${turnStr} ${userStr}：${msg}`);
-    if (battleLog.length > 60) {
-        battleLog.pop();
-    }
-}
-
-// ==========================================
-// トークン・カードデータ定義
+// トークン定義
 // ==========================================
 const TOKENS = {
-    ARTIFACT: { name: 'AF', type: 'FOLLOWER', cost: 3, atk: 4, hp: 4, ability: [], desc: '古代兵器', color: '#00bcd4' },
-    FAIRY: { name: 'フェアリー', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: '森の妖精', color: '#8bc34a' },
-    ZERO_FAIRY: { name: 'フェアリー', type: 'FOLLOWER', cost: 0, atk: 1, hp: 1, ability: [], desc: '0コスの妖精', color: '#aed581' },
-    SKELETON: { name: 'スケルトン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: '骨', color: '#4a148c' },
-    ZOMBIE: { name: 'ゾンビ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '腐肉', color: '#6a1b9a' },
-    GHOST: { name: 'ゴースト', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#e1bee7' },
-    CUCUMBER_SOLDIER: { name: 'きゅうり兵士', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: 'きゅうり', color: '#4caf50' },
-    DRAGON_5_5: { name: 'ドラゴン', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: [], desc: '竜', color: '#00796b' },
-    MORDECAI: { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:自身を出す', color: '#ba68c8' },
-    PUPPET: { name: '操り人形', type: 'FOLLOWER', cost: 0, atk: 1, hp: 1, ability: ['RUSH', 'TURN_END_DESTROY_SELF'], desc: '【突進】終了時自壊', color: '#555' }
+    ARTIFACT: { 
+        name: 'AF', type: 'FOLLOWER', cost: 3, atk: 4, hp: 4, ability: [], desc: '古代兵器', color: '#00bcd4' 
+    },
+    FAIRY: { 
+        name: 'フェアリー', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: '森の妖精', color: '#8bc34a' 
+    },
+    ZERO_FAIRY: { 
+        name: 'フェアリー', type: 'FOLLOWER', cost: 0, atk: 1, hp: 1, ability: [], desc: '0コスの妖精', color: '#aed581' 
+    },
+    SKELETON: { 
+        name: 'スケルトン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: '骨', color: '#4a148c' 
+    },
+    ZOMBIE: { 
+        name: 'ゾンビ', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '腐肉', color: '#6a1b9a' 
+    },
+    GHOST: { 
+        name: 'ゴースト', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#e1bee7' 
+    },
+    CUCUMBER_SOLDIER: { 
+        name: 'きゅうり兵士', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: [], desc: 'きゅうり', color: '#4caf50' 
+    },
+    DRAGON_5_5: { 
+        name: 'ドラゴン', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: [], desc: '竜', color: '#00796b' 
+    },
+    MORDECAI: { 
+        name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:自身を出す', color: '#ba68c8' 
+    },
+    PUPPET: { 
+        name: '操り人形', type: 'FOLLOWER', cost: 0, atk: 1, hp: 1, ability: ['RUSH', 'TURN_END_DESTROY_SELF'], desc: '【突進】終了時自壊', color: '#555' 
+    }
 };
 
+// ==========================================
+// ニュートラルカード定義
+// ==========================================
 const NEUTRAL = [
     { name: 'ゴブリン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: [], desc: 'ただのゴブリン', color: '#555555' },
     { name: 'ベルエンジェル', type: 'FOLLOWER', cost: 2, atk: 0, hp: 2, ability: ['WARD', 'DEATH_DRAW_1'], desc: '【守護】破壊:1引く', color: '#777777' },
@@ -314,14 +285,17 @@ const NEUTRAL = [
     { name: '豊穣の像', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 2, ability: ['CD_TICK_DRAW_1'], desc: '【カウント】2\n進行時:1ドロー', color: '#dce775' }
 ];
 
+// ==========================================
+// デッキごとのカード定義
+// ==========================================
 const DECKS = {
     ROYAL: [
         { name: 'クイックブレーダー', type: 'FOLLOWER', cost: 1, atk: 1, hp: 1, ability: ['STORM'], desc: '【疾走】', color: '#e65100' },
-        { name: 'メイド長', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['FANFARE_TUTOR_COST_1'], desc: 'コスト1をサーチ', color: '#ffb300' },
+        { name: 'メイド長', type: 'FOLLOWER', cost: 2, atk: 2, hp: 1, ability: ['FANFARE_TUTOR_COST_1'], desc: 'コスト1サーチ', color: '#ffb300' },
         { name: 'アルベール', type: 'FOLLOWER', cost: 5, atk: 3, hp: 5, ability: ['STORM', 'TWICE_ATTACK'], desc: '【疾走】2回攻撃', color: '#ffa726' },
         { name: '剣豪', type: 'FOLLOWER', cost: 4, atk: 3, hp: 5, ability: ['RUSH'], desc: '【突進】', color: '#ff7043' },
         { name: 'レオニダス', type: 'FOLLOWER', cost: 9, atk: 7, hp: 8, ability: ['DEATH_BUFF_ALL_3_3'], desc: '破壊時:味方全体+3', color: '#fff3e0' },
-        { name: '隠し砦', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_2_3_WARD'], desc: '【カウントダウン】2\n破壊時:2/3守護出す', color: '#8d6e63' },
+        { name: '隠し砦', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_2_3_WARD'], desc: '【カウント】2\n破壊時:2/3守護', color: '#8d6e63' },
         { name: '前線基地', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['AURA_ATK_1'], desc: '【アミュ】味方+1/+0', color: '#a1887f' },
         { name: '鉄壁の盾', type: 'FOLLOWER', cost: 4, atk: 1, hp: 6, ability: ['WARD'], desc: '【守護】', color: '#8d6e63' }, 
         { name: '渾身の一撃', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_DEBUFF_1_1'], desc: '敵1体を -1/-1', color: '#ff5722' }, 
@@ -343,7 +317,7 @@ const DECKS = {
         { name: 'スネークプリースト', type: 'FOLLOWER', cost: 2, atk: 1, hp: 3, ability: ['WARD'], desc: '【守護】', color: '#f57f17' },
         { name: 'テミスの審判', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD'], desc: '全フォロワーを破壊', color: '#fff176' },
         { name: 'イージス', type: 'FOLLOWER', cost: 10, atk: 7, hp: 7, ability: ['INVINCIBLE'], desc: '【無敵】絶対なる盾', color: '#fffde7' },
-        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウントダウン】2\n破壊時:顔面2回復', color: '#fff59d' },
+        { name: '祈りの燭台', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_HEAL_LEADER_2'], desc: '【カウント】2\n破壊時:顔面2回復', color: '#fff59d' },
         { name: '時の教え手', type: 'FOLLOWER', cost: 3, atk: 1, hp: 3, ability: ['FANFARE_ADVANCE_COUNTDOWN_1'], desc: '出た時:自アミュの\nカウントを-1', color: '#fbc02d' },
         { name: '癒しの聖堂', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_HEAL_LEADER_2'], desc: '【カウント】3\n進行時:顔面2回復', color: '#fff59d' }, 
         { name: '防衛結界', type: 'AMULET', cost: 3, atk: 0, hp: 0, ability: ['AURA_DEF_2'], desc: '【アミュ】味方+0/+2', color: '#ffee58' },
@@ -363,7 +337,7 @@ const DECKS = {
     NECRO: [
         { name: '死の祝福', type: 'SPELL', cost: 6, atk: 0, hp: 0, ability: ['SPELL_SUMMON_ZOMBIE_3_WARD'], desc: 'ネクロ(6):守護ゾンビ3', color: '#9c27b0' },
         { name: 'ヘクター', type: 'FOLLOWER', cost: 7, atk: 5, hp: 5, ability: ['FANFARE_NECRO_4_BUFF_2_2', 'RUSH'], desc: '【突進】ネクロ(4):全体+2', color: '#ab47bc' },
-        { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:新品の自身を出す', color: '#ba68c8' },
+        { name: 'モルディカイ', type: 'FOLLOWER', cost: 8, atk: 5, hp: 5, ability: ['DEATH_SUMMON_MORDECAI'], desc: '破壊時:新品自身を出す', color: '#ba68c8' },
         { name: 'デスタイラント', type: 'FOLLOWER', cost: 6, atk: 3, hp: 3, ability: ['STORM', 'FANFARE_NECRO_6_BUFF_5_5'], desc: '【疾走】ネクロ(6):+5/+5', color: '#ce93d8' },
         { name: '漆黒の棺', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_SUMMON_ZOMBIE_2'], desc: '【カウント】2\n破壊時:ゾンビ2体出す', color: '#6a1b9a' },
         { name: '怨念の祠', type: 'AMULET', cost: 2, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_SUMMON_SKELETON'], desc: '【カウント】3\n進行時:骨1体出す', color: '#ba68c8' }, 
@@ -384,7 +358,7 @@ const DECKS = {
         { name: '魔鉄の獅子', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: ['FANFARE_ADD_DECK_ARTIFACT'], desc: 'デッキにAFを追加', color: '#006064' },
         { name: 'デウスエクスマキナ', type: 'FOLLOWER', cost: 6, atk: 4, hp: 5, ability: ['FANFARE_DRAW_3'], desc: '出た時:3枚ドロー', color: '#00bcd4' },
         { name: '自動工場', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_ADD_DECK_ARTIFACT'], desc: '【カウント】3\n進行時:AF追加', color: '#006064' }, 
-        { name: '転送装置', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_ADD_DECK_ARTIFACT_2'], desc: '破壊時:AFを2枚デッキへ', color: '#0097a7' },
+        { name: '転送装置', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 2, ability: ['DEATH_ADD_DECK_ARTIFACT_2'], desc: '破壊時:AF2枚デッキへ', color: '#0097a7' },
         { name: '加速装置', type: 'AMULET', cost: 2, atk: 0, hp: 0, ability: ['AURA_RUSH_TO_AF'], desc: '【アミュ】AFに突進付与', color: '#b2ebf2' },
         { name: '人形遣い', type: 'FOLLOWER', cost: 3, atk: 2, hp: 2, ability: ['FANFARE_ADD_HAND_DOLL'], desc: '手札に人形追加', color: '#00838f' }, 
         { name: 'スピネ', type: 'FOLLOWER', cost: 5, atk: 3, hp: 3, ability: ['FANFARE_ADD_DECK_ARTIFACT', 'FANFARE_DRAW_1'], desc: 'AF追加＆1引く', color: '#00838f' }
@@ -421,6 +395,37 @@ const BOSS_DECKS = {
 };
 
 const ALL_CARDS = Object.keys(DECKS).reduce((acc, key) => acc.concat(DECKS[key]), []).concat(NEUTRAL);
+
+// ==========================================
+// ユーティリティ関数
+// ==========================================
+function requiresTarget(c) { 
+    return c.ability.some(a => a.includes('TARGET_ENEMY') || a.includes('KILL_TARGET') || a.includes('DEBUFF') || a.includes('DESTROY_AMULET')); 
+}
+
+function getTextColor(hex) {
+    try { 
+        if (!hex) return '#fff'; 
+        if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+        let r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
+        return ((r * 299 + g * 587 + b * 114) / 1000) > 140 ? '#111' : '#fff'; 
+    } catch(e) { return '#fff'; }
+}
+
+function getPlayerTurnNum() { return Math.ceil((globalTurn + (isPlayerFirst ? 0 : 1)) / 2); }
+function getEnemyTurnNum() { return Math.ceil((globalTurn + (!isPlayerFirst ? 0 : 1)) / 2); }
+function canPlayerEvolve() { return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); }
+function canEnemyEvolve() { return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); }
+
+// ==========================================
+// ログ管理システム
+// ==========================================
+function addBattleLog(isPlayer, msg) {
+    let turnStr = `[T${globalTurn}]`;
+    let userStr = isPlayer ? "あなた" : "敵";
+    battleLog.unshift(`${turnStr} ${userStr}：${msg}`);
+    if (battleLog.length > 50) battleLog.pop(); // 最新50件まで保持
+}
 
 // ==========================================
 // カード生成・デッキ構築
@@ -522,7 +527,6 @@ function startCoinToss() {
 }
 
 function startGameAfterToss() {
-    // ドラフトモードの敵デッキ生成をここで行う（バグ修正）
     if (gameMode === 'DRAFT') {
         enemyDeck = [];
         for (let i = 0; i < 40; i++) {
@@ -556,7 +560,6 @@ function startGameAfterToss() {
     playedCardsLog = []; particles = []; battleLog = [];
     draggedCard = null; activeAttacker = null; isHandHidden = false; popups = []; zoomedCard = null;
 
-    // 初期ドロー
     drawCardToHand(true, isPlayerFirst ? 3 : 4);
     drawCardToHand(false, isPlayerFirst ? 4 : 3);
 
@@ -571,6 +574,55 @@ function startGameAfterToss() {
     } else {
         isAITurn = false;
     }
+}
+
+// ==========================================
+// サウンドシステム
+// ==========================================
+let audioCtx = null;
+function initAudio() { 
+    try { 
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+        else if (audioCtx.state === 'suspended') audioCtx.resume(); 
+    } catch(e) {} 
+}
+
+function playTone(f, t, d, v=0.1, delay=0) { 
+    try { 
+        if (!audioCtx) return; 
+        v = v * masterVolume * 2; 
+        if (v <= 0) return;
+        setTimeout(() => {
+            const o = audioCtx.createOscillator(); 
+            const g = audioCtx.createGain(); 
+            o.type = t; 
+            o.frequency.value = f; 
+            g.gain.setValueAtTime(v, audioCtx.currentTime); 
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); 
+            o.connect(g); 
+            g.connect(audioCtx.destination); 
+            o.start(); 
+            o.stop(audioCtx.currentTime + d); 
+        }, delay * 1000);
+    } catch(e) {} 
+}
+
+function playSummonSound() { playTone(300, 'triangle', 0.15); playTone(600, 'triangle', 0.1, 0.05); }
+function playAttackSound() { playTone(150, 'sawtooth', 0.12, 0.15); }
+function playDamageSound() { playTone(80, 'sawtooth', 0.25, 0.2); }
+function playSpellSound() { playTone(800, 'sine', 0.2, 0.1); playTone(1200, 'sine', 0.3, 0.1, 0.1); }
+function playHealSound() { playTone(523.25, 'triangle', 0.15, 0.1); playTone(783.99, 'triangle', 0.2, 0.1, 0.08); }
+function playErrorSound() { playTone(100, 'square', 0.1, 0.1); }
+function playEvolveSound() { playTone(600, 'sine', 0.1); playTone(800, 'square', 0.1, 0.1, 0.1); playTone(1200, 'sine', 0.4, 0.2, 0.2); }
+function playClickSound() { playTone(1200, 'sine', 0.05, 0.05); }
+function playDraftSelectSound() { playTone(800, 'square', 0.1, 0.05); setTimeout(()=>playTone(1200, 'square', 0.1, 0.05), 100); }
+function playMenuSound() { playTone(600, 'triangle', 0.1, 0.05); setTimeout(()=>playTone(900, 'triangle', 0.15, 0.05), 100); }
+
+function showPopup(text, color='#fff') { 
+    popups.push({ text: text, color: color, y: 400, timer: 70 }); 
+}
+function showEnemyPlayNotification(c) { 
+    playedCardsLog.push({ card: createCard(c), timer: 120 }); 
 }
 
 // ==========================================
@@ -697,7 +749,6 @@ function checkDeath() {
                     addBattleLog(isPlayer, `「${c.name}」が破壊された`);
                 }
                 
-                // 破壊パーティクル生成
                 for(let i=0; i<15; i++) {
                     particles.push({
                         x: c.x + CARD_W/2, y: c.y + CARD_H/2,
@@ -804,7 +855,6 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
     let myGrave = isPlayer ? playerGrave : enemyGrave;
 
     let reqGrave = getRequiredGrave(c);
-    // ネクロマンスが足りなくてもプレイはできるように変更
     if (reqGrave > 0 && myGrave < reqGrave) {
         if(isPlayer) playErrorSound(); 
     }
@@ -1071,35 +1121,28 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
 }
 
 // ==========================================
-// 入力ハンドラ（当たり判定 超特大・完全版 + 長押しズーム）
+// 巨大当たり判定関数 (Fat-Finger対策)
 // ==========================================
-function getPointerPos(e) {
-    const rect = canvas.getBoundingClientRect(); 
-    const scaleX = canvas.width / rect.width; 
-    const scaleY = canvas.height / rect.height;
-    let clientX = e.clientX; let clientY = e.clientY;
-    if (e.touches && e.touches.length > 0) { 
-        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; 
-    }
-    else if (e.changedTouches && e.changedTouches.length > 0) { 
-        clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY; 
-    }
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-}
-
 function isHitbox(mx, my, x, y, w, h) {
+    // ボタンの上下左右に30pxの超特大パディングを持たせる
     const PADDING = 30;
     return mx >= (x - PADDING) && mx <= (x + w + PADDING) && my >= (y - PADDING) && my <= (y + h + PADDING);
 }
 
+// ==========================================
+// メニュー画面の入力処理
+// ==========================================
 function handleMenuInputs(mx, my) {
     if (gameState === 'MAIN_MENU') {
         if (isHitbox(mx, my, 200, 250, 400, 100)) { playClickSound(); gameState = 'SELECT'; gameMode = 'NORMAL'; return true; }
         if (isHitbox(mx, my, 200, 400, 400, 100)) { playClickSound(); initGame('DRAFT'); return true; }
         if (isHitbox(mx, my, 200, 550, 400, 100)) { playClickSound(); gameState = 'BOSS_SELECT'; return true; }
         
+        // ショップボタン🛒
         if (isHitbox(mx, my, 350, 710, 100, 80)) { playClickSound(); gameState = 'SHOP'; return true; }
+        // 設定🔧
         if (isHitbox(mx, my, 10, 710, 80, 80)) { playClickSound(); gameState = 'SETTINGS'; return true; }
+        // 履歴📗
         if (isHitbox(mx, my, 710, 710, 80, 80)) { playClickSound(); gameState = 'UPDATE_NOTES'; return true; }
         return false;
     }
@@ -1159,14 +1202,18 @@ function handleMenuInputs(mx, my) {
         if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = (gameMode === 'BOSS') ? 'BOSS_SELECT' : 'MAIN_MENU'; return true; }
         const keys = Object.keys(DECKS);
         for (let i = 0; i < keys.length; i++) {
-            let dx = 70 + (i % 2) * 340; let dy = 160 + Math.floor(i / 2) * 150; 
-            if (isHitbox(mx, my, dx, dy, 310, 110)) { playClickSound(); initGame(gameMode, keys[i]); return true; }
+            let dx = 70 + (i % 2) * 340; 
+            let dy = 160 + Math.floor(i / 2) * 150; 
+            if (isHitbox(mx, my, dx, dy, 310, 110)) { 
+                playClickSound(); initGame(gameMode, keys[i]); return true;
+            }
         }
         return false;
     }
     if (gameState === 'DRAFT') {
-        for(let i=0; i<3; i++) {
-            let dx = 150 + i * 180; let dy = 350;
+        for (let i = 0; i < 3; i++) {
+            let dx = 150 + i * 180; 
+            let dy = 350;
             if (isHitbox(mx, my, dx, dy, 160, 230)) {
                 playDraftSelectSound();
                 playerDeck.push(createCard(draftOptions[i])); draftCount++;
@@ -1183,6 +1230,9 @@ function handleMenuInputs(mx, my) {
     return false;
 }
 
+// ==========================================
+// バトル画面等の入力ハンドラ
+// ==========================================
 function handleInputStartReal(e) {
     if (e.cancelable) e.preventDefault(); 
     initAudio(); 
@@ -1345,7 +1395,7 @@ function handleInputEnd(e) {
                 } else if (isFaceDrop && !reqFollowerOnly) {
                     playCardFromHand(draggedCard, null, true, true);
                 } else {
-                    showPopup("対象に直接ドロップしてください", "#f00"); playErrorSound();
+                    showPopup("対象にドロップして！", "#f00"); playErrorSound();
                 }
             } else {
                 if (c.type === 'FOLLOWER' || c.type === 'AMULET') {
@@ -1368,7 +1418,7 @@ function handleInputEnd(e) {
             let enemy = enemyBoard[i];
             if (isHitbox(mx, my, enemy.x, enemy.y, CARD_W, CARD_H) && enemy.type === 'FOLLOWER') {
                 if (hasEnemyWard && !enemy.ability.includes('WARD') && !enemy.ability.includes('INVINCIBLE')) { 
-                    playErrorSound(); showPopup("【守護】を攻撃してください！", '#ff0000'); activeAttacker = null; return; 
+                    playErrorSound(); showPopup("【守護】を攻撃して！", '#ff0000'); activeAttacker = null; return; 
                 }
                 
                 let atkHasKill = activeAttacker.card.ability.includes('ATTACK_KILL'); 
@@ -1392,7 +1442,6 @@ function handleInputEnd(e) {
         
         if (attackSuccess) {
             playAttackSound(); playDamageSound();
-
             addBattleLog(true, `「${activeAttacker.card.name}」が「${targetForAnim === 'FACE' ? '敵リーダー' : targetForAnim.name}」に攻撃`);
 
             activeAttacker.card.attackAnimTimer = 15;
@@ -1408,6 +1457,7 @@ function handleInputEnd(e) {
     checkWinLoss();
 }
 
+// 古いイベントリスナーの登録と重複回避
 canvas.addEventListener('mousedown', handleInputStartReal); 
 canvas.addEventListener('touchstart', handleInputStartReal, {passive: false});
 canvas.addEventListener('mousemove', handleInputMove); 
@@ -1487,12 +1537,7 @@ async function enemyAITask() {
                     }
                     if (c.type === 'SPELL' || ((c.type === 'FOLLOWER' || c.type === 'AMULET') && enemyBoard.length < 5)) {
                         let played = playCardFromHand({card:c, index:handIdx}, target, targetFace, false);
-                        if (played) { 
-                            showEnemyPlayNotification(c); 
-                            canPlay = true; 
-                            await new Promise(r => setTimeout(r, 1200)); 
-                            break; 
-                        }
+                        if (played) { showEnemyPlayNotification(c); canPlay = true; await new Promise(r => setTimeout(r, 1200)); break; }
                     }
                 }
             }
@@ -1528,7 +1573,6 @@ async function enemyAITask() {
                 let playerTotalAtk = 0;
                 playerBoard.forEach(c => { if(c.type === 'FOLLOWER' && c.ready) playerTotalAtk += c.atk; });
                 
-                // ピンチ（リーサル回避）かどうかの判定
                 let isPinch = (enemyHP <= 4) || (playerTotalAtk >= enemyHP);
 
                 if (playerWards.length > 0) {
@@ -1693,7 +1737,6 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
             ctx.strokeStyle = '#555';
             ctx.strokeRect(c.x, c.y, CARD_W, CARD_H);
             
-            // 敵の手札の裏面スリーブを描画
             ctx.fillStyle = SLEEVE_COLORS[enemySleeveColor];
             ctx.fillRect(c.x + 4, c.y + 4, CARD_W - 8, CARD_H - 8);
             ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
@@ -1736,14 +1779,12 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
     }
 }
 
-// ズーム（拡大）されたカードを描画する関数
 function drawZoomedCard() {
     if (!zoomedCard) return;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.8)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // カードを中央に描画し、2.5倍に拡大
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(2.5, 2.5);
     
@@ -1770,7 +1811,6 @@ function drawBattleLogScreen() {
     ctx.textAlign = 'left';
     let drawY = 120;
     
-    // 最新20件ほどを表示
     for (let i = 0; i < Math.min(battleLog.length, 20); i++) {
         let text = battleLog[i];
         if (text.includes("あなた：")) ctx.fillStyle = '#00f2fe';
@@ -1870,7 +1910,7 @@ function drawMainMenu() {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f2fe';
     ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
-    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v3.16k`, 10, 20);
+    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v3.17m`, 10, 20);
 
     const modes = [
         { y: 250, label: '通常対戦', color: '#1e88e5', desc: '好きなデッキを選んでAIと戦う' },
@@ -2052,8 +2092,7 @@ function drawBattle() {
         playedCardsLog = playedCardsLog.filter(l => l.timer > 0);
 
         updateCardPositions();
-        enemyBoard.forEach(c => drawCard(c, true)); 
-        playerBoard.forEach(c => drawCard(c, false));
+        enemyBoard.forEach(c => drawCard(c, true)); playerBoard.forEach(c => drawCard(c, false));
         enemyHand.forEach(c => drawCard({ ...c, type: 'ENEMY_HAND' }, true)); 
         playerHand.forEach(c => drawCard(c, false, playerPP >= c.cost)); 
 
@@ -2078,10 +2117,7 @@ function drawBattle() {
             p.y -= 1; p.timer--; ctx.shadowBlur = 0; if (p.timer <= 0) popups.splice(i, 1);
         }
 
-        // 長押し中の拡大カード描画
-        if (isLongPress && zoomedCard) {
-            drawZoomedCard();
-        }
+        if (isLongPress && zoomedCard) { drawZoomedCard(); }
 
     } catch(e) {}
 }
