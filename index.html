@@ -109,8 +109,8 @@ let enemyGrave = 0;
 let playerGold = 0;
 let cardsPlayedThisTurn = 0;
 
-let playerDeckClass = ''; // ROYAL, VAMPIRE etc
-let playerDeckArchetype = ''; // AGGRO, CONTROL etc
+let playerDeckClass = ''; 
+let playerDeckArchetype = ''; 
 let enemyDeckClass = '';
 let enemyDeckArchetype = '';
 
@@ -175,11 +175,7 @@ const SHOP_ITEMS = [
 // ==========================================
 function saveData() {
     try {
-        const data = {
-            gold: playerGold,
-            volume: masterVolume,
-            sleeve: sleeveColor
-        };
+        const data = { gold: playerGold, volume: masterVolume, sleeve: sleeveColor };
         localStorage.setItem('saikyo_daichan_save', JSON.stringify(data));
     } catch(e) { console.error("Save Error", e); }
 }
@@ -195,7 +191,6 @@ function loadData() {
         }
     } catch(e) { console.error("Load Error", e); }
 }
-
 loadData();
 
 // ==========================================
@@ -208,7 +203,7 @@ const UPDATE_LOGS = [
             "・【超大型アプデ】各クラスに「3つのデッキタイプ」を追加！！",
             "・【新ギミック】復讐、覚醒、スペルブーストなどの専用能力を実装！",
             "・【システム】デッキ選択画面を「クラス選択」→「タイプ選択」に変更",
-            "・コード完全非圧縮。バグのない安定版"
+            "・コード完全非圧縮・ファイル連結エラーを修正"
         ]
     },
     {
@@ -339,11 +334,20 @@ const NEUTRAL = [
     { name: 'ゴブリン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: [], desc: 'ただのゴブリン', color: '#555555' },
     { name: 'ベルエンジェル', type: 'FOLLOWER', cost: 2, atk: 0, hp: 2, ability: ['WARD', 'DEATH_DRAW_1'], desc: '【守護】破壊:1引く', color: '#777777' },
     { name: '死の舞踏', type: 'SPELL', cost: 5, atk: 0, hp: 0, ability: ['SPELL_KILL_TARGET', 'SPELL_BURN_FACE_2'], desc: '敵1体破壊＆顔2ダメ', color: '#444444' },
-    { name: 'バハムート', type: 'FOLLOWER', cost: 10, atk: 10, hp: 10, ability: ['SPELL_WIPE_BOARD'], desc: '他を全破壊', color: '#222222' }
+    { name: 'バハムート', type: 'FOLLOWER', cost: 10, atk: 10, hp: 10, ability: ['SPELL_WIPE_BOARD'], desc: '他を全破壊', color: '#222222' },
+    { name: '突進兵', type: 'FOLLOWER', cost: 4, atk: 4, hp: 3, ability: ['RUSH'], desc: '【突進】', color: '#8d6e63' },
+    { name: '猛毒の暗殺者', type: 'FOLLOWER', cost: 3, atk: 1, hp: 1, ability: ['ATTACK_KILL'], desc: '【必殺】', color: '#4a148c' },
+    { name: 'バジリスク', type: 'FOLLOWER', cost: 5, atk: 2, hp: 5, ability: ['ATTACK_KILL'], desc: '【必殺】', color: '#2e7d32' },
+    { name: 'きゅうり隊長', type: 'FOLLOWER', cost: 4, atk: 1, hp: 5, ability: ['TURN_END_SUMMON_CUCUMBER'], desc: '終了時:きゅうり召喚', color: '#4caf50' },
+    { name: 'きゅうり指揮官', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['FANFARE_BUFF_RANDOM_ALLY_1_0'], desc: '出た時:味方1体に+1/+0', color: '#388e3c' },
+    { name: 'きゅうり', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['SPELL_COST_DOWN_CUCUMBER_HAND'], desc: '手札のコスト-1', color: '#66bb6a' },
+    { name: '時の加速', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['SPELL_ADVANCE_COUNTDOWN_1'], desc: '自アミュのカウント-1', color: '#9e9e9e' },
+    { name: '癒しの泉', type: 'AMULET', cost: 3, atk: 0, hp: 0, countdown: 3, ability: ['CD_TICK_HEAL_LEADER_2'], desc: '【カウント】3\n進行時:顔面2回復', color: '#aed581' },
+    { name: '豊穣の像', type: 'AMULET', cost: 4, atk: 0, hp: 0, countdown: 2, ability: ['CD_TICK_DRAW_1'], desc: '【カウント】2\n進行時:1ドロー', color: '#dce775' }
 ];
 
 // ==========================================
-// カードデッキ定義 (各クラス BASE + 3Archetype)
+// カードデッキ定義
 // ==========================================
 const DECKS = {
     ROYAL: {
@@ -496,15 +500,18 @@ const BOSS_DECKS = {
     1: [
         { name: 'ゴブリン', type: 'FOLLOWER', cost: 1, atk: 1, hp: 2, ability: [], desc: 'ただのゴブリン', color: '#555' },
         { name: '見習い兵', type: 'FOLLOWER', cost: 2, atk: 2, hp: 2, ability: [], desc: '歩兵', color: '#444' },
+        { name: '威圧', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_2'], desc: '敵に2ダメ', color: '#333' },
         { name: '重装歩兵', type: 'FOLLOWER', cost: 3, atk: 2, hp: 3, ability: ['WARD'], desc: '【守護】', color: '#222' }
     ],
     2: [
         { name: '暗黒騎士', type: 'FOLLOWER', cost: 4, atk: 5, hp: 5, ability: [], desc: '精鋭', color: '#333' },
-        { name: '突撃部隊', type: 'FOLLOWER', cost: 5, atk: 5, hp: 4, ability: ['RUSH'], desc: '【突進】', color: '#222' }
+        { name: '突撃部隊', type: 'FOLLOWER', cost: 5, atk: 5, hp: 4, ability: ['RUSH'], desc: '【突進】', color: '#222' },
+        { name: '強奪', type: 'SPELL', cost: 3, atk: 0, hp: 0, ability: ['TARGET_ENEMY_4', 'SPELL_HEAL_LEADER_2'], desc: '4ダメ＆2回復', color: '#111' }
     ],
     3: [
         { name: '暗黒の波動', type: 'SPELL', cost: 0, atk: 0, hp: 0, ability: ['SPELL_WIPE_BOARD'], desc: '盤面を消し飛ばす', color: '#111' },
-        { name: '親衛隊', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: ['STORM'], desc: '【疾走】', color: '#333' }
+        { name: '親衛隊', type: 'FOLLOWER', cost: 5, atk: 5, hp: 5, ability: ['STORM'], desc: '【疾走】', color: '#333' },
+        { name: 'フォースチョーク', type: 'SPELL', cost: 2, atk: 0, hp: 0, ability: ['TARGET_ENEMY_10'], desc: '10ダメージ', color: '#000' }
     ]
 };
 
@@ -517,6 +524,10 @@ Object.keys(DECKS).forEach(k => {
     });
 });
 ALL_CARDS.push(...NEUTRAL);
+
+// ==========================================
+// ここから後半をペーストしてください
+// ==========================================
 
 // ==========================================
 // カード生成・デッキ構築
@@ -554,7 +565,6 @@ function drawCardToHand(isPlayer, amount = 1) {
             if (deck.length > 0 && hand.length < 9) {
                 hand.push(deck.pop()); 
             } else if (deck.length <= 0) {
-                // ライブラリアウト（デッキ切れ）で敗北
                 if (isPlayer) playerHP = 0; else enemyHP = 0;
                 addBattleLog(`${isPlayer ? 'あなた' : '相手'} のデッキが尽きた！`, isPlayer);
             }
@@ -591,7 +601,6 @@ function initGame(mode, pClass = 'ROYAL', pArch = 'AGGRO') {
             }
             enemyHasNecro = false;
         } else {
-            // 敵はランダムなクラスとアーティタイプを選択
             const keys = Object.keys(DECKS); 
             enemyDeckClass = keys[Math.floor(Math.random() * keys.length)];
             const archs = DECK_INFO[enemyDeckClass].archetypes;
@@ -620,7 +629,7 @@ function generateDraftOptions() {
 function startCoinToss() {
     gameState = 'COIN_TOSS';
     coinTossState = 0;
-    coinTossTimer = 120; // 2秒
+    coinTossTimer = 120; 
     isPlayerFirst = Math.random() < 0.5;
     playTone(1000, 'triangle', 0.5);
 }
@@ -681,7 +690,6 @@ function startGameAfterToss() {
         enemySleeveColor = Math.floor(Math.random() * 3);
     }
 
-    // 初期ドロー
     drawCardToHand(true, isPlayerFirst ? 3 : 4);
     drawCardToHand(false, isPlayerFirst ? 4 : 3);
 
@@ -700,58 +708,6 @@ function startGameAfterToss() {
     }
 }
 
-// ==========================================
-// サウンドシステム
-// ==========================================
-let audioCtx = null;
-function initAudio() { 
-    try { 
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
-        else if (audioCtx.state === 'suspended') audioCtx.resume(); 
-    } catch(e) {} 
-}
-
-function playTone(f, t, d, v=0.1, delay=0) { 
-    try { 
-        if (!audioCtx) return; 
-        v = v * masterVolume * 2; 
-        if (v <= 0) return;
-        setTimeout(() => {
-            const o = audioCtx.createOscillator(); 
-            const g = audioCtx.createGain(); 
-            o.type = t; 
-            o.frequency.value = f; 
-            g.gain.setValueAtTime(v, audioCtx.currentTime); 
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); 
-            o.connect(g); 
-            g.connect(audioCtx.destination); 
-            o.start(); 
-            o.stop(audioCtx.currentTime + d); 
-        }, delay * 1000);
-    } catch(e) {} 
-}
-
-function playSummonSound() { playTone(300, 'triangle', 0.15); playTone(600, 'triangle', 0.1, 0.05); }
-function playAttackSound() { playTone(150, 'sawtooth', 0.12, 0.15); }
-function playDamageSound() { playTone(80, 'sawtooth', 0.25, 0.2); }
-function playSpellSound() { playTone(800, 'sine', 0.2, 0.1); playTone(1200, 'sine', 0.3, 0.1, 0.1); }
-function playHealSound() { playTone(523.25, 'triangle', 0.15, 0.1); playTone(783.99, 'triangle', 0.2, 0.1, 0.08); }
-function playErrorSound() { playTone(100, 'square', 0.1, 0.1); }
-function playEvolveSound() { playTone(600, 'sine', 0.1); playTone(800, 'square', 0.1, 0.1, 0.1); playTone(1200, 'sine', 0.4, 0.2, 0.2); }
-function playClickSound() { playTone(1200, 'sine', 0.05, 0.05); }
-function playDraftSelectSound() { playTone(800, 'square', 0.1, 0.05); setTimeout(()=>playTone(1200, 'square', 0.1, 0.05), 100); }
-function playMenuSound() { playTone(600, 'triangle', 0.1, 0.05); setTimeout(()=>playTone(900, 'triangle', 0.15, 0.05), 100); }
-
-function showPopup(text, color='#fff') { 
-    popups.push({ text: text, color: color, y: 400, timer: 70 }); 
-}
-function showEnemyPlayNotification(c) { 
-    playedCardsLog.push({ card: createCard(c), timer: 120 }); 
-}
-
-// ==========================================
-// ロジック処理
-// ==========================================
 function updateAuras() {
     let pAuraAtk = 0, pAuraHp = 0, eAuraAtk = 0, eAuraHp = 0; 
     let pHasAFRush = false, eHasAFRush = false;
@@ -855,12 +811,9 @@ function processTurnStartCountdown(isPlayer) {
             }
         });
         checkDeath();
-    } catch(e) {
-        console.error("Countdown Error:", e);
-    }
+    } catch(e) { console.error("Countdown Error:", e); }
 }
 
-// 死亡判定とラストワード（パーティクル含む）
 function checkDeath() {
     let deadFound = false;
     let processBoard = (board, isPlayer) => {
@@ -876,13 +829,9 @@ function checkDeath() {
                 
                 for (let i = 0; i < 15; i++) {
                     particles.push({
-                        x: c.x + CARD_W / 2, 
-                        y: c.y + CARD_H / 2,
-                        vx: (Math.random() - 0.5) * 12, 
-                        vy: (Math.random() - 0.5) * 12,
-                        size: Math.random() * 5 + 2,
-                        life: 30, 
-                        color: c.color || '#fff'
+                        x: c.x + CARD_W / 2, y: c.y + CARD_H / 2,
+                        vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12,
+                        size: Math.random() * 5 + 2, life: 30, color: c.color || '#fff'
                     });
                 }
 
@@ -899,14 +848,12 @@ function checkDeath() {
                     if (ab === 'DEATH_RAMP_1') { 
                         if(isPlayer) playerMaxPP = Math.min(10, playerMaxPP + 1); else enemyMaxPP = Math.min(10, enemyMaxPP + 1); 
                     }
-                    
                     let hm = ab.match(/DEATH_HEAL_LEADER_(\d+)/) || ab.match(/DEATH_HEAL_(\d+)/);
                     if (hm) { 
                         if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + parseInt(hm[1])); 
                         else enemyHP = Math.min(eMaxHP, enemyHP + parseInt(hm[1])); 
                         playHealSound(); 
                     }
-                    
                     if (ab === 'DEATH_SUMMON_ZOMBIE_2') { 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.ZOMBIE)); 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.ZOMBIE)); 
@@ -926,24 +873,20 @@ function checkDeath() {
                         drawCardToHand(isPlayer, 2); 
                         if(isPlayer) playerHP -= 2; else enemyHP -= 2; 
                     }
-                    
                     if (ab === 'DEATH_KILL_RANDOM') {
                         let tb = isPlayer ? enemyBoard : playerBoard;
                         let valid = tb.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
                         if (valid.length > 0) valid[Math.floor(Math.random() * valid.length)].hp = 0;
                     }
-                    
                     let aoeM = ab.match(/DEATH_AOE_(\d+)/);
                     if (aoeM) { 
                         let d = parseInt(aoeM[1]); 
                         let tb = isPlayer ? enemyBoard : playerBoard; 
                         tb.forEach(ec => { if (ec.type === 'FOLLOWER' && !ec.ability.includes('INVINCIBLE')) ec.hp -= d; }); 
                     }
-                    
                     if (ab === 'DEATH_SUMMON_MORDECAI') { 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.MORDECAI)); 
                     }
-                    
                     let buffM = ab.match(/DEATH_BUFF_ALL_(\d+)_(\d+)/);
                     if (buffM) { 
                         let a = parseInt(buffM[1]), h = parseInt(buffM[2]); 
@@ -989,7 +932,6 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
     let myGrave = isPlayer ? playerGrave : enemyGrave;
 
     let reqGrave = getRequiredGrave(c);
-    // ネクロマンスが足りなくてもプレイはできるように変更
     if (reqGrave > 0 && myGrave < reqGrave) {
         if(isPlayer) playErrorSound(); 
     }
@@ -1000,7 +942,6 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
 
     addBattleLog(`${isPlayer ? 'あなた' : '相手'}が「${c.name}」をプレイ`, isPlayer);
 
-    // スペルブースト処理
     if (c.ability.includes('SPELLBOOST_ALL')) {
         myHand.forEach(hc => {
             if (hc.ability.includes('SPELLBOOST_COST_DOWN')) {
@@ -1013,11 +954,10 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
     if (c.type === 'FOLLOWER' || c.type === 'AMULET') {
         c.ready = c.ability.includes('STORM') || c.ability.includes('RUSH');
         
-        // 復讐・覚醒の即時適用
         if (c.ability.includes('VENGEANCE_STORM') && (isPlayer ? playerHP : enemyHP) <= 10) { c.ready = true; }
         if (c.ability.includes('AWAKENING_STORM') && (isPlayer ? playerMaxPP : enemyMaxPP) >= 7) { c.ready = true; }
 
-        c.rushThisTurn = c.ability.includes('RUSH') && !c.ready; // STORM等がなければ突進
+        c.rushThisTurn = c.ability.includes('RUSH') && !c.ready; 
         c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1;
         myBoard.push(c); 
         playSummonSound(); 
@@ -1038,7 +978,6 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
         let myDeck = isPlayer ? playerDeck : enemyDeck;
 
         card.ability.forEach(ab => {
-            // 新規追加アーティタイプ効果
             if (ab === 'FANFARE_SUMMON_WARD') {
                 if (myBoard.length < 5) myBoard.push(createCard({name:'守護兵', type:'FOLLOWER', cost:2, atk:1, hp:3, maxHp:3, ability:['WARD'], color:'#fb8c00'}));
             }
@@ -1077,8 +1016,6 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                     myHand.splice(Math.floor(Math.random() * myHand.length), 1);
                     drawCardToHand(isPlayer, 2);
                     showPopup("ディスカード！", "#00897b");
-                    
-                    // ディスカードトリガー
                     myBoard.forEach(bc => {
                         if (bc.ability.includes('DISCARD_TRIGGER_BURN_1')) {
                             if (isPlayer) enemyHP -= 1; else playerHP -= 1;
@@ -1126,8 +1063,6 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 card.atk += count; card.hp += count; card.baseAtk += count; card.baseHp += count; card.maxHp += count;
                 showPopup(`全バウンス！+${count}/+${count}`, "#689f38");
             }
-
-            // 既存の効果
             if (ab === 'FANFARE_ADD_HAND_DOLL') {
                 if (myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET));
                 showPopup(`人形追加！`, '#555');
@@ -1255,7 +1190,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                     showPopup(`コンボ！体力+${cardsPlayedThisTurn}！`, '#689f38'); 
                 } 
             }
-            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { 
+            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('BOUNCE')) { 
                 drawCardToHand(isPlayer, 1); 
             }
             else if (ab.includes('DRAW_2') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('DISCARD') && !ab.includes('BOTH')) { 
@@ -1312,6 +1247,26 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 }
             }
             
+            let healM = ab.match(/HEAL_LEADER_(\d+)/) || ab.match(/FANFARE_HEAL_(\d+)/);
+            if (healM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) {
+                let h = parseInt(healM[1]);
+                if (isPlayer) playerHP = Math.min(pMaxHP, playerHP + h); 
+                else enemyHP = Math.min(eMaxHP, enemyHP + h); 
+                playHealSound(); showPopup(`顔面${h}回復！`, '#fbc02d');
+
+                myBoard.forEach(bc => {
+                    if (bc.ability.includes('HEAL_TRIGGER_BURN_2')) {
+                        let valid = targetBoard.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
+                        if (valid.length > 0) {
+                            valid[Math.floor(Math.random() * valid.length)].hp -= 2;
+                        } else {
+                            if (isPlayer) enemyHP -= 2; else playerHP -= 2;
+                        }
+                        playDamageSound(); showPopup("回復トリガー！2ダメ！", "#ffee58");
+                    }
+                });
+            }
+            
             let healAllM = ab.match(/HEAL_ALL_(\d+)/);
             if (healAllM) {
                 let h = parseInt(healAllM[1]);
@@ -1327,7 +1282,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
             }
             
             let buffM = ab.match(/BUFF_ALL_(\d+)_(\d+)/);
-            if (buffM && !ab.includes('DEATH') && !ab.includes('NECRO') && !ab.includes('BOUNCE')) {
+            if (buffM && !ab.includes('DEATH') && !ab.includes('NECRO') && !ab.includes('BOUNCE') && !ab.includes('EARTH_RITE')) {
                 let a = parseInt(buffM[1]), h = parseInt(buffM[2]);
                 myBoard.forEach(c => { 
                     if(c.type === 'FOLLOWER') { c.atk += a; c.baseAtk += a; c.hp += h; c.maxHp += h; c.baseHp += h; }
@@ -1348,28 +1303,6 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 if (isPlayer) enemyHP -= d; else playerHP -= d; 
                 playDamageSound(); showPopup(`顔面に${d}ダメ！`, '#ff5722');
             }
-            
-            // 回復処理は一番最後に行う（天狐の社などのトリガーのため）
-            let healM = ab.match(/HEAL_LEADER_(\d+)/) || ab.match(/FANFARE_HEAL_(\d+)/);
-            if (healM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) {
-                let h = parseInt(healM[1]);
-                if (isPlayer) playerHP = Math.min(pMaxHP, playerHP + h); 
-                else enemyHP = Math.min(eMaxHP, enemyHP + h); 
-                playHealSound(); showPopup(`顔面${h}回復！`, '#fbc02d');
-
-                // 天狐の社などの回復トリガーダメージ
-                myBoard.forEach(bc => {
-                    if (bc.ability.includes('HEAL_TRIGGER_BURN_2')) {
-                        let valid = targetBoard.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
-                        if (valid.length > 0) {
-                            valid[Math.floor(Math.random() * valid.length)].hp -= 2;
-                        } else {
-                            if (isPlayer) enemyHP -= 2; else playerHP -= 2;
-                        }
-                        playDamageSound(); showPopup("回復トリガー！2ダメ！", "#ffee58");
-                    }
-                });
-            }
 
             if (ab === 'SPELL_COST_DOWN_CUCUMBER_HAND') {
                 myHand.forEach(c => { if(c.name.includes('きゅうり')) c.cost = Math.max(0, c.cost-1); }); 
@@ -1381,7 +1314,7 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
 }
 
 // ==========================================
-// 入力ハンドラ（当たり判定 超特大・完全版）
+// 入力ハンドラ
 // ==========================================
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect(); 
@@ -1401,7 +1334,6 @@ function getPointerPos(e) {
     return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
 }
 
-// 当たり判定を上下左右に30px拡大する神関数
 function isHitbox(mx, my, x, y, w, h) {
     const PADDING = 30;
     return mx >= (x - PADDING) && mx <= (x + w + PADDING) && my >= (y - PADDING) && my <= (y + h + PADDING);
@@ -1420,18 +1352,14 @@ function handleMenuInputs(mx, my) {
         if (isHitbox(mx, my, 200, 400, 400, 100)) { playClickSound(); initGame('DRAFT'); return true; }
         if (isHitbox(mx, my, 200, 550, 400, 100)) { playClickSound(); gameState = 'BOSS_SELECT'; return true; }
         
-        // ショップ🛒
         if (isHitbox(mx, my, 350, 710, 100, 80)) { playClickSound(); gameState = 'SHOP'; return true; }
-        // 設定🔧
         if (isHitbox(mx, my, 10, 710, 80, 80)) { playClickSound(); gameState = 'SETTINGS'; return true; }
-        // 履歴📗
         if (isHitbox(mx, my, 710, 710, 80, 80)) { playClickSound(); gameState = 'UPDATE_NOTES'; return true; }
         return false;
     }
     if (gameState === 'SHOP') {
         if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = 'MAIN_MENU'; return true; }
         
-        // 商品購入処理
         for(let i=0; i<SHOP_ITEMS.length; i++) {
             let item = SHOP_ITEMS[i];
             let ix = 150; let iy = 200 + i * 140;
@@ -1533,13 +1461,11 @@ function handleInputStartReal(e) {
     const mx = pos.x; 
     const my = pos.y;
     
-    // UI画面のボタン判定
     if (gameState !== 'BATTLE' && gameState !== 'COIN_TOSS') {
         handleMenuInputs(mx, my);
         return;
     }
     
-    // バトル画面中のポップアップ等解除
     if (zoomedCard) { playClickSound(); zoomedCard = null; return; }
     if (showBattleLog) {
         if (isHitbox(mx, my, 650, 20, 100, 40)) { playClickSound(); showBattleLog = false; }
@@ -1551,16 +1477,13 @@ function handleInputStartReal(e) {
         return;
     }
 
-    // ログ表示ボタン
     if (isHitbox(mx, my, 680, 20, 100, 40)) { playClickSound(); showBattleLog = true; return; }
     if (isHitbox(mx, my, 680, 650, 100, 50)) { playClickSound(); isHandHidden = !isHandHidden; return; }
     
-    // 進化ボタン
     if (!hasEvolvedThisTurn && playerEP > 0 && canPlayerEvolve() && isHitbox(mx, my, 10, 550, 100, 50)) { 
         playClickSound(); evolveMode = !evolveMode; return; 
     }
 
-    // 長押し＆プレイ判定
     touchStartX = mx;
     touchStartY = my;
     let foundCardToZoom = null;
@@ -1579,7 +1502,6 @@ function handleInputStartReal(e) {
         }
     }
 
-    // 場と敵の手札も拡大チェック
     if (!foundCardToZoom) {
         [...playerBoard, ...enemyBoard, ...enemyHand].forEach(c => {
             if (isHitbox(mx, my, c.x, c.y, CARD_W, CARD_H)) { foundCardToZoom = c; }
@@ -1589,10 +1511,10 @@ function handleInputStartReal(e) {
     if (foundCardToZoom) {
         longPressTimer = setTimeout(() => {
             zoomedCard = foundCardToZoom;
-            draggedCard = null; // 長押し発動時はドラッグキャンセル
+            draggedCard = null; 
             activeAttacker = null;
             playClickSound();
-        }, 400); // 0.4秒長押し
+        }, 400); 
     }
 
     if (draggedCard) { playClickSound(); return; }
@@ -1618,7 +1540,7 @@ function handleInputStartReal(e) {
             }
             if (c.ready && c.attacksLeft > 0 && !evolveMode && c.type === 'FOLLOWER') { 
                 playClickSound(); activeAttacker = { card: c, index: i }; 
-                return; // ここで長押しタイマーは解除しないでおく（ドラッグせずに長押しなら拡大）
+                return; 
             }
         }
     }
@@ -1630,7 +1552,6 @@ function handleInputMove(e) {
     if (e.cancelable) e.preventDefault(); 
     const pos = getPointerPos(e); mousePos.x = pos.x; mousePos.y = pos.y;
     
-    // 長押し解除判定
     if (longPressTimer) {
         if (Math.abs(mousePos.x - touchStartX) > 10 || Math.abs(mousePos.y - touchStartY) > 10) {
             clearLongPress();
@@ -1726,7 +1647,7 @@ function handleInputEnd(e) {
         if (attackSuccess) {
             playAttackSound(); playDamageSound();
 
-            addBattleLog(`あなたの ${activeAttacker.card.name} が ${targetForAnim === 'FACE' ? '敵のリーダー' : targetForAnim.name} に攻撃！`, true);
+            addBattleLog(`あなたの ${activeAttacker.card.name} が ${targetForAnim === 'FACE' ? '敵リーダー' : targetForAnim.name} に攻撃！`, true);
 
             activeAttacker.card.attackAnimTimer = 15;
             activeAttacker.card.attackTargetX = targetForAnim === 'FACE' ? 400 : targetForAnim.x + CARD_W/2;
@@ -1841,7 +1762,7 @@ async function enemyAITask() {
                 }
                 c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1;
                 hasEvolvedThisTurn = true;
-                addBattleLog(`敵の ${c.name} が進化！`, false);
+                addBattleLog(`敵が「${c.name}」を進化！`, false);
                 playEvolveSound(); showPopup('敵が進化！', '#ffeb3b'); await new Promise(r => setTimeout(r, 1000));
             }
         }
@@ -1909,7 +1830,7 @@ async function enemyAITask() {
                 
                 playAttackSound(); playDamageSound();
 
-                addBattleLog(`敵の ${attacker.name} が ${targetForAnim === 'FACE' ? 'あなたの顔面' : targetForAnim.name} に攻撃！`, false);
+                addBattleLog(`敵の ${attacker.name} が ${targetForAnim === 'FACE' ? 'あなたのリーダー' : targetForAnim.name} に攻撃！`, false);
 
                 attacker.attackAnimTimer = 15;
                 attacker.attackTargetX = targetForAnim === 'FACE' ? 400 : targetForAnim.x + CARD_W/2;
@@ -2022,7 +1943,6 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
             ctx.strokeStyle = '#555';
             ctx.strokeRect(c.x, c.y, CARD_W, CARD_H);
             
-            // 敵の手札の裏面にスリーブ色を適応
             ctx.fillStyle = SLEEVE_COLORS[enemySleeveColor];
             ctx.fillRect(c.x + 4, c.y + 4, CARD_W - 8, CARD_H - 8);
             ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
@@ -2092,14 +2012,12 @@ function drawSettingsScreen() {
     ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
 
-    // ボリュームメーター
     ctx.font = 'bold 24px sans-serif'; ctx.fillText('マスターボリューム', 400, 250);
     ctx.fillStyle = '#333'; ctx.fillRect(200, 280, 400, 30);
     ctx.fillStyle = '#00f2fe'; ctx.fillRect(200, 280, 400 * masterVolume, 30);
     ctx.strokeStyle = '#fff'; ctx.strokeRect(200, 280, 400, 30);
     ctx.fillStyle = '#fff'; ctx.fillText(Math.floor(masterVolume * 100) + '%', 400, 340);
 
-    // スリーブカラー
     ctx.fillText('カードスリーブ', 400, 450);
     for(let i = 0; i < 3; i++) {
         let x = 200 + i * 150;
@@ -2113,7 +2031,6 @@ function drawSettingsScreen() {
 function drawShopScreen() {
     ctx.fillStyle = '#1a0d00'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // ヘッダー
     ctx.fillStyle = '#ff9800'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('SHOP', canvas.width/2, 80);
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right';
@@ -2122,7 +2039,6 @@ function drawShopScreen() {
     ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('戻る', 70, 45);
 
-    // 商品リスト描画
     for(let i=0; i<SHOP_ITEMS.length; i++) {
         let item = SHOP_ITEMS[i];
         let ix = 150; let iy = 200 + i * 140;
@@ -2159,17 +2075,14 @@ function drawMainMenu() {
         ctx.font = '14px sans-serif'; ctx.fillText(m.desc, 400, m.y + 80);
     });
 
-    // ショップボタン 🛒
     ctx.fillStyle = '#1a0d00'; ctx.fillRect(350, 710, 100, 80); ctx.strokeStyle = '#ff9800'; ctx.strokeRect(350, 710, 100, 80);
     ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🛒', 400, 760);
     ctx.font = '12px sans-serif'; ctx.fillText('SHOP', 400, 782);
 
-    // 右下: アプデ履歴
     ctx.fillStyle = '#222'; ctx.fillRect(710, 710, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(710, 710, 80, 80);
     ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('📗', 750, 760);
     ctx.font = '12px sans-serif'; ctx.fillText('アプデ履歴', 750, 782);
 
-    // 左下: 設定 
     ctx.fillStyle = '#222'; ctx.fillRect(10, 710, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(10, 710, 80, 80);
     ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔧', 50, 760);
     ctx.font = '12px sans-serif'; ctx.fillText('設定', 50, 782);
@@ -2388,11 +2301,9 @@ function drawBattle() {
             ctx.fillStyle = evolveMode ? '#000' : '#ffeb3b'; ctx.fillText(`進化(EP:${playerEP})`, 60, 580);
         }
 
-        // バトルログ表示ボタン
         ctx.fillStyle = '#444'; ctx.fillRect(680, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(680, 20, 100, 40);
         ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText('📜 履歴', 730, 45);
 
-        // 山札描画
         drawDeck(670, 450, playerDeck.length, false);
         drawDeck(670, 200, enemyDeck.length, true);
 
