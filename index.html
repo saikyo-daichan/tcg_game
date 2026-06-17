@@ -198,12 +198,12 @@ loadData();
 // ==========================================
 const UPDATE_LOGS = [
     {
-        version: "v4.0.0",
+        version: "v4.0.1",
         notes: [
+            "・【緊急修正】起動時に「forEach」エラーが発生して遊べないバグを修正",
             "・【超大型アプデ】各クラスに「3つのデッキタイプ」を追加！！",
             "・【新ギミック】復讐、覚醒、スペルブーストなどの専用能力を実装！",
-            "・【システム】デッキ選択画面を「クラス選択」→「タイプ選択」に変更",
-            "・接続エラーを修正し、完全に動作する環境を構築"
+            "・【システム】デッキ選択画面を「クラス選択」→「タイプ選択」に変更"
         ]
     },
     {
@@ -211,8 +211,7 @@ const UPDATE_LOGS = [
         notes: [
             "・【新機能】カード長押しで拡大表示機能を追加！",
             "・【新機能】バトル画面右上にプレイ履歴(ログ)を追加！",
-            "・【新機能】ショップ画面(仮)を追加し、購入テストが可能に",
-            "・【AI強化】ピンチ時に敵の攻撃力を見極めて相打ちを狙うように改善"
+            "・【新機能】ショップ画面(仮)を追加し、購入テストが可能に"
         ]
     }
 ];
@@ -520,20 +519,16 @@ const BOSS_DECKS = {
 const ALL_CARDS = [];
 Object.keys(DECKS).forEach(k => {
     ALL_CARDS.push(...DECKS[k].BASE);
-    DECKS[k].archetypes.forEach(a => {
+    // ⬇️ ここがエラーの原因でした！DECK_INFOから取得するように修正 ⬇️
+    DECK_INFO[k].archetypes.forEach(a => {
         ALL_CARDS.push(...DECKS[k][a.id]);
     });
 });
 ALL_CARDS.push(...NEUTRAL);
 
 // ==========================================
-// ⬇️ 前半はここまで！このすぐ下に後半をペーストしてください ⬇️
+// カード生成・デッキ構築
 // ==========================================
-
-// ==========================================
-// ⬆️ ここから後半！前半のすぐ下にペーストしてください ⬆️
-// ==========================================
-
 function createCard(base) {
     let isAmulet = (base.type === 'AMULET');
     let hp = base.hp || (isAmulet ? 1 : 0); 
@@ -579,6 +574,8 @@ function checkNecroDeck(deckArr) {
         a.includes('NECRO') || a.includes('SUMMON_SKELETON') || a.includes('SUMMON_ZOMBIE')
     ));
 }
+
+let selectedClassKey = '';
 
 // ==========================================
 // ゲーム開始・初期化処理
@@ -2062,7 +2059,7 @@ function drawMainMenu() {
     ctx.fillStyle = '#fff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f2fe';
     ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
-    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v4.0.0`, 10, 20);
+    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v4.0.1`, 10, 20);
 
     const modes = [
         { y: 250, label: '通常対戦', color: '#1e88e5', desc: '好きなデッキを選んでAIと戦う' },
@@ -2303,7 +2300,7 @@ function drawBattle() {
         }
 
         ctx.fillStyle = '#444'; ctx.fillRect(680, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(680, 20, 100, 40);
-        ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText('📜 履歴', 730, 45);
+        ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText('📜 履歴', 710, 45);
 
         drawDeck(670, 450, playerDeck.length, false);
         drawDeck(670, 200, enemyDeck.length, true);
