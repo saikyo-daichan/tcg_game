@@ -3,25 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SAIKYO DAICHAN v5.1.0</title>
+    <title>SAIKYO DAICHAN v5.2.0</title>
     <style>
         body { 
-            margin: 0; padding: 0; background-color: #05050a; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            height: 100dvh; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; 
-            overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #05050a; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100dvh; 
+            color: white; 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            overflow: hidden; 
+            touch-action: none; 
+            user-select: none; 
+            -webkit-user-select: none; 
         }
         #gameContainer { 
-            position: relative; box-shadow: 0 0 60px rgba(0, 255, 150, 0.2); 
-            border: 4px solid #1a1a2e; border-radius: 12px; background-color: #0b0c16; 
-            width: 100vw; max-width: 800px; aspect-ratio: 1 / 1; touch-action: none;
+            position: relative; 
+            box-shadow: 0 0 60px rgba(0, 255, 150, 0.2); 
+            border: 4px solid #1a1a2e; 
+            border-radius: 12px; 
+            background-color: #0b0c16; 
+            width: 100vw; 
+            max-width: 800px; 
+            aspect-ratio: 1 / 1; 
+            touch-action: none;
         }
         canvas { 
-            display: block; width: 100%; height: 100%; touch-action: none; 
+            display: block; 
+            width: 100%; 
+            height: 100%; 
+            touch-action: none; 
         }
         #instructions { 
-            margin-top: 10px; font-size: 12px; color: #a2b4ce; text-align: center; 
-            line-height: 1.4; padding: 0 10px; 
+            margin-top: 10px; 
+            font-size: 12px; 
+            color: #a2b4ce; 
+            text-align: center; 
+            line-height: 1.4; 
+            padding: 0 10px; 
         }
     </style>
 </head>
@@ -43,10 +66,15 @@ window.onerror = function(msg) {
     const cvs = document.getElementById('tcgCanvas');
     if (cvs) { 
         const ctx = cvs.getContext('2d'); 
-        ctx.fillStyle = 'rgba(10,0,0,0.9)'; ctx.fillRect(0, 0, cvs.width, cvs.height); 
-        ctx.fillStyle = '#ff3333'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center'; 
+        ctx.fillStyle = 'rgba(10,0,0,0.9)'; 
+        ctx.fillRect(0, 0, cvs.width, cvs.height); 
+        ctx.fillStyle = '#ff3333'; 
+        ctx.font = 'bold 24px sans-serif'; 
+        ctx.textAlign = 'center'; 
         ctx.fillText('エラーを検知・復旧しました', 400, 350); 
-        ctx.fillStyle = '#fff'; ctx.font = '12px sans-serif'; ctx.fillText(msg, 400, 400); 
+        ctx.fillStyle = '#fff'; 
+        ctx.font = '12px sans-serif'; 
+        ctx.fillText(msg, 400, 400); 
     }
     console.error(msg); 
     return false;
@@ -58,45 +86,105 @@ window.onerror = function(msg) {
 const canvas = document.getElementById('tcgCanvas'); 
 const ctx = canvas.getContext('2d');
 
-let gameState = 'MAIN_MENU', gameMode = 'NORMAL', bossLevel = 1, winMessage = ""; 
-let turn = 1, globalTurn = 1;                 
-let pMaxHP = 20, eMaxHP = 20, playerHP = 20, enemyHP = 20;
-let playerPP = 1, playerMaxPP = 1, enemyPP = 1, enemyMaxPP = 1;
-let playerEP = 0, enemyEP = 0, playerMaxEP = 2, enemyMaxEP = 3;
-let playerGrave = 0, enemyGrave = 0, playerGold = 0, cardsPlayedThisTurn = 0;
-let playerDeckClass = '', playerDeckArchetype = '', enemyDeckClass = '', enemyDeckArchetype = '';
-let isHandHidden = false, evolveMode = false, isAITurn = false, hasEvolvedThisTurn = false;
-let isPlayerFirst = true, coinTossTimer = 0, coinTossState = 0;
-let p1EvolvedNotified = false, p2EvolvedNotified = false, playerHasNecro = false, enemyHasNecro = false;
+let gameState = 'MAIN_MENU'; 
+let gameMode = 'NORMAL'; 
+let bossLevel = 1; 
+let winMessage = ""; 
+
+let turn = 1;
+let globalTurn = 1;                 
+let pMaxHP = 20;
+let eMaxHP = 20;
+let playerHP = 20;
+let enemyHP = 20;
+let playerPP = 1;
+let playerMaxPP = 1;
+let enemyPP = 1;
+let enemyMaxPP = 1;
+let playerEP = 0;
+let enemyEP = 0;
+let playerMaxEP = 2;
+let enemyMaxEP = 3;
+let playerGrave = 0;
+let enemyGrave = 0;
+let playerGold = 0;
+let cardsPlayedThisTurn = 0;
+
+let playerDeckClass = '';
+let playerDeckArchetype = ''; 
+let enemyDeckClass = '';
+let enemyDeckArchetype = '';
+
+let isHandHidden = false;
+let evolveMode = false;
+let isAITurn = false;
+let hasEvolvedThisTurn = false;
+let isPlayerFirst = true;
+let coinTossTimer = 0;
+let coinTossState = 0;
+
+let p1EvolvedNotified = false;
+let p2EvolvedNotified = false;
+let playerHasNecro = false;
+let enemyHasNecro = false;
 
 // 設定・拡張機能
-let masterVolume = 0.5, sleeveColor = 0, enemySleeveColor = 0; 
+let masterVolume = 0.5;
+let sleeveColor = 0;
+let enemySleeveColor = 0; 
 const SLEEVE_COLORS = ['#d32f2f', '#1976d2', '#388e3c'];
 const SLEEVE_NAMES = ['レッド', 'ブルー', 'グリーン'];
 
 // 長押し・拡大機能
-let touchStartX = 0, touchStartY = 0, longPressTimer = null, zoomedCard = null;
-let showBattleLog = false, battleLog = [];
+let touchStartX = 0;
+let touchStartY = 0;
+let longPressTimer = null;
+let zoomedCard = null;
 
-const CARD_W = 90, CARD_H = 130;
-let playerHand = [], playerBoard = [], playerDeck = [];
-let enemyHand = [], enemyBoard = [], enemyDeck = [];
-let draftOptions = [], draftCount = 0;
-let draggedCard = null, dragOffset = { x: 0, y: 0 }, activeAttacker = null;
+// バトルログ機能
+let showBattleLog = false;
+let battleLog = [];
+
+const CARD_W = 90;
+const CARD_H = 130;
+let playerHand = [];
+let playerBoard = [];
+let playerDeck = [];
+let enemyHand = [];
+let enemyBoard = [];
+let enemyDeck = [];
+
+let draftOptions = [];
+let draftCount = 0;
+let draggedCard = null;
+let dragOffset = { x: 0, y: 0 };
+let activeAttacker = null;
 let mousePos = { x: 0, y: 0 };
-let popups = [], playedCardsLog = [], particles = []; 
+let popups = [];
+let playedCardsLog = [];
+let particles = []; 
 
+// ショップ商品
 const SHOP_ITEMS = [
     { name: "謎のポーション", price: 10, desc: "今はまだ飲めない謎の液体" },
     { name: "拡張パック(仮)", price: 20, desc: "購入テスト用のパックです" },
     { name: "プレミアパス", price: 30, desc: "お金が減るだけのパスです" }
 ];
 
+// ==========================================
+// セーブ＆ロード機能
+// ==========================================
 function saveData() {
     try {
-        const data = { gold: playerGold, volume: masterVolume, sleeve: sleeveColor };
+        const data = { 
+            gold: playerGold, 
+            volume: masterVolume, 
+            sleeve: sleeveColor 
+        };
         localStorage.setItem('saikyo_daichan_save', JSON.stringify(data));
-    } catch(e) {}
+    } catch(e) { 
+        console.error("Save Error", e); 
+    }
 }
 
 function loadData() {
@@ -108,15 +196,18 @@ function loadData() {
             if (d.volume !== undefined) masterVolume = d.volume;
             if (d.sleeve !== undefined) sleeveColor = d.sleeve;
         }
-    } catch(e) {}
+    } catch(e) { 
+        console.error("Load Error", e); 
+    }
 }
 loadData();
 
 const UPDATE_LOGS = [
     {
-        version: "v5.1.0",
+        version: "v5.2.0",
         notes: [
-            "・【完全復旧】ボタンが効かないタップバグを根絶！(ブラウザ標準機能で制御)",
+            "・【完全復旧】勝手なコード圧縮を排除し、完全なロジックを復元",
+            "・【システム】PointerEvent採用でタップバグを根絶！",
             "・全クラスカード22枚(計180枚超)＆アーティタイプ実装版"
         ]
     }
@@ -126,35 +217,116 @@ const UPDATE_LOGS = [
 // クラス情報・アーティタイプ定義
 // ==========================================
 const DECK_INFO = {
-    ROYAL: { name: "ロイヤル", color: '#e65100', desc: "多彩な兵士と指揮官を操る", archetypes: [ { id: 'AGGRO', name: '疾走ロイヤル', desc: '疾走で一気に顔面を詰める速攻型' }, { id: 'CONTROL', name: '鉄壁ロイヤル', desc: '守護と展開力で盤面を制圧する耐久型' }, { id: 'COMBO', name: '弔い合戦ロイヤル', desc: '破壊された仲間の数だけ強くなるコンボ型' } ] },
-    WITCH: { name: "ウィッチ", color: '#0d47a1', desc: "魔法とギミックで盤面を支配", archetypes: [ { id: 'SPELL', name: 'スペルブースト', desc: '呪文で手札のコストを下げるコンボ型' }, { id: 'EARTH', name: '土の秘術', desc: '媒体を消費して強力な効果を放つミッド型' }, { id: 'FOLLOWER', name: '魔法使い軸', desc: '魔術師同士が互いにバフし合う展開型' } ] },
-    HEALER: { name: "ヒーラー", color: '#fbc02d', desc: "祈りと回復で粘り勝つ", archetypes: [ { id: 'AMULET', name: 'カウントダウン', desc: '時を進めて大型を早期展開するビート型' }, { id: 'CONTROL', name: '鉄壁イージス', desc: '無敵の盾と除去で絶望させる耐久型' }, { id: 'BURN', name: '回復反転軸', desc: '回復をダメージに変換する変則バーン型' } ] },
-    VAMPIRE: { name: "ヴァンパイア", color: '#880e4f', desc: "自傷と吸収の狂気", archetypes: [ { id: 'AGGRO', name: '自傷アグロ', desc: '血を代償に超火力の速攻を仕掛ける型' }, { id: 'VENGEANCE', name: '復讐コントロール', desc: 'HP10以下で真の力を解放する背水型' }, { id: 'DRAIN', name: '吸血コントロール', desc: '吸収と除去でリソースを削る耐久型' } ] },
-    NECRO: { name: "ネクロ", color: '#4a148c', desc: "死を力に変える", archetypes: [ { id: 'AGGRO', name: 'アグロゴースト', desc: '消滅する亡霊で速攻を仕掛ける型' }, { id: 'NECROMANCY', name: 'ネクロマンス', desc: '墓地を消費して超絶効果を放つミッド型' }, { id: 'LASTWORD', name: '自壊ラストワード', desc: '味方を破壊して遺言を起動するコンボ型' } ] },
-    DRAGON: { name: "ドラゴン", color: '#004d40', desc: "PPを加速し大型を放つ", archetypes: [ { id: 'RAMP', name: 'PP加速ランプ', desc: '最速で高コストの大型を出すロマン型' }, { id: 'AWAKENING', name: '覚醒ミッドレンジ', desc: 'PP7以上で真価を発揮する王道ミッド型' }, { id: 'DISCARD', name: 'ディスカード', desc: '手札を捨てる代わりに強力な効果を得るテクニカル型' } ] },
-    NEMESIS: { name: "ネメシス", color: '#00838f', desc: "兵器と人形を操る", archetypes: [ { id: 'ARTIFACT', name: 'AF展開軸', desc: 'デッキに兵器を埋めて連打する展開型' }, { id: 'PUPPET', name: '操り人形軸', desc: '0コスの人形で盤面を処理するコントロール型' }, { id: 'MILL', name: 'ライブラリアウト', desc: '相手のデッキ切れ特殊勝利を狙う耐久型' } ] },
-    ELF: { name: "エルフ", color: '#33691e', desc: "妖精の群れとコンボ", archetypes: [ { id: 'AGGRO', name: 'フェアリー展開', desc: '妖精を並べて全体バフで押し切る展開型' }, { id: 'COMBO', name: 'プレイ回数コンボ', desc: '1ターンに連打して大ダメージを狙うコンボ型' }, { id: 'BOUNCE', name: 'バウンス軸', desc: '味方を手札に戻して能力を使い回すコンボ型' } ] }
+    ROYAL: { 
+        name: "ロイヤル", color: '#e65100', desc: "多彩な兵士と指揮官を操る", 
+        archetypes: [ 
+            { id: 'AGGRO', name: '疾走ロイヤル', desc: '疾走で一気に顔面を詰める速攻型' }, 
+            { id: 'CONTROL', name: '鉄壁ロイヤル', desc: '守護と展開力で盤面を制圧する耐久型' }, 
+            { id: 'COMBO', name: '弔い合戦ロイヤル', desc: '破壊された仲間の数だけ強くなるコンボ型' } 
+        ] 
+    },
+    WITCH: { 
+        name: "ウィッチ", color: '#0d47a1', desc: "魔法とギミックで盤面を支配", 
+        archetypes: [ 
+            { id: 'SPELL', name: 'スペルブースト', desc: '呪文で手札のコストを下げるコンボ型' }, 
+            { id: 'EARTH', name: '土の秘術', desc: '媒体を消費して強力な効果を放つミッド型' }, 
+            { id: 'FOLLOWER', name: '魔法使い軸', desc: '魔術師同士が互いにバフし合う展開型' } 
+        ] 
+    },
+    HEALER: { 
+        name: "ヒーラー", color: '#fbc02d', desc: "祈りと回復で粘り勝つ", 
+        archetypes: [ 
+            { id: 'AMULET', name: 'カウントダウン', desc: '時を進めて大型を早期展開するビート型' }, 
+            { id: 'CONTROL', name: '鉄壁イージス', desc: '無敵の盾と除去で絶望させる耐久型' }, 
+            { id: 'BURN', name: '回復反転軸', desc: '回復をダメージに変換する変則バーン型' } 
+        ] 
+    },
+    VAMPIRE: { 
+        name: "ヴァンパイア", color: '#880e4f', desc: "自傷と吸収の狂気", 
+        archetypes: [ 
+            { id: 'AGGRO', name: '自傷アグロ', desc: '血を代償に超火力の速攻を仕掛ける型' }, 
+            { id: 'VENGEANCE', name: '復讐コントロール', desc: 'HP10以下で真の力を解放する背水型' }, 
+            { id: 'DRAIN', name: '吸血コントロール', desc: '吸収と除去でリソースを削る耐久型' } 
+        ] 
+    },
+    NECRO: { 
+        name: "ネクロ", color: '#4a148c', desc: "死を力に変える", 
+        archetypes: [ 
+            { id: 'AGGRO', name: 'アグロゴースト', desc: '消滅する亡霊で速攻を仕掛ける型' }, 
+            { id: 'NECROMANCY', name: 'ネクロマンス', desc: '墓地を消費して超絶効果を放つミッド型' }, 
+            { id: 'LASTWORD', name: '自壊ラストワード', desc: '味方を破壊して遺言を起動するコンボ型' } 
+        ] 
+    },
+    DRAGON: { 
+        name: "ドラゴン", color: '#004d40', desc: "PPを加速し大型を放つ", 
+        archetypes: [ 
+            { id: 'RAMP', name: 'PP加速ランプ', desc: '最速で高コストの大型を出すロマン型' }, 
+            { id: 'AWAKENING', name: '覚醒ミッドレンジ', desc: 'PP7以上で真価を発揮する王道ミッド型' }, 
+            { id: 'DISCARD', name: 'ディスカード', desc: '手札を捨てる代わりに強力な効果を得るテクニカル型' } 
+        ] 
+    },
+    NEMESIS: { 
+        name: "ネメシス", color: '#00838f', desc: "兵器と人形を操る", 
+        archetypes: [ 
+            { id: 'ARTIFACT', name: 'AF展開軸', desc: 'デッキに兵器を埋めて連打する展開型' }, 
+            { id: 'PUPPET', name: '操り人形軸', desc: '0コスの人形で盤面を処理するコントロール型' }, 
+            { id: 'MILL', name: 'ライブラリアウト', desc: '相手のデッキ切れ特殊勝利を狙う耐久型' } 
+        ] 
+    },
+    ELF: { 
+        name: "エルフ", color: '#33691e', desc: "妖精の群れとコンボ", 
+        archetypes: [ 
+            { id: 'AGGRO', name: 'フェアリー展開', desc: '妖精を並べて全体バフで押し切る展開型' }, 
+            { id: 'COMBO', name: 'プレイ回数コンボ', desc: '1ターンに連打して大ダメージを狙うコンボ型' }, 
+            { id: 'BOUNCE', name: 'バウンス軸', desc: '味方を手札に戻して能力を使い回すコンボ型' } 
+        ] 
+    }
 };
 
-function requiresTarget(c) { return c.ability.some(a => a.includes('TARGET_ENEMY') || a.includes('KILL_TARGET') || a.includes('DEBUFF') || a.includes('DESTROY_AMULET') || a.includes('TARGET_ALLY_BOUNCE')); }
+function requiresTarget(c) { 
+    return c.ability.some(a => 
+        a.includes('TARGET_ENEMY') || 
+        a.includes('KILL_TARGET') || 
+        a.includes('DEBUFF') || 
+        a.includes('DESTROY_AMULET') || 
+        a.includes('TARGET_ALLY_BOUNCE')
+    ); 
+}
 
 function getTextColor(hex) {
     try { 
         if (!hex) return '#fff'; 
         if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
-        let r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
+        let r = parseInt(hex.substring(1,3),16);
+        let g = parseInt(hex.substring(3,5),16);
+        let b = parseInt(hex.substring(5,7),16);
         return ((r * 299 + g * 587 + b * 114) / 1000) > 140 ? '#111' : '#fff'; 
-    } catch(e) { return '#fff'; }
+    } catch(e) { 
+        return '#fff'; 
+    }
 }
 
-function getPlayerTurnNum() { return Math.floor((globalTurn + (isPlayerFirst ? 1 : 0)) / 2); }
-function getEnemyTurnNum() { return Math.floor((globalTurn + (!isPlayerFirst ? 1 : 0)) / 2); }
-function canPlayerEvolve() { return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); }
-function canEnemyEvolve() { return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); }
+function getPlayerTurnNum() { 
+    return Math.floor((globalTurn + (isPlayerFirst ? 1 : 0)) / 2); 
+}
+
+function getEnemyTurnNum() { 
+    return Math.floor((globalTurn + (!isPlayerFirst ? 1 : 0)) / 2); 
+}
+
+function canPlayerEvolve() { 
+    return getPlayerTurnNum() >= (isPlayerFirst ? 5 : 4); 
+}
+
+function canEnemyEvolve() { 
+    return getEnemyTurnNum() >= (!isPlayerFirst ? 5 : 4); 
+}
 
 function addBattleLog(text, isPlayer = null) {
     battleLog.unshift({ turn: Math.ceil(globalTurn / 2), text: text, isPlayer: isPlayer });
-    if (battleLog.length > 50) battleLog.pop();
+    if (battleLog.length > 50) {
+        battleLog.pop();
+    }
 }
 
 // ==========================================
@@ -187,6 +359,9 @@ const NEUTRAL = [
     { name: 'きゅうり隊長', type: 'FOLLOWER', cost: 4, atk: 1, hp: 5, ability: ['TURN_END_SUMMON_CUCUMBER'], desc: '終了時:きゅうり召喚', color: '#4caf50' }
 ];
 
+// ==========================================
+// ★超拡張カードプール：全クラス22枚を完全網羅
+// ==========================================
 const DECKS = {
     ROYAL: {
         BASE: [
@@ -465,7 +640,6 @@ const BOSS_DECKS = {
     ]
 };
 
-// 全カードリスト（ドラフト用）
 const ALL_CARDS = [];
 Object.keys(DECKS).forEach(k => {
     ALL_CARDS.push(...DECKS[k].BASE);
@@ -485,13 +659,34 @@ function createCard(base) {
     let hp = base.hp || (isAmulet ? 1 : 0); 
     let atk = base.atk || 0; 
     let cd = base.countdown !== undefined ? base.countdown : -1;
+    
     return { 
-        name: base.name, type: base.type, cost: base.cost, atk: atk, hp: hp, maxHp: hp, color: base.color,
-        id: Math.random(), ready: false, rushThisTurn: false, attacksLeft: 1, baseAtk: atk, baseHp: hp,
-        ability: base.ability ? [...base.ability] : [], countdown: cd,
-        textColor: getTextColor(base.color), desc: base.desc || '', 
-        isEvolved: false, evolveTimer: 0, attackAnimTimer: 0, attackTargetX: 0, attackTargetY: 0,
-        x: 400, y: 800, targetX: 400, targetY: 800 
+        name: base.name, 
+        type: base.type, 
+        cost: base.cost, 
+        atk: atk, 
+        hp: hp, 
+        maxHp: hp, 
+        color: base.color,
+        id: Math.random(), 
+        ready: false, 
+        rushThisTurn: false, 
+        attacksLeft: 1, 
+        baseAtk: atk, 
+        baseHp: hp,
+        ability: base.ability ? [...base.ability] : [], 
+        countdown: cd,
+        textColor: getTextColor(base.color), 
+        desc: base.desc || '', 
+        isEvolved: false, 
+        evolveTimer: 0, 
+        attackAnimTimer: 0, 
+        attackTargetX: 0, 
+        attackTargetY: 0,
+        x: 400, 
+        y: 800, 
+        targetX: 400, 
+        targetY: 800 
     };
 }
 
@@ -513,7 +708,11 @@ function drawCardToHand(isPlayer, amount = 1) {
             if (deck.length > 0 && hand.length < 9) {
                 hand.push(deck.pop()); 
             } else if (deck.length <= 0) {
-                if (isPlayer) playerHP = 0; else enemyHP = 0;
+                if (isPlayer) {
+                    playerHP = 0; 
+                } else {
+                    enemyHP = 0;
+                }
                 addBattleLog(`${isPlayer ? 'あなた' : '相手'} のデッキが尽きた！`, isPlayer);
             }
         }
@@ -534,13 +733,19 @@ let selectedClassKey = '';
 function initGame(mode, pClass = 'ROYAL', pArch = 'AGGRO') {
     gameMode = mode;
     if (mode === 'NORMAL' || mode === 'BOSS') {
-        playerDeckClass = pClass; playerDeckArchetype = pArch;
-        playerDeck = buildDeck(pClass, pArch); playerHasNecro = checkNecroDeck(playerDeck);
+        playerDeckClass = pClass;
+        playerDeckArchetype = pArch;
+        playerDeck = buildDeck(pClass, pArch);
+        playerHasNecro = checkNecroDeck(playerDeck);
         
         if (mode === 'BOSS') {
-            enemyDeckClass = 'BOSS'; enemyDeckArchetype = 'BOSS'; enemyDeck = [];
+            enemyDeckClass = 'BOSS';
+            enemyDeckArchetype = 'BOSS';
+            enemyDeck = [];
             let bPool = BOSS_DECKS[bossLevel];
-            for (let i = 0; i < 40; i++) { enemyDeck.push(createCard(bPool[Math.floor(Math.random() * bPool.length)])); }
+            for (let i = 0; i < 40; i++) {
+                enemyDeck.push(createCard(bPool[Math.floor(Math.random() * bPool.length)]));
+            }
             enemyHasNecro = false;
         } else {
             const keys = Object.keys(DECKS); 
@@ -550,62 +755,167 @@ function initGame(mode, pClass = 'ROYAL', pArch = 'AGGRO') {
             enemyDeck = buildDeck(enemyDeckClass, enemyDeckArchetype);
             enemyHasNecro = checkNecroDeck(enemyDeck);
         }
+        
         enemySleeveColor = Math.floor(Math.random() * 3);
         startCoinToss();
     } else if (mode === 'DRAFT') {
-        gameState = 'DRAFT'; playerDeck = []; draftCount = 0; generateDraftOptions();
+        gameState = 'DRAFT'; 
+        playerDeck = []; 
+        draftCount = 0; 
+        generateDraftOptions();
     }
 }
 
 function generateDraftOptions() {
     draftOptions = [];
-    for (let i = 0; i < 3; i++) { draftOptions.push(createCard(ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)])); }
+    for (let i = 0; i < 3; i++) {
+        draftOptions.push(createCard(ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)]));
+    }
 }
 
 function startCoinToss() {
-    gameState = 'COIN_TOSS'; coinTossState = 0; coinTossTimer = 120; 
-    isPlayerFirst = Math.random() < 0.5; playTone(1000, 'triangle', 0.5);
+    gameState = 'COIN_TOSS';
+    coinTossState = 0;
+    coinTossTimer = 120; // 2秒
+    isPlayerFirst = Math.random() < 0.5;
+    playTone(1000, 'triangle', 0.5);
 }
 
 function startGameAfterToss() {
-    turn = isPlayerFirst ? 1 : 2; globalTurn = 1;
+    turn = isPlayerFirst ? 1 : 2; 
+    globalTurn = 1;
     let bHP = bossLevel === 1 ? 25 : (bossLevel === 2 ? 50 : 100);
-    pMaxHP = 20; eMaxHP = gameMode === 'BOSS' ? bHP : 20;
-    playerHP = pMaxHP; enemyHP = eMaxHP;
-    playerMaxPP = 0; enemyMaxPP = 0;
+    
+    pMaxHP = 20; 
+    eMaxHP = gameMode === 'BOSS' ? bHP : 20;
+    playerHP = pMaxHP; 
+    enemyHP = eMaxHP;
 
-    if (isPlayerFirst) { playerMaxPP = 1; playerPP = 1; } 
-    else { enemyMaxPP = 1; enemyPP = 1; }
+    playerMaxPP = 0; 
+    enemyMaxPP = 0;
+    if (isPlayerFirst) { 
+        playerMaxPP = 1; 
+        playerPP = 1; 
+    } else { 
+        enemyMaxPP = 1; 
+        enemyPP = 1; 
+    }
     
-    playerMaxEP = isPlayerFirst ? 2 : 3; enemyMaxEP = isPlayerFirst ? 3 : 2;
-    playerEP = playerMaxEP; enemyEP = enemyMaxEP; 
-    playerGrave = 0; enemyGrave = 0; cardsPlayedThisTurn = 0; 
-    evolveMode = false; hasEvolvedThisTurn = false;
-    p1EvolvedNotified = false; p2EvolvedNotified = false;
+    playerMaxEP = isPlayerFirst ? 2 : 3;
+    enemyMaxEP = isPlayerFirst ? 3 : 2;
+    playerEP = playerMaxEP; 
+    enemyEP = enemyMaxEP; 
     
-    playerHand = []; playerBoard = []; enemyHand = []; enemyBoard = []; 
-    playedCardsLog = []; particles = []; battleLog = [];
-    draggedCard = null; activeAttacker = null; isHandHidden = false; popups = [];
-    showBattleLog = false; zoomedCard = null;
+    playerGrave = 0; 
+    enemyGrave = 0; 
+    cardsPlayedThisTurn = 0; 
+    evolveMode = false;
+    hasEvolvedThisTurn = false;
+    p1EvolvedNotified = false; 
+    p2EvolvedNotified = false;
+    
+    playerHand = []; 
+    playerBoard = []; 
+    enemyHand = []; 
+    enemyBoard = []; 
+    playedCardsLog = []; 
+    particles = [];
+    battleLog = [];
+    
+    draggedCard = null; 
+    activeAttacker = null; 
+    isHandHidden = false; 
+    popups = [];
+    showBattleLog = false;
+    zoomedCard = null;
 
     if (gameMode === 'DRAFT') {
         enemyDeck = []; 
-        for (let i = 0; i < 40; i++) { enemyDeck.push(createCard(ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)])); }
-        enemyHasNecro = checkNecroDeck(enemyDeck); enemySleeveColor = Math.floor(Math.random() * 3);
+        for (let i = 0; i < 40; i++) {
+            enemyDeck.push(createCard(ALL_CARDS[Math.floor(Math.random() * ALL_CARDS.length)]));
+        }
+        enemyHasNecro = checkNecroDeck(enemyDeck);
+        enemySleeveColor = Math.floor(Math.random() * 3);
     }
 
-    drawCardToHand(true, isPlayerFirst ? 3 : 4); drawCardToHand(false, isPlayerFirst ? 4 : 3);
+    drawCardToHand(true, isPlayerFirst ? 3 : 4);
+    drawCardToHand(false, isPlayerFirst ? 4 : 3);
 
-    gameState = 'BATTLE'; playMenuSound();
+    gameState = 'BATTLE';
+    playMenuSound();
     
-    let archName = (gameMode === 'NORMAL') ? DECK_INFO[playerDeckClass].archetypes.find(a => a.id === playerDeckArchetype).name : "ドラフトデッキ";
+    let archName = "ドラフトデッキ";
+    if (gameMode === 'NORMAL' || gameMode === 'BOSS') {
+        let arch = DECK_INFO[playerDeckClass].archetypes.find(a => a.id === playerDeckArchetype);
+        if (arch) {
+            archName = arch.name;
+        }
+    }
+
     showPopup(isPlayerFirst ? "先攻！BATTLE START!!" : "後攻！BATTLE START!!", '#fff');
     addBattleLog(`【${archName}】でバトル開始！`, null);
 
-    if (!isPlayerFirst) { isAITurn = true; setTimeout(enemyAITask, 1000); } 
-    else { isAITurn = false; }
+    if (!isPlayerFirst) {
+        isAITurn = true;
+        setTimeout(enemyAITask, 1000);
+    } else {
+        isAITurn = false;
+    }
 }
 
+// ==========================================
+// サウンドシステム
+// ==========================================
+let audioCtx = null;
+function initAudio() { 
+    try { 
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+        else if (audioCtx.state === 'suspended') audioCtx.resume(); 
+    } catch(e) {} 
+}
+
+function playTone(f, t, d, v=0.1, delay=0) { 
+    try { 
+        if (!audioCtx) return; 
+        v = v * masterVolume * 2; 
+        if (v <= 0) return;
+        setTimeout(() => {
+            const o = audioCtx.createOscillator(); 
+            const g = audioCtx.createGain(); 
+            o.type = t; 
+            o.frequency.value = f; 
+            g.gain.setValueAtTime(v, audioCtx.currentTime); 
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d); 
+            o.connect(g); 
+            g.connect(audioCtx.destination); 
+            o.start(); 
+            o.stop(audioCtx.currentTime + d); 
+        }, delay * 1000);
+    } catch(e) {} 
+}
+
+function playSummonSound() { playTone(300, 'triangle', 0.15); playTone(600, 'triangle', 0.1, 0.05); }
+function playAttackSound() { playTone(150, 'sawtooth', 0.12, 0.15); }
+function playDamageSound() { playTone(80, 'sawtooth', 0.25, 0.2); }
+function playSpellSound() { playTone(800, 'sine', 0.2, 0.1); playTone(1200, 'sine', 0.3, 0.1, 0.1); }
+function playHealSound() { playTone(523.25, 'triangle', 0.15, 0.1); playTone(783.99, 'triangle', 0.2, 0.1, 0.08); }
+function playErrorSound() { playTone(100, 'square', 0.1, 0.1); }
+function playEvolveSound() { playTone(600, 'sine', 0.1); playTone(800, 'square', 0.1, 0.1, 0.1); playTone(1200, 'sine', 0.4, 0.2, 0.2); }
+function playClickSound() { playTone(1200, 'sine', 0.05, 0.05); }
+function playDraftSelectSound() { playTone(800, 'square', 0.1, 0.05); setTimeout(()=>playTone(1200, 'square', 0.1, 0.05), 100); }
+function playMenuSound() { playTone(600, 'triangle', 0.1, 0.05); setTimeout(()=>playTone(900, 'triangle', 0.15, 0.05), 100); }
+
+function showPopup(text, color='#fff') { 
+    popups.push({ text: text, color: color, y: 400, timer: 70 }); 
+}
+
+function showEnemyPlayNotification(c) { 
+    playedCardsLog.push({ card: createCard(c), timer: 120 }); 
+}
+
+// ==========================================
+// ロジック処理
+// ==========================================
 function updateAuras() {
     let pAuraAtk = 0, pAuraHp = 0, eAuraAtk = 0, eAuraHp = 0; 
     let pHasAFRush = false, eHasAFRush = false;
@@ -617,6 +927,7 @@ function updateAuras() {
             if (c.ability.includes('AURA_RUSH_TO_AF')) pHasAFRush = true;
         }
     });
+    
     enemyBoard.forEach(c => { 
         if (c.type === 'AMULET') {
             if (c.ability.includes('AURA_ATK_1')) eAuraAtk += 1; 
@@ -627,21 +938,30 @@ function updateAuras() {
 
     playerBoard.forEach(c => { 
         if (c.type === 'FOLLOWER') { 
-            c.atk = c.baseAtk + pAuraAtk; let newMax = c.baseHp + pAuraHp;
+            c.atk = c.baseAtk + pAuraAtk; 
+            let newMax = c.baseHp + pAuraHp;
             if (newMax > c.maxHp) { c.hp += (newMax - c.maxHp); }
-            c.maxHp = newMax; if (c.hp > c.maxHp) c.hp = c.maxHp; 
+            c.maxHp = newMax;
+            if (c.hp > c.maxHp) c.hp = c.maxHp; 
+            
             if (pHasAFRush && (c.name === 'AF' || c.name === 'アーティファクト') && c.attacksLeft > 0 && !c.ability.includes('STORM') && !c.ready) { 
-                c.ready = true; c.rushThisTurn = true; 
+                c.ready = true; 
+                c.rushThisTurn = true; 
             }
         }
     });
+    
     enemyBoard.forEach(c => { 
         if (c.type === 'FOLLOWER') { 
-            c.atk = c.baseAtk + eAuraAtk; let newMax = c.baseHp + eAuraHp;
+            c.atk = c.baseAtk + eAuraAtk; 
+            let newMax = c.baseHp + eAuraHp;
             if (newMax > c.maxHp) { c.hp += (newMax - c.maxHp); }
-            c.maxHp = newMax; if (c.hp > c.maxHp) c.hp = c.maxHp; 
+            c.maxHp = newMax;
+            if (c.hp > c.maxHp) c.hp = c.maxHp; 
+            
             if (eHasAFRush && (c.name === 'AF' || c.name === 'アーティファクト') && c.attacksLeft > 0 && !c.ability.includes('STORM') && !c.ready) { 
-                c.ready = true; c.rushThisTurn = true; 
+                c.ready = true; 
+                c.rushThisTurn = true; 
             }
         }
     });
@@ -654,17 +974,49 @@ function triggerCountdownTick(c, isPlayer, myBoard) {
             let v = parseInt(mHeal[1]); 
             if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + v); 
             else enemyHP = Math.min(eMaxHP, enemyHP + v); 
-            playHealSound(); showPopup(`進行: ${v}回復！`, '#fbc02d'); 
+            playHealSound(); 
+            showPopup(`進行: ${v}回復！`, '#fbc02d'); 
         }
-        if (ab === 'CD_TICK_DRAW_1') { drawCardToHand(isPlayer, 1); playSpellSound(); showPopup('進行: 1ドロー', '#1976d2'); }
-        if (ab === 'CD_TICK_SUMMON_SKELETON') { if(myBoard.length < 5) myBoard.push(createCard(TOKENS.SKELETON)); playSummonSound(); }
-        if (ab === 'CD_TICK_FACE_DMG_1') { if(isPlayer) enemyHP -= 1; else playerHP -= 1; playDamageSound(); showPopup('進行: 顔面1ダメ', '#ff5722'); }
-        if (ab === 'CD_TICK_FACE_DMG_1_SELF_DMG_1') { if(isPlayer) { enemyHP -= 1; playerHP -= 1; } else { playerHP -= 1; enemyHP -= 1; } playDamageSound(); }
-        if (ab === 'CD_TICK_ADD_DECK_ARTIFACT') { let deck = isPlayer ? playerDeck : enemyDeck; deck.push(createCard(TOKENS.ARTIFACT)); playSpellSound(); }
-        if (ab === 'CD_TICK_ADD_FAIRY') { let h = isPlayer ? playerHand : enemyHand; if (h.length < 9) h.push(createCard(TOKENS.FAIRY)); playSpellSound(); }
+        if (ab === 'CD_TICK_DRAW_1') { 
+            drawCardToHand(isPlayer, 1); 
+            playSpellSound(); 
+            showPopup('進行: 1ドロー', '#1976d2'); 
+        }
+        if (ab === 'CD_TICK_SUMMON_SKELETON') { 
+            if(myBoard.length < 5) {
+                myBoard.push(createCard(TOKENS.SKELETON)); 
+                playSummonSound(); 
+            }
+        }
+        if (ab === 'CD_TICK_FACE_DMG_1') { 
+            if(isPlayer) enemyHP -= 1; else playerHP -= 1; 
+            playDamageSound(); 
+            showPopup('進行: 顔面1ダメ', '#ff5722'); 
+        }
+        if (ab === 'CD_TICK_FACE_DMG_1_SELF_DMG_1') { 
+            if(isPlayer) { enemyHP -= 1; playerHP -= 1; } else { playerHP -= 1; enemyHP -= 1; } 
+            playDamageSound(); 
+        }
+        if (ab === 'CD_TICK_ADD_DECK_ARTIFACT') { 
+            let deck = isPlayer ? playerDeck : enemyDeck; 
+            deck.push(createCard(TOKENS.ARTIFACT)); 
+            playSpellSound(); 
+        }
+        if (ab === 'CD_TICK_ADD_FAIRY') { 
+            let h = isPlayer ? playerHand : enemyHand; 
+            if (h.length < 9) {
+                h.push(createCard(TOKENS.FAIRY)); 
+                playSpellSound(); 
+            }
+        }
         if (ab === 'CD_TICK_RAMP_1') { 
-            if(isPlayer) { playerMaxPP = Math.min(10, playerMaxPP + 1); playerPP++; }
-            else { enemyMaxPP = Math.min(10, enemyMaxPP + 1); enemyPP++; } 
+            if(isPlayer) { 
+                playerMaxPP = Math.min(10, playerMaxPP + 1); 
+                playerPP++; 
+            } else { 
+                enemyMaxPP = Math.min(10, enemyMaxPP + 1); 
+                enemyPP++; 
+            } 
             playSpellSound(); 
         }
     });
@@ -675,13 +1027,20 @@ function processTurnStartCountdown(isPlayer) {
         let board = isPlayer ? playerBoard : enemyBoard;
         board.forEach(c => {
             if (c.type === 'AMULET' && c.countdown > 0) {
-                c.countdown--; triggerCountdownTick(c, isPlayer, board);
-                if (c.countdown === 0) { c.hp = 0; showPopup('カウントダウン完了！', '#00bfa5'); } 
-                else { showPopup(`カウント: ${c.countdown}`, '#00bfa5'); }
+                c.countdown--;
+                triggerCountdownTick(c, isPlayer, board);
+                if (c.countdown === 0) { 
+                    c.hp = 0; 
+                    showPopup('カウントダウン完了！', '#00bfa5'); 
+                } else { 
+                    showPopup(`カウント: ${c.countdown}`, '#00bfa5'); 
+                }
             }
         });
         checkDeath();
-    } catch(e) { console.error("Countdown Error:", e); }
+    } catch(e) { 
+        console.error("Countdown Error:", e); 
+    }
 }
 
 function checkDeath() {
@@ -690,62 +1049,115 @@ function checkDeath() {
         let newBoard = [];
         board.forEach(c => {
             if (c.hp <= 0 && !c.ability.includes('INVINCIBLE')) {
-                deadFound = true; addBattleLog(`「${c.name}」が破壊された`, isPlayer);
-                if (c.type === 'FOLLOWER') { if(isPlayer) playerGrave++; else enemyGrave++; }
+                deadFound = true; 
+                addBattleLog(`「${c.name}」が破壊された`, isPlayer);
+
+                if (c.type === 'FOLLOWER') { 
+                    if(isPlayer) playerGrave++; else enemyGrave++; 
+                }
                 
                 for (let i = 0; i < 15; i++) {
                     particles.push({
-                        x: c.x + CARD_W / 2, y: c.y + CARD_H / 2,
-                        vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12,
-                        size: Math.random() * 5 + 2, life: 30, color: c.color || '#fff'
+                        x: c.x + CARD_W / 2, 
+                        y: c.y + CARD_H / 2,
+                        vx: (Math.random() - 0.5) * 12, 
+                        vy: (Math.random() - 0.5) * 12,
+                        size: Math.random() * 5 + 2, 
+                        life: 30, 
+                        color: c.color || '#fff'
                     });
                 }
 
                 c.ability.forEach(ab => {
-                    if (ab === 'DEATH_DRAW_1') drawCardToHand(isPlayer, 1);
-                    if (ab === 'DEATH_SUMMON_SKELETON') if(newBoard.length < 5) newBoard.push(createCard(TOKENS.SKELETON));
+                    if (ab === 'DEATH_DRAW_1') {
+                        drawCardToHand(isPlayer, 1);
+                    }
+                    if (ab === 'DEATH_SUMMON_SKELETON') {
+                        if(newBoard.length < 5) newBoard.push(createCard(TOKENS.SKELETON));
+                    }
                     if (ab === 'DEATH_SUMMON_SKELETON_2') { 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.SKELETON)); 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.SKELETON)); 
                     }
-                    if (ab === 'DEATH_SUMMON_2_3_WARD') { if(newBoard.length < 5) newBoard.push(createCard({name:'重装兵',type:'FOLLOWER',cost:3,atk:2,hp:3,maxHp:3,ability:['WARD'],color:'#777'})); }
-                    if (ab === 'DEATH_RAMP_1') { if(isPlayer) playerMaxPP = Math.min(10, playerMaxPP + 1); else enemyMaxPP = Math.min(10, enemyMaxPP + 1); }
+                    if (ab === 'DEATH_SUMMON_2_3_WARD') { 
+                        if(newBoard.length < 5) newBoard.push(createCard({name:'重装兵',type:'FOLLOWER',cost:3,atk:2,hp:3,maxHp:3,ability:['WARD'],color:'#777'})); 
+                    }
+                    if (ab === 'DEATH_RAMP_1') { 
+                        if(isPlayer) {
+                            playerMaxPP = Math.min(10, playerMaxPP + 1); 
+                        } else {
+                            enemyMaxPP = Math.min(10, enemyMaxPP + 1); 
+                        }
+                    }
+                    
                     let hm = ab.match(/DEATH_HEAL_LEADER_(\d+)/) || ab.match(/DEATH_HEAL_(\d+)/);
                     if (hm) { 
                         if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + parseInt(hm[1])); 
-                        else enemyHP = Math.min(eMaxHP, enemyHP + parseInt(hm[1])); playHealSound(); 
+                        else enemyHP = Math.min(eMaxHP, enemyHP + parseInt(hm[1])); 
+                        playHealSound(); 
                     }
+                    
                     if (ab === 'DEATH_SUMMON_ZOMBIE_2') { 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.ZOMBIE)); 
                         if(newBoard.length < 5) newBoard.push(createCard(TOKENS.ZOMBIE)); 
                     }
-                    if (ab === 'DEATH_SUMMON_DRAGON_5_5') { if(newBoard.length < 5) newBoard.push(createCard(TOKENS.DRAGON_5_5)); }
+                    if (ab === 'DEATH_SUMMON_DRAGON_5_5') { 
+                        if(newBoard.length < 5) newBoard.push(createCard(TOKENS.DRAGON_5_5)); 
+                    }
                     if (ab === 'DEATH_ADD_DECK_ARTIFACT_2') { 
-                        let dk = isPlayer ? playerDeck : enemyDeck; dk.push(createCard(TOKENS.ARTIFACT)); dk.push(createCard(TOKENS.ARTIFACT)); 
+                        let dk = isPlayer ? playerDeck : enemyDeck; 
+                        dk.push(createCard(TOKENS.ARTIFACT)); 
+                        dk.push(createCard(TOKENS.ARTIFACT)); 
                     }
                     if (ab === 'DEATH_ADD_3_FAIRY') { 
-                        let h = isPlayer ? playerHand : enemyHand; for(let i = 0; i < 3; i++) { if (h.length < 9) h.push(createCard(TOKENS.FAIRY)); } 
+                        let h = isPlayer ? playerHand : enemyHand; 
+                        for(let i = 0; i < 3; i++) { 
+                            if (h.length < 9) h.push(createCard(TOKENS.FAIRY)); 
+                        } 
                     }
-                    if (ab === 'DEATH_DRAW_2_SELF_DMG_2') { drawCardToHand(isPlayer, 2); if(isPlayer) playerHP -= 2; else enemyHP -= 2; }
+                    if (ab === 'DEATH_DRAW_2_SELF_DMG_2') { 
+                        drawCardToHand(isPlayer, 2); 
+                        if(isPlayer) playerHP -= 2; else enemyHP -= 2; 
+                    }
                     if (ab === 'DEATH_KILL_RANDOM') {
-                        let tb = isPlayer ? enemyBoard : playerBoard; let valid = tb.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
-                        if (valid.length > 0) valid[Math.floor(Math.random() * valid.length)].hp = 0;
+                        let tb = isPlayer ? enemyBoard : playerBoard;
+                        let valid = tb.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
+                        if (valid.length > 0) {
+                            valid[Math.floor(Math.random() * valid.length)].hp = 0;
+                        }
                     }
                     let aoeM = ab.match(/DEATH_AOE_(\d+)/);
                     if (aoeM) { 
-                        let d = parseInt(aoeM[1]); let tb = isPlayer ? enemyBoard : playerBoard; 
-                        tb.forEach(ec => { if (ec.type === 'FOLLOWER' && !ec.ability.includes('INVINCIBLE')) ec.hp -= d; }); 
+                        let d = parseInt(aoeM[1]); 
+                        let tb = isPlayer ? enemyBoard : playerBoard; 
+                        tb.forEach(ec => { 
+                            if (ec.type === 'FOLLOWER' && !ec.ability.includes('INVINCIBLE')) ec.hp -= d; 
+                        }); 
                     }
-                    if (ab === 'DEATH_SUMMON_MORDECAI') { if(newBoard.length < 5) newBoard.push(createCard(TOKENS.MORDECAI)); }
+                    if (ab === 'DEATH_SUMMON_MORDECAI') { 
+                        if(newBoard.length < 5) newBoard.push(createCard(TOKENS.MORDECAI)); 
+                    }
                     let buffM = ab.match(/DEATH_BUFF_ALL_(\d+)_(\d+)/);
                     if (buffM) { 
                         let a = parseInt(buffM[1]), h = parseInt(buffM[2]); 
-                        newBoard.forEach(pc => { if(pc.type === 'FOLLOWER') { pc.atk += a; pc.baseAtk += a; pc.hp += h; pc.maxHp += h; pc.baseHp += h; } }); 
+                        newBoard.forEach(pc => { 
+                            if(pc.type === 'FOLLOWER') { 
+                                pc.atk += a; pc.baseAtk += a; 
+                                pc.hp += h; pc.maxHp += h; pc.baseHp += h; 
+                            } 
+                        }); 
                     }
-                    if (ab === 'DEATH_SUMMON_LICH') { if (newBoard.length < 5) newBoard.push(createCard(TOKENS.LICH)); }
-                    if (ab === 'DEATH_ADD_HAND_DOLL') { let h = isPlayer ? playerHand : enemyHand; if (h.length < 9) h.push(createCard(TOKENS.PUPPET)); }
+                    if (ab === 'DEATH_SUMMON_LICH') {
+                        if (newBoard.length < 5) newBoard.push(createCard(TOKENS.LICH));
+                    }
+                    if (ab === 'DEATH_ADD_HAND_DOLL') {
+                        let h = isPlayer ? playerHand : enemyHand;
+                        if (h.length < 9) h.push(createCard(TOKENS.PUPPET));
+                    }
                 });
-            } else { newBoard.push(c); }
+            } else { 
+                newBoard.push(c); 
+            }
         });
         return newBoard;
     };
@@ -754,7 +1166,9 @@ function checkDeath() {
     enemyBoard = processBoard(enemyBoard, false);
 
     if (deadFound) { 
-        playTone(100, 'sawtooth', 0.2, 0.3); playTone(50, 'square', 0.3, 0.2); updateAuras(); 
+        playTone(100, 'sawtooth', 0.2, 0.3); 
+        playTone(50, 'square', 0.3, 0.2); 
+        updateAuras(); 
         if (playerBoard.some(c => c.hp <= 0 && !c.ability.includes('INVINCIBLE')) || enemyBoard.some(c => c.hp <= 0 && !c.ability.includes('INVINCIBLE'))) {
             checkDeath(); 
         }
@@ -772,32 +1186,56 @@ function getRequiredGrave(c) {
 }
 
 function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
-    let c = dragObj.card; let index = dragObj.index;
+    let c = dragObj.card; 
+    let index = dragObj.index;
     let myHand = isPlayer ? playerHand : enemyHand; 
     let myBoard = isPlayer ? playerBoard : enemyBoard; 
     let myGrave = isPlayer ? playerGrave : enemyGrave;
 
     let reqGrave = getRequiredGrave(c);
-    if (reqGrave > 0 && myGrave < reqGrave) { if(isPlayer) playErrorSound(); }
+    if (reqGrave > 0 && myGrave < reqGrave) {
+        if(isPlayer) playErrorSound(); 
+    }
 
-    if (isPlayer) playerPP -= c.cost; else enemyPP -= c.cost;
-    myHand.splice(index, 1); cardsPlayedThisTurn++;
+    if (isPlayer) {
+        playerPP -= c.cost; 
+    } else {
+        enemyPP -= c.cost;
+    }
+    
+    myHand.splice(index, 1); 
+    cardsPlayedThisTurn++;
+
     addBattleLog(`${isPlayer ? 'あなた' : '相手'}が「${c.name}」をプレイ`, isPlayer);
 
     if (c.ability.includes('SPELLBOOST_ALL')) {
-        myHand.forEach(hc => { if (hc.ability.includes('SPELLBOOST_COST_DOWN')) { hc.cost = Math.max(0, hc.cost - 1); } });
+        myHand.forEach(hc => {
+            if (hc.ability.includes('SPELLBOOST_COST_DOWN')) {
+                hc.cost = Math.max(0, hc.cost - 1);
+            }
+        });
         showPopup("スペルブースト！", "#0d47a1");
     }
 
     if (c.type === 'FOLLOWER' || c.type === 'AMULET') {
         c.ready = c.ability.includes('STORM') || c.ability.includes('RUSH');
-        if (c.ability.includes('VENGEANCE_STORM') && (isPlayer ? playerHP : enemyHP) <= 10) { c.ready = true; }
-        if (c.ability.includes('AWAKENING_STORM') && (isPlayer ? playerMaxPP : enemyMaxPP) >= 7) { c.ready = true; }
+        
+        if (c.ability.includes('VENGEANCE_STORM') && (isPlayer ? playerHP : enemyHP) <= 10) { 
+            c.ready = true; 
+        }
+        if (c.ability.includes('AWAKENING_STORM') && (isPlayer ? playerMaxPP : enemyMaxPP) >= 7) { 
+            c.ready = true; 
+        }
 
         c.rushThisTurn = c.ability.includes('RUSH') && !c.ready; 
         c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1;
-        myBoard.push(c); playSummonSound(); updateAuras();
-    } else { playSpellSound(); }
+        
+        myBoard.push(c); 
+        playSummonSound(); 
+        updateAuras();
+    } else {
+        playSpellSound();
+    }
     
     executeAbility(c, isPlayer, targetEnemy, targetFace);
     return true;
@@ -805,86 +1243,160 @@ function playCardFromHand(dragObj, targetEnemy, targetFace, isPlayer) {
 
 function executeAbility(card, isPlayer, targetEnemy, targetFace) {
     try {
-        let targetBoard = isPlayer ? enemyBoard : playerBoard; let myBoard = isPlayer ? playerBoard : enemyBoard;
-        let myHand = isPlayer ? playerHand : enemyHand; let myDeck = isPlayer ? playerDeck : enemyDeck;
+        let targetBoard = isPlayer ? enemyBoard : playerBoard;
+        let myBoard = isPlayer ? playerBoard : enemyBoard;
+        let myHand = isPlayer ? playerHand : enemyHand;
+        let myDeck = isPlayer ? playerDeck : enemyDeck;
 
         card.ability.forEach(ab => {
-            if (ab === 'FANFARE_SUMMON_WARD') { if (myBoard.length < 5) myBoard.push(createCard({name:'守護兵', type:'FOLLOWER', cost:2, atk:1, hp:3, maxHp:3, ability:['WARD'], color:'#fb8c00'})); }
+            if (ab === 'FANFARE_SUMMON_WARD') {
+                if (myBoard.length < 5) {
+                    myBoard.push(createCard({name:'守護兵', type:'FOLLOWER', cost:2, atk:1, hp:3, maxHp:3, ability:['WARD'], color:'#fb8c00'}));
+                }
+            }
             else if (ab === 'FANFARE_BUFF_BY_GRAVE') {
                 let gv = isPlayer ? playerGrave : enemyGrave;
                 card.atk += gv; card.baseAtk += gv; card.hp += gv; card.maxHp += gv; card.baseHp += gv;
                 showPopup(`弔い合戦！+${gv}/+${gv}`, '#dd2c00');
             }
-            else if (ab === 'FANFARE_SUMMON_EARTH_SIGIL') { if (myBoard.length < 5) myBoard.push(createCard(TOKENS.EARTH_SIGIL)); }
+            else if (ab === 'FANFARE_SUMMON_EARTH_SIGIL') {
+                if (myBoard.length < 5) myBoard.push(createCard(TOKENS.EARTH_SIGIL));
+            }
             else if (ab === 'EARTH_RITE_BUFF_3_3') {
                 let sigilIdx = myBoard.findIndex(c => c.name === '土の印');
                 if (sigilIdx !== -1) {
-                    myBoard.splice(sigilIdx, 1); card.atk += 3; card.baseAtk += 3; card.hp += 3; card.maxHp += 3; card.baseHp += 3;
+                    myBoard.splice(sigilIdx, 1);
+                    card.atk += 3; card.baseAtk += 3; card.hp += 3; card.maxHp += 3; card.baseHp += 3;
                     showPopup("土の秘術発動！", "#00838f");
                 }
             }
             else if (ab === 'EARTH_RITE_HEAL_5') {
                 let sigilIdx = myBoard.findIndex(c => c.name === '土の印');
                 if (sigilIdx !== -1) {
-                    myBoard.splice(sigilIdx, 1); if (isPlayer) playerHP = Math.min(pMaxHP, playerHP + 5); else enemyHP = Math.min(eMaxHP, enemyHP + 5);
+                    myBoard.splice(sigilIdx, 1);
+                    if (isPlayer) {
+                        playerHP = Math.min(pMaxHP, playerHP + 5); 
+                    } else {
+                        enemyHP = Math.min(eMaxHP, enemyHP + 5);
+                    }
                     showPopup("土の秘術発動！顔面5回復", "#00838f");
                 }
             }
             else if (ab === 'FANFARE_BUFF_ALL_MAGES') {
-                myBoard.forEach(c => { if (c !== card && c.type === 'FOLLOWER') { c.atk++; c.hp++; c.baseAtk++; c.baseHp++; c.maxHp++; } });
+                myBoard.forEach(c => {
+                    if (c !== card && c.type === 'FOLLOWER') { 
+                        c.atk++; c.hp++; c.baseAtk++; c.baseHp++; c.maxHp++; 
+                    }
+                });
                 showPopup("魔法使いを強化！", "#5c6bc0");
             }
             else if (ab === 'FANFARE_DRAIN_3') {
-                if (isPlayer) { enemyHP -= 3; playerHP = Math.min(pMaxHP, playerHP + 3); }
-                else { playerHP -= 3; enemyHP = Math.min(eMaxHP, enemyHP + 3); }
-                playDamageSound(); playHealSound(); showPopup("ドレイン！", "#ad1457");
+                if (isPlayer) { 
+                    enemyHP -= 3; 
+                    playerHP = Math.min(pMaxHP, playerHP + 3); 
+                } else { 
+                    playerHP -= 3; 
+                    enemyHP = Math.min(eMaxHP, enemyHP + 3); 
+                }
+                playDamageSound(); 
+                playHealSound(); 
+                showPopup("ドレイン！", "#ad1457");
             }
-            else if (ab === 'SPELL_SUMMON_GHOST_3') { for(let i=0; i<3; i++) { if(myBoard.length < 5) myBoard.push(createCard(TOKENS.GHOST)); } }
-            else if (ab === 'SPELL_SUMMON_BAT_2') { for(let i=0; i<2; i++) { if(myBoard.length < 5) myBoard.push(createCard(TOKENS.BAT)); } }
-            else if (ab === 'SPELL_SUMMON_SKELETON_2') { for(let i=0; i<2; i++) { if(myBoard.length < 5) myBoard.push(createCard(TOKENS.SKELETON)); } }
-            else if (ab === 'SPELL_ADD_HAND_DOLL_2') { for(let i=0; i<2; i++) { if(myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET)); } }
-            else if (ab === 'DEATH_SUMMON_LICH') { if (myBoard.length < 5) myBoard.push(createCard({name:'リッチ', type:'FOLLOWER', cost:4, atk:4, hp:4, ability:[], color:'#4a148c'})); }
-            else if (ab === 'DEATH_ADD_HAND_DOLL') { if (myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET)); }
+            else if (ab === 'SPELL_SUMMON_GHOST_3') {
+                for(let i=0; i<3; i++) { 
+                    if(myBoard.length < 5) myBoard.push(createCard(TOKENS.GHOST)); 
+                }
+            }
+            else if (ab === 'SPELL_SUMMON_BAT_2') {
+                for(let i=0; i<2; i++) { 
+                    if(myBoard.length < 5) myBoard.push(createCard(TOKENS.BAT)); 
+                }
+            }
+            else if (ab === 'SPELL_SUMMON_SKELETON_2') {
+                for(let i=0; i<2; i++) { 
+                    if(myBoard.length < 5) myBoard.push(createCard(TOKENS.SKELETON)); 
+                }
+            }
+            else if (ab === 'SPELL_ADD_HAND_DOLL_2') {
+                for(let i=0; i<2; i++) { 
+                    if(myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET)); 
+                }
+            }
             else if (ab === 'FANFARE_DESTROY_ALLY_DRAW_2' || ab === 'TARGET_ALLY_DESTROY') {
                 let allies = myBoard.filter(c => c !== card && c.type === 'FOLLOWER');
                 if (allies.length > 0) {
-                    let t = allies[Math.floor(Math.random() * allies.length)]; t.hp = 0;
+                    let t = allies[Math.floor(Math.random() * allies.length)];
+                    t.hp = 0;
                     if (ab === 'FANFARE_DESTROY_ALLY_DRAW_2') drawCardToHand(isPlayer, 2);
                 }
             }
             else if (ab === 'DISCARD_1_DRAW_2' || ab === 'DISCARD_1_RUSH') {
                 if (myHand.length > 0) {
                     myHand.splice(Math.floor(Math.random() * myHand.length), 1);
-                    if (ab === 'DISCARD_1_DRAW_2') { drawCardToHand(isPlayer, 2); showPopup("ディスカード！", "#00897b"); }
-                    if (ab === 'DISCARD_1_RUSH') { card.ready = true; card.rushThisTurn = true; }
+                    
+                    if (ab === 'DISCARD_1_DRAW_2') { 
+                        drawCardToHand(isPlayer, 2); 
+                        showPopup("ディスカード！", "#00897b"); 
+                    }
+                    if (ab === 'DISCARD_1_RUSH') { 
+                        card.ready = true; 
+                        card.rushThisTurn = true; 
+                    }
                     
                     myBoard.forEach(bc => {
                         if (bc.ability.includes('DISCARD_TRIGGER_BURN_1')) {
-                            if (isPlayer) enemyHP -= 1; else playerHP -= 1; playDamageSound(); showPopup("手札捨て効果！1ダメ！", "#4db6ac");
+                            if (isPlayer) enemyHP -= 1; else playerHP -= 1;
+                            playDamageSound(); 
+                            showPopup("手札捨て効果！1ダメ！", "#4db6ac");
                         }
-                        if (bc.ability.includes('DISCARD_TRIGGER_DRAW_1')) drawCardToHand(isPlayer, 1);
+                        if (bc.ability.includes('DISCARD_TRIGGER_DRAW_1')) {
+                            drawCardToHand(isPlayer, 1);
+                        }
                     });
                 }
             }
             else if (ab === 'FANFARE_DISCARD_ALL_BURN') {
-                let count = myHand.length; myHand.length = 0;
-                targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= count; });
-                if (isPlayer) enemyHP -= count; else playerHP -= count; playDamageSound(); showPopup(`全捨て！${count}ダメージ！`, "#004d40");
+                let count = myHand.length;
+                myHand.length = 0;
+                targetBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= count; 
+                });
+                if (isPlayer) enemyHP -= count; else playerHP -= count;
+                playDamageSound(); 
+                showPopup(`全捨て！${count}ダメージ！`, "#004d40");
             }
             else if (ab === 'FANFARE_PUPPET_STORM') {
-                myHand.forEach(c => { if (c.name === '操り人形' && !c.ability.includes('STORM')) c.ability.push('STORM'); }); showPopup("人形に疾走付与！", "#0097a7");
+                myHand.forEach(c => {
+                    if (c.name === '操り人形' && !c.ability.includes('STORM')) {
+                        c.ability.push('STORM');
+                    }
+                });
+                showPopup("人形に疾走付与！", "#0097a7");
             }
             else if (ab === 'FANFARE_TRANSFORM_PUPPETS') {
-                myHand.forEach(c => { if (c.name === '操り人形') { c.name = 'オーキスの人形'; c.atk = 3; c.hp = 2; c.ability.push('STORM'); } }); showPopup("人形を3/2疾走に！", "#006064");
+                myHand.forEach(c => {
+                    if (c.name === '操り人形') { 
+                        c.name = 'オーキスの人形'; 
+                        c.atk = 3; 
+                        c.hp = 2; 
+                        c.ability.push('STORM'); 
+                    }
+                });
+                showPopup("人形を3/2疾走に！", "#006064");
             }
             else if (ab === 'SPELL_BURN_BY_HAND') {
                 let dmg = isPlayer ? enemyHand.length : playerHand.length;
-                if (isPlayer) enemyHP -= dmg; else playerHP -= dmg; playDamageSound(); showPopup(`手札分ダメージ！(${dmg})`, "#80deea");
+                if (isPlayer) enemyHP -= dmg; else playerHP -= dmg;
+                playDamageSound(); 
+                showPopup(`手札分ダメージ！(${dmg})`, "#80deea");
             }
-            else if (ab === 'TARGET_ENEMY_DRAW_1') { drawCardToHand(!isPlayer, 1); }
+            else if (ab === 'TARGET_ENEMY_DRAW_1') {
+                drawCardToHand(!isPlayer, 1);
+            }
             else if (ab === 'ENEMY_MILL_1' || ab === 'TURN_END_ENEMY_MILL_1') {
                 if (targetBoard.length >= 0 && myDeck.length >= 0) { 
-                    if (isPlayer) enemyDeck.shift(); else playerDeck.shift(); showPopup("敵の山札を1枚消滅！", "#00838f");
+                    if (isPlayer) enemyDeck.shift(); else playerDeck.shift();
+                    showPopup("敵の山札を1枚消滅！", "#00838f");
                 }
             }
             else if (ab === 'TARGET_ALLY_BOUNCE') {
@@ -892,7 +1404,12 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 if (allies.length > 0) {
                     let t = allies[Math.floor(Math.random() * allies.length)];
                     myBoard.splice(myBoard.indexOf(t), 1);
-                    if (myHand.length < 9) { t.atk = t.baseAtk; t.hp = t.baseHp; t.isEvolved = false; myHand.push(t); }
+                    if (myHand.length < 9) {
+                        t.atk = t.baseAtk; 
+                        t.hp = t.baseHp; 
+                        t.isEvolved = false;
+                        myHand.push(t);
+                    }
                     showPopup("バウンス！", "#aed581");
                 }
             }
@@ -900,7 +1417,12 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 if (targetEnemy) {
                     targetBoard.splice(targetBoard.indexOf(targetEnemy), 1);
                     let th = isPlayer ? enemyHand : playerHand;
-                    if (th.length < 9) { targetEnemy.atk = targetEnemy.baseAtk; targetEnemy.hp = targetEnemy.baseHp; targetEnemy.isEvolved = false; th.push(targetEnemy); }
+                    if (th.length < 9) {
+                        targetEnemy.atk = targetEnemy.baseAtk; 
+                        targetEnemy.hp = targetEnemy.baseHp; 
+                        targetEnemy.isEvolved = false;
+                        th.push(targetEnemy);
+                    }
                 }
             }
             else if (ab === 'TARGET_BOTH_BOUNCE_ALL') {
@@ -909,7 +1431,12 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                         let c = brd[i];
                         if (c.type === 'FOLLOWER') {
                             let h = (brd === myBoard) ? myHand : (isPlayer ? enemyHand : playerHand);
-                            if (h.length < 9) { c.atk = c.baseAtk; c.hp = c.baseHp; c.isEvolved = false; h.push(c); }
+                            if (h.length < 9) {
+                                c.atk = c.baseAtk; 
+                                c.hp = c.baseHp; 
+                                c.isEvolved = false;
+                                h.push(c);
+                            }
                             brd.splice(i, 1);
                         }
                     }
@@ -920,312 +1447,647 @@ function executeAbility(card, isPlayer, targetEnemy, targetFace) {
                 for (let i = myBoard.length - 1; i >= 0; i--) {
                     let c = myBoard[i];
                     if (c !== card && c.type === 'FOLLOWER') {
-                        if (myHand.length < 9) { c.atk = c.baseAtk; c.hp = c.baseHp; c.isEvolved = false; myHand.push(c); }
-                        myBoard.splice(i, 1); count++;
+                        if (myHand.length < 9) {
+                            c.atk = c.baseAtk; 
+                            c.hp = c.baseHp; 
+                            c.isEvolved = false;
+                            myHand.push(c);
+                        }
+                        myBoard.splice(i, 1);
+                        count++;
                     }
                 }
-                card.atk += count; card.hp += count; card.baseAtk += count; card.baseHp += count; card.maxHp += count;
+                card.atk += count; 
+                card.hp += count; 
+                card.baseAtk += count; 
+                card.baseHp += count; 
+                card.maxHp += count;
                 showPopup(`全バウンス！+${count}/+${count}`, "#689f38");
             }
             else if (ab === 'SPELL_COMBO_KILL') {
-                if (cardsPlayedThisTurn >= 3 && targetEnemy) { targetEnemy.hp = 0; } else if (cardsPlayedThisTurn < 3) { showPopup("コンボ数が足りない！", "#8bc34a"); }
+                if (cardsPlayedThisTurn >= 3 && targetEnemy) {
+                    targetEnemy.hp = 0;
+                } else if (cardsPlayedThisTurn < 3) {
+                    showPopup("コンボ数が足りない！", "#8bc34a");
+                }
             }
-            else if (ab === 'SPELL_COMBO_DRAW_2') { if (cardsPlayedThisTurn >= 2) drawCardToHand(isPlayer, 2); }
+            else if (ab === 'SPELL_COMBO_DRAW_2') {
+                if (cardsPlayedThisTurn >= 2) {
+                    drawCardToHand(isPlayer, 2);
+                }
+            }
             else if (ab === 'FANFARE_HP_TO_10') {
-                if (isPlayer) playerHP = 10; else enemyHP = 10; playDamageSound(); showPopup("HPが10になった！", "#e53935");
+                if (isPlayer) playerHP = 10; else enemyHP = 10;
+                playDamageSound(); 
+                showPopup("HPが10になった！", "#e53935");
             }
-            else if (ab === 'FANFARE_ADD_HAND_DOLL') { if (myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET)); showPopup(`人形追加！`, '#555'); }
-            else if (ab === 'FANFARE_ADD_1_FAIRY') { if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); }
+            else if (ab === 'FANFARE_ADD_HAND_DOLL') {
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.PUPPET));
+                showPopup(`人形追加！`, '#555');
+            }
+            else if (ab === 'FANFARE_ADD_1_FAIRY') {
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY));
+            }
             else if (ab === 'FANFARE_BUFF_RANDOM_ALLY_1_0') {
                 let allies = myBoard.filter(f => f.type === 'FOLLOWER' && f !== card);
                 if (allies.length > 0) {
-                    let t = allies[Math.floor(Math.random() * allies.length)]; t.atk += 1; t.baseAtk += 1; showPopup("味方1体に+1/+0！", '#388e3c'); playSpellSound();
+                    let t = allies[Math.floor(Math.random() * allies.length)];
+                    t.atk += 1; 
+                    t.baseAtk += 1;
+                    showPopup("味方1体に+1/+0！", '#388e3c');
+                    playSpellSound();
                 }
             }
             else if (ab.includes('WIPE_BOARD')) {
                 if (ab.includes('NECRO_6_')) { 
-                    if (isPlayer && playerGrave >= 6) playerGrave -= 6; else if (!isPlayer && enemyGrave >= 6) enemyGrave -= 6; else return; 
+                    if (isPlayer && playerGrave >= 6) {
+                        playerGrave -= 6; 
+                    } else if (!isPlayer && enemyGrave >= 6) {
+                        enemyGrave -= 6; 
+                    } else {
+                        return; 
+                    }
                 }
-                targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; }); 
-                myBoard.forEach(c => { if(c !== card && c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; }); 
-                playDamageSound(); showPopup(`盤面全破壊！`, '#ff0000'); 
+                targetBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; 
+                }); 
+                myBoard.forEach(c => { 
+                    if(c !== card && c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp = 0; 
+                }); 
+                playDamageSound(); 
+                showPopup(`盤面全破壊！`, '#ff0000'); 
             }
             else if (ab.includes('KILL_RANDOM')) { 
                 let valid = targetBoard.filter(c => c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')); 
-                if (valid.length > 0) { valid[Math.floor(Math.random() * valid.length)].hp = 0; playDamageSound(); showPopup(`ランダム破壊！`, '#ff0000'); } 
+                if (valid.length > 0) { 
+                    valid[Math.floor(Math.random() * valid.length)].hp = 0; 
+                    playDamageSound(); 
+                    showPopup(`ランダム破壊！`, '#ff0000'); 
+                } 
             }
             else if (ab === 'TARGET_ENEMY_AMULET_DESTROY') { 
-                if(targetEnemy && targetEnemy.type === 'AMULET') { targetEnemy.hp = 0; playDamageSound(); showPopup('アミュレット破壊！', '#ff0000'); } 
+                if(targetEnemy && targetEnemy.type === 'AMULET') { 
+                    targetEnemy.hp = 0; 
+                    playDamageSound(); 
+                    showPopup('アミュレット破壊！', '#ff0000'); 
+                } 
             }
-            else if (ab === 'TARGET_ENEMY_DESTROY' || ab === 'SPELL_KILL_TARGET') { 
-                if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { targetEnemy.hp = 0; playDamageSound(); showPopup(`破壊した！`, '#ff0000'); } 
+            else if (ab === 'TARGET_ENEMY_DESTROY') { 
+                if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { 
+                    targetEnemy.hp = 0; 
+                    playDamageSound(); 
+                    showPopup(`破壊した！`, '#ff0000'); 
+                } 
+            }
+            else if (ab === 'SPELL_KILL_TARGET') { 
+                if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { 
+                    targetEnemy.hp = 0; 
+                    playDamageSound(); 
+                    showPopup(`破壊した！`, '#ff0000'); 
+                } 
             }
             else if (ab.includes('TARGET_ENEMY_DEBUFF_')) {
                 let m = ab.match(/DEBUFF_(\d+)_(\d+)/);
                 if (m && targetEnemy && targetEnemy.type === 'FOLLOWER') { 
                     let a = parseInt(m[1]), h = parseInt(m[2]);
-                    targetEnemy.atk = Math.max(0, targetEnemy.atk - a); targetEnemy.baseAtk = Math.max(0, targetEnemy.baseAtk - a); 
-                    targetEnemy.hp -= h; targetEnemy.maxHp -= h; targetEnemy.baseHp -= h; showPopup(`-${a}/-${h} デバフ！`, '#800080'); 
+                    targetEnemy.atk = Math.max(0, targetEnemy.atk - a); 
+                    targetEnemy.baseAtk = Math.max(0, targetEnemy.baseAtk - a); 
+                    targetEnemy.hp -= h; 
+                    targetEnemy.maxHp -= h; 
+                    targetEnemy.baseHp -= h; 
+                    showPopup(`-${a}/-${h} デバフ！`, '#800080'); 
                 }
             }
             else if (ab.includes('TARGET_ENEMY_') && !ab.includes('DEBUFF') && !ab.includes('AMULET') && !ab.includes('NECRO') && !ab.includes('BOUNCE') && !ab.includes('DRAW') && !ab.includes('DESTROY')) {
                 let m = ab.match(/TARGET_ENEMY_(\d+)/);
                 if (m) {
                     let d = parseInt(m[1]);
-                    if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { targetEnemy.hp -= d; playDamageSound(); showPopup(`${d}ダメージ！`, '#1565c0'); } 
-                    else if (targetFace) { if(isPlayer) enemyHP -= d; else playerHP -= d; playDamageSound(); showPopup(`顔面に${d}ダメ！`, '#1565c0'); }
-                    if (ab.includes('SELF_DMG_2')) { if(isPlayer) playerHP -= 2; else enemyHP -= 2; }
-                    if (ab.includes('HEAL_LEADER_2')) { if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + 2); else enemyHP = Math.min(eMaxHP, enemyHP + 2); }
+                    if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { 
+                        targetEnemy.hp -= d; 
+                        playDamageSound(); 
+                        showPopup(`${d}ダメージ！`, '#1565c0'); 
+                    } else if (targetFace) { 
+                        if(isPlayer) enemyHP -= d; else playerHP -= d; 
+                        playDamageSound(); 
+                        showPopup(`顔面に${d}ダメ！`, '#1565c0'); 
+                    }
+                    if (ab.includes('SELF_DMG_2')) { 
+                        if(isPlayer) playerHP -= 2; else enemyHP -= 2; 
+                    }
+                    if (ab.includes('HEAL_LEADER_2')) { 
+                        if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + 2); 
+                        else enemyHP = Math.min(eMaxHP, enemyHP + 2); 
+                    }
                 }
             }
             else if (ab.includes('RAMP_1')) { 
-                if (isPlayer) { playerMaxPP = Math.min(10, playerMaxPP + 1); playerPP++; } else { enemyMaxPP = Math.min(10, enemyMaxPP + 1); enemyPP++; } 
-                showPopup(`PP最大値アップ！`, '#00bfa5'); if (ab.includes('DRAW_2')) drawCardToHand(isPlayer, 2);
+                if (isPlayer) { 
+                    playerMaxPP = Math.min(10, playerMaxPP + 1); 
+                    playerPP++; 
+                } else { 
+                    enemyMaxPP = Math.min(10, enemyMaxPP + 1); 
+                    enemyPP++; 
+                } 
+                showPopup(`PP最大値アップ！`, '#00bfa5'); 
+                if (ab.includes('DRAW_2')) {
+                    drawCardToHand(isPlayer, 2);
+                }
             }
             else if (ab.includes('ADVANCE_COUNTDOWN_1')) {
-                myBoard.forEach(c => { if (c.type === 'AMULET' && c.countdown > 0) { c.countdown--; triggerCountdownTick(c, isPlayer, myBoard); if (c.countdown === 0) c.hp = 0; } }); showPopup('カウント加速！', '#00bfa5');
+                myBoard.forEach(c => { 
+                    if (c.type === 'AMULET' && c.countdown > 0) { 
+                        c.countdown--; 
+                        triggerCountdownTick(c, isPlayer, myBoard); 
+                        if (c.countdown === 0) c.hp = 0; 
+                    } 
+                });
+                showPopup('カウント加速！', '#00bfa5');
             }
             else if (ab.includes('ADVANCE_COUNTDOWN_2')) {
-                myBoard.forEach(c => { if (c.type === 'AMULET' && c.countdown > 0) { c.countdown -= 2; if (c.countdown < 0) c.countdown = 0; triggerCountdownTick(c, isPlayer, myBoard); if (c.countdown === 0) c.hp = 0; } }); showPopup('カウント大加速！', '#00bfa5');
+                myBoard.forEach(c => { 
+                    if (c.type === 'AMULET' && c.countdown > 0) { 
+                        c.countdown -= 2; 
+                        if (c.countdown < 0) c.countdown = 0;
+                        triggerCountdownTick(c, isPlayer, myBoard); 
+                        if (c.countdown === 0) c.hp = 0; 
+                    } 
+                });
+                showPopup('カウント大加速！', '#00bfa5');
             }
             else if (ab.includes('TUTOR_COST_1')) {
                 let targetIdx = myDeck.findIndex(c => c.cost === 1);
-                if (targetIdx !== -1) { let tc = myDeck.splice(targetIdx, 1)[0]; if (myHand.length < 9) myHand.push(tc); showPopup(`コスト1サーチ！`, '#1976d2'); myDeck.sort(() => Math.random() - 0.5); }
+                if (targetIdx !== -1) { 
+                    let tc = myDeck.splice(targetIdx, 1)[0]; 
+                    if (myHand.length < 9) myHand.push(tc); 
+                    showPopup(`コスト1サーチ！`, '#1976d2'); 
+                    myDeck.sort(() => Math.random() - 0.5); 
+                }
             }
-            else if (ab.includes('ADD_2_FAIRY')) { if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); showPopup(`妖精2枚追加！`, '#8bc34a'); }
-            else if (ab.includes('ADD_3_FAIRY')) { for(let i = 0; i < 3; i++) { if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); } showPopup(`妖精3枚追加！`, '#8bc34a'); }
-            else if (ab.includes('ADD_1_FAIRY')) { if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); }
-            else if (ab.includes('ADD_2_ZERO_FAIRY')) { if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); showPopup(`0コス妖精2枚！`, '#aed581'); }
-            else if (ab === 'FANFARE_ROACH_BUFF') { card.atk += cardsPlayedThisTurn; card.baseAtk += cardsPlayedThisTurn; showPopup(`コンボ！攻撃力+${cardsPlayedThisTurn}！`, '#689f38'); }
-            else if (ab === 'FANFARE_COMBO_X_BUFF_0_X') { if(cardsPlayedThisTurn > 0){ card.hp += cardsPlayedThisTurn; card.baseHp += cardsPlayedThisTurn; card.maxHp += cardsPlayedThisTurn; showPopup(`コンボ！体力+${cardsPlayedThisTurn}！`, '#689f38'); } }
-            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('BOUNCE') && !ab.includes('ENEMY')) { drawCardToHand(isPlayer, 1); }
-            else if (ab.includes('DRAW_2') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('DISCARD') && !ab.includes('BOTH') && !ab.includes('DESTROY')) { drawCardToHand(isPlayer, 2); showPopup(`2枚ドロー！`, '#1976d2'); }
-            else if (ab.includes('DRAW_3') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { drawCardToHand(isPlayer, 3); showPopup(`3枚ドロー！`, '#039be5'); }
+            else if (ab.includes('ADD_2_FAIRY')) { 
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); 
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); 
+                showPopup(`妖精2枚追加！`, '#8bc34a'); 
+            }
+            else if (ab.includes('ADD_3_FAIRY')) { 
+                for(let i = 0; i < 3; i++) { 
+                    if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); 
+                } 
+                showPopup(`妖精3枚追加！`, '#8bc34a'); 
+            }
+            else if (ab.includes('ADD_1_FAIRY')) { 
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.FAIRY)); 
+            }
+            else if (ab.includes('ADD_2_ZERO_FAIRY')) { 
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); 
+                if (myHand.length < 9) myHand.push(createCard(TOKENS.ZERO_FAIRY)); 
+                showPopup(`0コス妖精2枚！`, '#aed581'); 
+            }
+            else if (ab === 'FANFARE_ROACH_BUFF') { 
+                card.atk += cardsPlayedThisTurn; 
+                card.baseAtk += cardsPlayedThisTurn; 
+                showPopup(`コンボ！攻撃力+${cardsPlayedThisTurn}！`, '#689f38'); 
+            }
+            else if (ab === 'FANFARE_COMBO_X_BUFF_0_X') { 
+                if(cardsPlayedThisTurn > 0){ 
+                    card.hp += cardsPlayedThisTurn; 
+                    card.baseHp += cardsPlayedThisTurn; 
+                    card.maxHp += cardsPlayedThisTurn; 
+                    showPopup(`コンボ！体力+${cardsPlayedThisTurn}！`, '#689f38'); 
+                } 
+            }
+            else if (ab.includes('DRAW_1') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('BOUNCE') && !ab.includes('ENEMY')) { 
+                drawCardToHand(isPlayer, 1); 
+            }
+            else if (ab.includes('DRAW_2') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('DISCARD') && !ab.includes('BOTH') && !ab.includes('DESTROY')) { 
+                drawCardToHand(isPlayer, 2); 
+                showPopup(`2枚ドロー！`, '#1976d2'); 
+            }
+            else if (ab.includes('DRAW_3') && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK')) { 
+                drawCardToHand(isPlayer, 3); 
+                showPopup(`3枚ドロー！`, '#039be5'); 
+            }
             else if (ab.includes('NECRO_4_TARGET_ENEMY_')) { 
                 let m = ab.match(/TARGET_ENEMY_(\d+)/);
                 if (m) {
-                    if (isPlayer && playerGrave >= 4) { playerGrave -= 4; } else if (!isPlayer && enemyGrave >= 4) { enemyGrave -= 4; } else { return; } 
+                    if (isPlayer && playerGrave >= 4) { 
+                        playerGrave -= 4; 
+                    } else if (!isPlayer && enemyGrave >= 4) { 
+                        enemyGrave -= 4; 
+                    } else { 
+                        return; 
+                    } 
+
                     let d = parseInt(m[1]);
-                    if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { targetEnemy.hp -= d; playDamageSound(); }
-                    else if (targetFace) { if(isPlayer) enemyHP -= d; else playerHP -= d; playDamageSound(); } 
+                    if (targetEnemy && targetEnemy.type === 'FOLLOWER' && !targetEnemy.ability.includes('INVINCIBLE')) { 
+                        targetEnemy.hp -= d; 
+                        playDamageSound(); 
+                    } else if (targetFace) { 
+                        if(isPlayer) enemyHP -= d; else playerHP -= d; 
+                        playDamageSound(); 
+                    } 
                     showPopup(`ネクロ(4):${d}ダメージ！`, '#aa00ff'); 
                 }
             }
             else if (ab.includes('NECRO_4_BUFF_2_2')) {
-                if (isPlayer && playerGrave >= 4) { playerGrave -= 4; } else if (!isPlayer && enemyGrave >= 4) { enemyGrave -= 4; } else { return; }
-                myBoard.forEach(c => { if(c.type === 'FOLLOWER') { c.atk += 2; c.baseAtk += 2; c.hp += 2; c.maxHp += 2; c.baseHp += 2; } }); showPopup(`ネクロ(4):全体+2/+2！`, '#aa00ff');
+                if (isPlayer && playerGrave >= 4) { 
+                    playerGrave -= 4; 
+                } else if (!isPlayer && enemyGrave >= 4) { 
+                    enemyGrave -= 4; 
+                } else { 
+                    return; 
+                }
+
+                myBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER') { 
+                        c.atk += 2; c.baseAtk += 2; 
+                        c.hp += 2; c.maxHp += 2; c.baseHp += 2; 
+                    } 
+                }); 
+                showPopup(`ネクロ(4):全体+2/+2！`, '#aa00ff');
             }
             else if (ab.includes('NECRO_6_BUFF_5_5')) {
-                if (isPlayer && playerGrave >= 6) { playerGrave -= 6; } else if (!isPlayer && enemyGrave >= 6) { enemyGrave -= 6; } else { return; }
-                card.atk += 5; card.hp += 5; card.maxHp += 5; card.baseAtk += 5; card.baseHp += 5; showPopup(`タイラント覚醒！`, '#aa00ff');
+                if (isPlayer && playerGrave >= 6) { 
+                    playerGrave -= 6; 
+                } else if (!isPlayer && enemyGrave >= 6) { 
+                    enemyGrave -= 6; 
+                } else { 
+                    return; 
+                }
+
+                card.atk += 5; card.hp += 5; card.maxHp += 5; 
+                card.baseAtk += 5; card.baseHp += 5; 
+                showPopup(`タイラント覚醒！`, '#aa00ff');
             }
             else if (ab.includes('NECRO_6_BURN_FACE_')) {
                 let m = ab.match(/BURN_FACE_(\d+)/);
                 if (m) {
-                    if (isPlayer && playerGrave >= 6) { playerGrave -= 6; } else if (!isPlayer && enemyGrave >= 6) { enemyGrave -= 6; } else { return; }
-                    let d = parseInt(m[1]); if (isPlayer) enemyHP -= d; else playerHP -= d; playDamageSound(); showPopup(`ネクロ(6):${d}ダメ！`, '#aa00ff');
+                    if (isPlayer && playerGrave >= 6) { 
+                        playerGrave -= 6; 
+                    } else if (!isPlayer && enemyGrave >= 6) { 
+                        enemyGrave -= 6; 
+                    } else { 
+                        return; 
+                    }
+
+                    let d = parseInt(m[1]);
+                    if (isPlayer) enemyHP -= d; else playerHP -= d; 
+                    playDamageSound(); 
+                    showPopup(`ネクロ(6):${d}ダメ！`, '#aa00ff');
                 }
             }
             
             let healM = ab.match(/HEAL_LEADER_(\d+)/) || ab.match(/FANFARE_HEAL_(\d+)/);
             if (healM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('CD_TICK') && !ab.includes('VENGEANCE') && !ab.includes('AWAKENING')) {
                 let h = parseInt(healM[1]);
-                if (isPlayer) playerHP = Math.min(pMaxHP, playerHP + h); else enemyHP = Math.min(eMaxHP, enemyHP + h); 
-                playHealSound(); showPopup(`顔面${h}回復！`, '#fbc02d');
+                if (isPlayer) {
+                    playerHP = Math.min(pMaxHP, playerHP + h); 
+                } else {
+                    enemyHP = Math.min(eMaxHP, enemyHP + h); 
+                }
+                playHealSound(); 
+                showPopup(`顔面${h}回復！`, '#fbc02d');
+
                 myBoard.forEach(bc => {
                     if (bc.ability.includes('HEAL_TRIGGER_BURN_2')) {
                         let valid = targetBoard.filter(t => t.type === 'FOLLOWER' && !t.ability.includes('INVINCIBLE'));
-                        if (valid.length > 0) { valid[Math.floor(Math.random() * valid.length)].hp -= 2; } 
-                        else { if (isPlayer) enemyHP -= 2; else playerHP -= 2; }
-                        playDamageSound(); showPopup("回復トリガー！2ダメ！", "#ffee58");
+                        if (valid.length > 0) {
+                            valid[Math.floor(Math.random() * valid.length)].hp -= 2;
+                        } else {
+                            if (isPlayer) enemyHP -= 2; else playerHP -= 2;
+                        }
+                        playDamageSound(); 
+                        showPopup("回復トリガー！2ダメ！", "#ffee58");
                     }
-                    if (bc.ability.includes('HEAL_TRIGGER_BUFF_1_1')) { bc.atk++; bc.hp++; bc.baseAtk++; bc.baseHp++; bc.maxHp++; }
-                    if (bc.ability.includes('HEAL_TRIGGER_FACE_DMG_1')) { if (isPlayer) enemyHP -= 1; else playerHP -= 1; playDamageSound(); }
+                    if (bc.ability.includes('HEAL_TRIGGER_BUFF_1_1')) {
+                        bc.atk++; bc.hp++; bc.baseAtk++; bc.baseHp++; bc.maxHp++;
+                    }
+                    if (bc.ability.includes('HEAL_TRIGGER_FACE_DMG_1')) {
+                        if (isPlayer) enemyHP -= 1; else playerHP -= 1;
+                        playDamageSound();
+                    }
                 });
             }
             
             let healAllM = ab.match(/HEAL_ALL_(\d+)/);
             if (healAllM) {
-                let h = parseInt(healAllM[1]); myBoard.forEach(c => { if(c.type === 'FOLLOWER') c.hp = Math.min(c.maxHp, c.hp + h) }); playHealSound(); showPopup(`全体回復！`, '#fbc02d');
+                let h = parseInt(healAllM[1]);
+                myBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER') c.hp = Math.min(c.maxHp, c.hp + h) 
+                }); 
+                playHealSound(); 
+                showPopup(`全体回復！`, '#fbc02d');
             }
 
             let selfDmgM = ab.match(/SELF_DMG_(\d+)/);
             if (selfDmgM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('ATTACK') && !ab.includes('CD_TICK')) { 
-                let d = parseInt(selfDmgM[1]); if (isPlayer) playerHP -= d; else enemyHP -= d; playDamageSound(); showPopup(`自身に${d}ダメ！`, '#b71c1c'); 
+                let d = parseInt(selfDmgM[1]);
+                if (isPlayer) playerHP -= d; else enemyHP -= d; 
+                playDamageSound(); 
+                showPopup(`自身に${d}ダメ！`, '#b71c1c'); 
             }
             
             let buffM = ab.match(/BUFF_ALL_(\d+)_(\d+)/);
             if (buffM && !ab.includes('DEATH') && !ab.includes('NECRO') && !ab.includes('BOUNCE') && !ab.includes('EARTH_RITE') && !ab.includes('MAGES')) {
                 let a = parseInt(buffM[1]), h = parseInt(buffM[2]);
-                myBoard.forEach(c => { if(c.type === 'FOLLOWER') { c.atk += a; c.baseAtk += a; c.hp += h; c.maxHp += h; c.baseHp += h; } }); showPopup(`全体強化！`, '#ff9800');
+                myBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER') { 
+                        c.atk += a; c.baseAtk += a; 
+                        c.hp += h; c.maxHp += h; c.baseHp += h; 
+                    }
+                }); 
+                showPopup(`全体強化！`, '#ff9800');
             }
 
             let aoeM = ab.match(/AOE_(\d+)/);
             if (aoeM && !ab.includes('DEATH') && !ab.includes('CD_TICK') && !ab.includes('AWAKENING') && !ab.includes('NECRO')) {
-                let d = parseInt(aoeM[1]); targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= d; }); playDamageSound(); showPopup(`全体に${d}ダメージ！`, '#1e88e5');
+                let d = parseInt(aoeM[1]);
+                targetBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= d; 
+                }); 
+                playDamageSound(); 
+                showPopup(`全体に${d}ダメージ！`, '#1e88e5');
             }
+            
             if (ab === 'AWAKENING_AOE_4' && (isPlayer ? playerMaxPP : enemyMaxPP) >= 7) {
-                targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 4; }); playDamageSound(); showPopup(`覚醒全体4ダメ！`, '#004d40');
+                targetBoard.forEach(c => { 
+                    if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 4; 
+                }); 
+                playDamageSound(); 
+                showPopup(`覚醒全体4ダメ！`, '#004d40');
             }
             if (ab === 'AWAKENING_HEAL_3' && (isPlayer ? playerMaxPP : enemyMaxPP) >= 7) {
-                if(isPlayer) playerHP = Math.min(pMaxHP, playerHP + 3); else enemyHP = Math.min(eMaxHP, enemyHP + 3); playHealSound(); showPopup(`覚醒3回復！`, '#00897b');
+                if(isPlayer) {
+                    playerHP = Math.min(pMaxHP, playerHP + 3); 
+                } else {
+                    enemyHP = Math.min(eMaxHP, enemyHP + 3); 
+                }
+                playHealSound(); 
+                showPopup(`覚醒3回復！`, '#00897b');
             }
             if (ab === 'NECRO_4_AOE_3') {
-                if (isPlayer && playerGrave >= 4) { playerGrave -= 4; targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 3; }); playDamageSound(); }
-                else if (!isPlayer && enemyGrave >= 4) { enemyGrave -= 4; targetBoard.forEach(c => { if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 3; }); playDamageSound(); }
+                if (isPlayer && playerGrave >= 4) { 
+                    playerGrave -= 4; 
+                    targetBoard.forEach(c => { 
+                        if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 3; 
+                    }); 
+                    playDamageSound(); 
+                }
+                else if (!isPlayer && enemyGrave >= 4) { 
+                    enemyGrave -= 4; 
+                    targetBoard.forEach(c => { 
+                        if(c.type === 'FOLLOWER' && !c.ability.includes('INVINCIBLE')) c.hp -= 3; 
+                    }); 
+                    playDamageSound(); 
+                }
             }
             if (ab === 'VENGEANCE_FACE_3' && (isPlayer ? playerHP : enemyHP) <= 10) {
-                if (isPlayer) enemyHP -= 3; else playerHP -= 3; playDamageSound(); showPopup("復讐3ダメ！", "#d32f2f");
+                if (isPlayer) enemyHP -= 3; else playerHP -= 3;
+                playDamageSound(); 
+                showPopup("復讐3ダメ！", "#d32f2f");
             }
             
             let faceM = ab.match(/FACE_DMG_(\d+)/) || ab.match(/BURN_FACE_(\d+)/);
             if (faceM && !ab.includes('DEATH') && !ab.includes('TURN_END') && !ab.includes('NECRO') && !ab.includes('CD_TICK') && !ab.includes('SPELLBOOST') && !ab.includes('HEAL') && !ab.includes('VENGEANCE')) {
-                let d = parseInt(faceM[1]); if (isPlayer) enemyHP -= d; else playerHP -= d; playDamageSound(); showPopup(`顔面に${d}ダメ！`, '#ff5722');
+                let d = parseInt(faceM[1]);
+                if (isPlayer) enemyHP -= d; else playerHP -= d; 
+                playDamageSound(); 
+                showPopup(`顔面に${d}ダメ！`, '#ff5722');
             }
 
             if (ab === 'SPELL_COST_DOWN_CUCUMBER_HAND') {
-                myHand.forEach(c => { if(c.name.includes('きゅうり')) c.cost = Math.max(0, c.cost-1); }); showPopup(`きゅうりコスト-1！`, '#55aa55');
+                myHand.forEach(c => { 
+                    if(c.name.includes('きゅうり')) c.cost = Math.max(0, c.cost-1); 
+                }); 
+                showPopup(`きゅうりコスト-1！`, '#55aa55');
             }
         });
-        updateAuras(); checkDeath();
-    } catch(e) {}
+        updateAuras(); 
+        checkDeath();
+    } catch(e) { 
+        console.error("executeAbility Error", e); 
+    }
 }
 
 // ==========================================
-// 入力ハンドラ（ブラウザ標準機能による完全安定制御版）
+// Pointer Events による完全安定版・入力ハンドラ
 // ==========================================
 function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect(); 
     const scaleX = canvas.width / rect.width; 
     const scaleY = canvas.height / rect.height;
-    let cx = e.clientX, cy = e.clientY;
-    if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-    else if (e.changedTouches && e.changedTouches.length > 0) { cx = e.changedTouches[0].clientX; cy = e.changedTouches[0].clientY; }
-    return { x: (cx - rect.left) * scaleX, y: (cy - rect.top) * scaleY };
+    return { 
+        x: (e.clientX - rect.left) * scaleX, 
+        y: (e.clientY - rect.top) * scaleY 
+    };
 }
 
 function isHitbox(mx, my, x, y, w, h) {
-    const P = 20; // 絶妙な広さの判定
+    const P = 20; 
     return mx >= (x - P) && mx <= (x + w + P) && my >= (y - P) && my <= (y + h + P);
 }
 
-function clearLongPress() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
+function clearLongPress() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+}
 
 function handleMenuInputs(mx, my) {
     if (gameState === 'MAIN_MENU') {
-        if (isHitbox(mx, my, 200, 250, 400, 100)) { playClickSound(); gameState = 'CLASS_SELECT'; gameMode = 'NORMAL'; return true; }
-        if (isHitbox(mx, my, 200, 400, 400, 100)) { playClickSound(); initGame('DRAFT'); return true; }
-        if (isHitbox(mx, my, 200, 550, 400, 100)) { playClickSound(); gameState = 'BOSS_SELECT'; return true; }
-        if (isHitbox(mx, my, 350, 710, 100, 80)) { playClickSound(); gameState = 'SHOP'; return true; }
-        if (isHitbox(mx, my, 10, 710, 80, 80)) { playClickSound(); gameState = 'SETTINGS'; return true; }
-        if (isHitbox(mx, my, 710, 710, 80, 80)) { playClickSound(); gameState = 'UPDATE_NOTES'; return true; }
+        if (my >= 250 && my <= 350) { 
+            playClickSound(); gameState = 'CLASS_SELECT'; gameMode = 'NORMAL'; return true; 
+        }
+        if (my >= 400 && my <= 500) { 
+            playClickSound(); initGame('DRAFT'); return true; 
+        }
+        if (my >= 550 && my <= 650) { 
+            playClickSound(); gameState = 'BOSS_SELECT'; return true; 
+        }
+        if (my >= 700 && my <= 800) {
+            if (mx >= 0 && mx < 250) { 
+                playClickSound(); gameState = 'SETTINGS'; return true; 
+            } 
+            if (mx >= 250 && mx < 550) { 
+                playClickSound(); gameState = 'SHOP'; return true; 
+            } 
+            if (mx >= 550 && mx <= 800) { 
+                playClickSound(); gameState = 'UPDATE_NOTES'; return true; 
+            } 
+        }
         return false;
     }
     if (gameState === 'SHOP') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = 'MAIN_MENU'; return true; }
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); gameState = 'MAIN_MENU'; return true; 
+        }
         for(let i=0; i<SHOP_ITEMS.length; i++) {
-            let item = SHOP_ITEMS[i]; let ix = 150; let iy = 200 + i * 140;
-            if (isHitbox(mx, my, ix, iy, 500, 100)) {
+            let item = SHOP_ITEMS[i]; 
+            let iy = 200 + i * 140;
+            if (my >= iy && my <= iy + 100) {
                 if (playerGold >= item.price) {
-                    playerGold -= item.price; playSummonSound(); showPopup(`${item.name}を購入！(仮)`, '#ffd700'); saveData();
-                } else { playErrorSound(); showPopup(`ゴールドが足りません！`, '#ff3333'); }
+                    playerGold -= item.price; 
+                    playSummonSound(); 
+                    showPopup(`${item.name}を購入！(仮)`, '#ffd700'); 
+                    saveData();
+                } else { 
+                    playErrorSound(); 
+                    showPopup(`ゴールドが足りません！`, '#ff3333'); 
+                }
                 return true;
             }
         }
         return false;
     }
     if (gameState === 'SETTINGS') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); saveData(); gameState = 'MAIN_MENU'; return true; }
-        if (isHitbox(mx, my, 200, 280, 400, 30)) {
-            masterVolume = (mx - 200) / 400; if (masterVolume < 0) masterVolume = 0; if (masterVolume > 1) masterVolume = 1;
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); saveData(); gameState = 'MAIN_MENU'; return true; 
+        }
+        if (my >= 250 && my <= 350) {
+            masterVolume = (mx - 200) / 400; 
+            if (masterVolume < 0) masterVolume = 0; 
+            if (masterVolume > 1) masterVolume = 1;
             playTone(1000, 'sine', 0.1); return true;
         }
-        for (let i = 0; i < 3; i++) {
-            let sx = 200 + i * 150;
-            if (isHitbox(mx, my, sx, 500, 100, 140)) { sleeveColor = i; playClickSound(); return true; }
+        if (my >= 480 && my <= 660) {
+            if (mx < 300) sleeveColor = 0; 
+            else if (mx < 450) sleeveColor = 1; 
+            else sleeveColor = 2;
+            playClickSound(); return true;
         }
         return false;
     }
     if (gameState === 'UPDATE_NOTES') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = 'MAIN_MENU'; return true; }
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); gameState = 'MAIN_MENU'; return true; 
+        }
         return false;
     }
     if (gameState === 'BOSS_SELECT') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = 'MAIN_MENU'; return true; }
-        if (isHitbox(mx, my, 200, 200, 400, 100)) { playClickSound(); bossLevel = 1; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; }
-        if (isHitbox(mx, my, 200, 350, 400, 100)) { playClickSound(); bossLevel = 2; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; }
-        if (isHitbox(mx, my, 200, 500, 400, 100)) { playClickSound(); bossLevel = 3; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; }
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); gameState = 'MAIN_MENU'; return true; 
+        }
+        if (my >= 200 && my <= 300) { 
+            playClickSound(); bossLevel = 1; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; 
+        }
+        if (my >= 350 && my <= 450) { 
+            playClickSound(); bossLevel = 2; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; 
+        }
+        if (my >= 500 && my <= 600) { 
+            playClickSound(); bossLevel = 3; gameState = 'CLASS_SELECT'; gameMode = 'BOSS'; return true; 
+        }
         return false;
     }
     if (gameState === 'CLASS_SELECT') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = (gameMode === 'BOSS') ? 'BOSS_SELECT' : 'MAIN_MENU'; return true; }
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); gameState = (gameMode === 'BOSS') ? 'BOSS_SELECT' : 'MAIN_MENU'; return true; 
+        }
         const keys = Object.keys(DECKS);
         for (let i = 0; i < keys.length; i++) {
-            let dx = 70 + (i % 2) * 340; let dy = 160 + Math.floor(i / 2) * 150; 
-            if (isHitbox(mx, my, dx, dy, 310, 110)) { playClickSound(); selectedClassKey = keys[i]; gameState = 'ARCHETYPE_SELECT'; return true; }
+            let dx = 70 + (i % 2) * 340; 
+            let dy = 160 + Math.floor(i / 2) * 150; 
+            if (mx >= dx && mx <= dx + 310 && my >= dy && my <= dy + 110) { 
+                playClickSound(); selectedClassKey = keys[i]; gameState = 'ARCHETYPE_SELECT'; return true; 
+            }
         }
         return false;
     }
     if (gameState === 'ARCHETYPE_SELECT') {
-        if (isHitbox(mx, my, 20, 20, 100, 40)) { playClickSound(); gameState = 'CLASS_SELECT'; return true; }
-        const archs = DECK_INFO[selectedClassKey].archetypes;
-        for (let i = 0; i < archs.length; i++) {
-            let dx = 200; let dy = 200 + i * 150;
-            if (isHitbox(mx, my, dx, dy, 400, 110)) { playClickSound(); initGame(gameMode, selectedClassKey, archs[i].id); return true; }
+        if (my >= 0 && my <= 100 && mx <= 150) { 
+            playClickSound(); gameState = 'CLASS_SELECT'; return true; 
+        }
+        if (my >= 200 && my <= 310) { 
+            playClickSound(); initGame(gameMode, selectedClassKey, 'AGGRO'); return true; 
+        }
+        if (my >= 350 && my <= 460) { 
+            playClickSound(); initGame(gameMode, selectedClassKey, 'CONTROL'); return true; 
+        }
+        if (my >= 500 && my <= 610) { 
+            playClickSound(); initGame(gameMode, selectedClassKey, 'COMBO'); return true; 
         }
         return false;
     }
     if (gameState === 'DRAFT') {
         for (let i = 0; i < 3; i++) {
-            let dx = 150 + i * 180; let dy = 350;
-            if (isHitbox(mx, my, dx, dy, 160, 230)) {
+            let dx = 150 + i * 180; 
+            if (mx >= dx && mx <= dx + 160 && my >= 300 && my <= 600) {
                 playDraftSelectSound(); playerDeck.push(createCard(draftOptions[i])); draftCount++;
-                if (draftCount >= 40) { startCoinToss(); } else { generateDraftOptions(); } return true;
+                if (draftCount >= 40) { startCoinToss(); } else { generateDraftOptions(); } 
+                return true;
             }
         }
         return false;
     }
     if (gameState === 'GAMEOVER') {
-        if (isHitbox(mx, my, 300, 550, 200, 50)) { playClickSound(); gameState = 'MAIN_MENU'; return true; }
+        if (my >= 500 && my <= 650) { 
+            playClickSound(); gameState = 'MAIN_MENU'; return true; 
+        }
         return false;
     }
     return false;
 }
 
 function handleInputStartReal(e) {
+    // スクロールや他のデフォルトイベントを完全に無効化
+    if (e.cancelable) e.preventDefault(); 
+    
     initAudio(); 
-    const pos = getPointerPos(e); const mx = pos.x; const my = pos.y;
+    const pos = getPointerPos(e); 
+    const mx = pos.x; 
+    const my = pos.y;
     
-    if (gameState !== 'BATTLE' && gameState !== 'COIN_TOSS') { handleMenuInputs(mx, my); return; }
+    if (gameState !== 'BATTLE' && gameState !== 'COIN_TOSS') { 
+        handleMenuInputs(mx, my); 
+        return; 
+    }
     
-    if (zoomedCard) { playClickSound(); zoomedCard = null; return; }
-    if (showBattleLog) {
-        if (isHitbox(mx, my, 650, 20, 100, 40)) { playClickSound(); showBattleLog = false; }
-        return;
+    if (zoomedCard) { 
+        playClickSound(); 
+        zoomedCard = null; 
+        return; 
+    }
+    
+    if (showBattleLog) { 
+        if (my >= 0 && my <= 100 && mx >= 600) { 
+            playClickSound(); showBattleLog = false; 
+        } 
+        return; 
     }
 
     if (isAITurn || gameState === 'COIN_TOSS') {
-        if (gameState === 'BATTLE' && isHitbox(mx, my, 680, 650, 100, 50)) { playClickSound(); isHandHidden = !isHandHidden; }
+        if (gameState === 'BATTLE' && mx >= 650 && my >= 620 && my <= 720) { 
+            playClickSound(); isHandHidden = !isHandHidden; 
+        }
         return;
     }
 
-    if (isHitbox(mx, my, 680, 20, 100, 40)) { playClickSound(); showBattleLog = true; return; }
-    if (isHitbox(mx, my, 680, 650, 100, 50)) { playClickSound(); isHandHidden = !isHandHidden; return; }
+    if (mx >= 650 && my >= 10 && my <= 80) { 
+        playClickSound(); showBattleLog = true; return; 
+    }
+    if (mx >= 650 && my >= 620 && my <= 720) { 
+        playClickSound(); isHandHidden = !isHandHidden; return; 
+    }
     
-    if (!hasEvolvedThisTurn && playerEP > 0 && canPlayerEvolve() && isHitbox(mx, my, 10, 550, 100, 50)) { 
-        playClickSound(); evolveMode = !evolveMode; return; 
+    if (!hasEvolvedThisTurn && playerEP > 0 && canPlayerEvolve() && mx <= 150 && my >= 520 && my <= 620) { 
+        evolveMode = !evolveMode; playClickSound(); return; 
     }
 
-    touchStartX = mx; touchStartY = my;
+    touchStartX = mx; 
+    touchStartY = my;
     let foundCardToZoom = null;
 
     if (!isHandHidden && !evolveMode) {
         for (let i = playerHand.length - 1; i >= 0; i--) {
             let c = playerHand[i];
-            if (isHitbox(mx, my, c.x, c.y, CARD_W, CARD_H)) {
+            if (mx >= c.x && mx <= c.x + CARD_W && my >= c.y && my <= c.y + CARD_H) {
                 foundCardToZoom = c;
-                let cst = c.cost; if (c.ability.includes('VENGEANCE_COST_1') && playerHP <= 10) cst = 1;
-                if (playerPP >= cst) { draggedCard = { card: c, index: i, type: 'HAND' }; dragOffset.x = mx - c.x; dragOffset.y = my - c.y; }
+                let cst = c.cost; 
+                if (c.ability.includes('VENGEANCE_COST_1') && playerHP <= 10) cst = 1;
+                
+                if (playerPP >= cst) { 
+                    draggedCard = { card: c, index: i, type: 'HAND' }; 
+                    dragOffset.x = mx - c.x; dragOffset.y = my - c.y; 
+                }
                 break;
             }
         }
@@ -1233,68 +2095,129 @@ function handleInputStartReal(e) {
 
     if (!foundCardToZoom) {
         [...playerBoard, ...enemyBoard, ...enemyHand].forEach(c => {
-            if (isHitbox(mx, my, c.x, c.y, CARD_W, CARD_H)) { foundCardToZoom = c; }
+            if (mx >= c.x && mx <= c.x + CARD_W && my >= c.y && my <= c.y + CARD_H) { 
+                foundCardToZoom = c; 
+            }
         });
     }
 
     if (foundCardToZoom) {
-        longPressTimer = setTimeout(() => { zoomedCard = foundCardToZoom; draggedCard = null; activeAttacker = null; playClickSound(); }, 400); 
+        longPressTimer = setTimeout(() => { 
+            zoomedCard = foundCardToZoom; 
+            draggedCard = null; 
+            activeAttacker = null; 
+            playClickSound(); 
+        }, 400); 
     }
 
-    if (draggedCard) { playClickSound(); return; }
+    if (draggedCard) { 
+        playClickSound(); return; 
+    }
 
     for (let i = 0; i < playerBoard.length; i++) {
         let c = playerBoard[i];
-        if (isHitbox(mx, my, c.x, c.y, CARD_W, CARD_H)) {
+        if (mx >= c.x && mx <= c.x + CARD_W && my >= c.y && my <= c.y + CARD_H) {
             if (evolveMode && !c.isEvolved && c.type === 'FOLLOWER') {
-                playerEP--; c.isEvolved = true; c.evolveTimer = 30;
+                playerEP--; 
+                c.isEvolved = true; 
+                c.evolveTimer = 30;
                 c.atk += 2; c.hp += 2; c.maxHp += 2; c.baseAtk += 2; c.baseHp += 2;
-                if (!c.ready && c.attacksLeft > 0) { c.ready = true; if (!c.ability.includes('STORM')) c.rushThisTurn = true; }
-                hasEvolvedThisTurn = true; evolveMode = false; playEvolveSound(); showPopup('進化！', '#ffeb3b'); 
-                addBattleLog(`あなたの ${c.name} が進化！`, true); clearLongPress(); return;
+                
+                if (!c.ready && c.attacksLeft > 0) { 
+                    c.ready = true; 
+                    if (!c.ability.includes('STORM')) c.rushThisTurn = true; 
+                }
+                
+                hasEvolvedThisTurn = true; 
+                evolveMode = false; 
+                playEvolveSound(); 
+                showPopup('進化！', '#ffeb3b'); 
+                addBattleLog(`あなたの ${c.name} が進化！`, true); 
+                clearLongPress(); return;
             }
-            if (c.ready && c.attacksLeft > 0 && !evolveMode && c.type === 'FOLLOWER') { playClickSound(); activeAttacker = { card: c, index: i }; return; }
+            if (c.ready && c.attacksLeft > 0 && !evolveMode && c.type === 'FOLLOWER') { 
+                playClickSound(); 
+                activeAttacker = { card: c, index: i }; 
+                return; 
+            }
         }
     }
     
-    if (!evolveMode && isHitbox(mx, my, 650, 375, 130, 50)) { playClickSound(); endTurn(); clearLongPress(); }
+    if (!evolveMode && mx >= 620 && my >= 350 && my <= 450) { 
+        playClickSound(); endTurn(); clearLongPress(); 
+    }
 }
 
 function handleInputMove(e) {
-    const pos = getPointerPos(e); mousePos.x = pos.x; mousePos.y = pos.y;
-    if (longPressTimer) { if (Math.abs(mousePos.x - touchStartX) > 10 || Math.abs(mousePos.y - touchStartY) > 10) { clearLongPress(); } }
-    if (draggedCard) { draggedCard.card.x = mousePos.x - dragOffset.x; draggedCard.card.y = mousePos.y - dragOffset.y; }
-    if (gameState === 'SETTINGS' && e.buttons > 0) {
-        if (isHitbox(mousePos.x, mousePos.y, 200, 280, 400, 30)) {
-            masterVolume = (mousePos.x - 200) / 400; if (masterVolume < 0) masterVolume = 0; if (masterVolume > 1) masterVolume = 1;
+    if (e.cancelable) e.preventDefault(); 
+    
+    const pos = getPointerPos(e); 
+    mousePos.x = pos.x; 
+    mousePos.y = pos.y;
+    
+    if (longPressTimer) { 
+        if (Math.abs(mousePos.x - touchStartX) > 10 || Math.abs(mousePos.y - touchStartY) > 10) { 
+            clearLongPress(); 
+        } 
+    }
+    
+    if (draggedCard) { 
+        draggedCard.card.x = mousePos.x - dragOffset.x; 
+        draggedCard.card.y = mousePos.y - dragOffset.y; 
+    }
+    
+    // PointerEvent は e.buttons でクリック維持を判定できる
+    if (gameState === 'SETTINGS' && (e.buttons > 0 || e.type === 'pointermove')) {
+        if (mousePos.x >= 200 && mousePos.x <= 600 && mousePos.y >= 250 && mousePos.y <= 350) {
+            masterVolume = (mousePos.x - 200) / 400; 
+            if (masterVolume < 0) masterVolume = 0; 
+            if (masterVolume > 1) masterVolume = 1;
         }
     }
 }
 
 function handleInputEnd(e) {
+    if (e.cancelable) e.preventDefault(); 
     clearLongPress();
+    
     if (gameState !== 'BATTLE' || isAITurn || zoomedCard || showBattleLog) return;
     if (!draggedCard && !activeAttacker) return;
     
-    const pos = getPointerPos(e); const mx = pos.x; const my = pos.y;
+    const pos = getPointerPos(e); 
+    const mx = pos.x; 
+    const my = pos.y;
 
     if (draggedCard && draggedCard.type === 'HAND') {
         let c = draggedCard.card;
         if (my < 600) { 
-            let targetEnemy = enemyBoard.find(enemy => isHitbox(mx, my, enemy.x, enemy.y, CARD_W, CARD_H));
+            let targetEnemy = enemyBoard.find(enemy => mx >= enemy.x && mx <= enemy.x + CARD_W && my >= enemy.y && my <= enemy.y + CARD_H);
             let isFaceDrop = (my < 300 && !targetEnemy);
+            
             let reqTarget = requiresTarget(c);
             let reqFollowerOnly = c.ability.some(a => a.includes('DEBUFF') || a.includes('KILL_TARGET') || a.includes('DESTROY_AMULET'));
 
             if (reqTarget) {
-                if (targetEnemy) { playCardFromHand(draggedCard, targetEnemy, false, true); } 
-                else if (isFaceDrop && !reqFollowerOnly) { playCardFromHand(draggedCard, null, true, true); } 
-                else { showPopup("対象カードへ直接重ねてください", "#f00"); playErrorSound(); }
+                if (targetEnemy) { 
+                    playCardFromHand(draggedCard, targetEnemy, false, true); 
+                } 
+                else if (isFaceDrop && !reqFollowerOnly) { 
+                    playCardFromHand(draggedCard, null, true, true); 
+                } 
+                else { 
+                    showPopup("対象カードへ直接重ねてください", "#f00"); 
+                    playErrorSound(); 
+                }
             } else {
                 if (c.type === 'FOLLOWER' || c.type === 'AMULET') {
-                    if (playerBoard.length < 5) playCardFromHand(draggedCard, null, false, true);
-                    else { showPopup("盤面がいっぱいです！", "#f00"); playErrorSound(); }
-                } else { playCardFromHand(draggedCard, null, false, true); }
+                    if (playerBoard.length < 5) {
+                        playCardFromHand(draggedCard, null, false, true);
+                    } else { 
+                        showPopup("盤面がいっぱいです！", "#f00"); 
+                        playErrorSound(); 
+                    }
+                } else { 
+                    playCardFromHand(draggedCard, null, false, true); 
+                }
             }
         }
         draggedCard = null;
@@ -1302,62 +2225,382 @@ function handleInputEnd(e) {
 
     if (activeAttacker) {
         let hasEnemyWard = enemyBoard.some(c => c.ability.includes('WARD') && !c.ability.includes('INVINCIBLE')); 
-        let attackSuccess = false; let targetForAnim = null;
+        let attackSuccess = false; 
+        let targetForAnim = null;
 
         for (let i = 0; i < enemyBoard.length; i++) {
             let enemy = enemyBoard[i];
-            if (isHitbox(mx, my, enemy.x, enemy.y, CARD_W, CARD_H) && enemy.type === 'FOLLOWER') {
+            if (mx >= enemy.x && mx <= enemy.x + CARD_W && my >= enemy.y && my <= enemy.y + CARD_H && enemy.type === 'FOLLOWER') {
                 if (hasEnemyWard && !enemy.ability.includes('WARD') && !enemy.ability.includes('INVINCIBLE')) { 
-                    playErrorSound(); showPopup("【守護】を攻撃してください！", '#ff0000'); activeAttacker = null; return; 
+                    playErrorSound(); 
+                    showPopup("【守護】を攻撃してください！", '#ff0000'); 
+                    activeAttacker = null; 
+                    return; 
                 }
-                let atkHasKill = activeAttacker.card.ability.includes('ATTACK_KILL'); let defHasKill = enemy.ability.includes('ATTACK_KILL');
-                if (atkHasKill && !enemy.ability.includes('INVINCIBLE')) enemy.hp = 0; else if (!enemy.ability.includes('INVINCIBLE')) enemy.hp -= activeAttacker.card.atk; 
-                if (defHasKill && !activeAttacker.card.ability.includes('INVINCIBLE')) activeAttacker.card.hp = 0; else if (!activeAttacker.card.ability.includes('INVINCIBLE')) activeAttacker.card.hp -= enemy.atk; 
-                attackSuccess = true; targetForAnim = enemy; break;
+                
+                let atkHasKill = activeAttacker.card.ability.includes('ATTACK_KILL'); 
+                let defHasKill = enemy.ability.includes('ATTACK_KILL');
+                
+                if (atkHasKill && !enemy.ability.includes('INVINCIBLE')) {
+                    enemy.hp = 0; 
+                } else if (!enemy.ability.includes('INVINCIBLE')) {
+                    enemy.hp -= activeAttacker.card.atk; 
+                }
+                
+                if (defHasKill && !activeAttacker.card.ability.includes('INVINCIBLE')) {
+                    activeAttacker.card.hp = 0; 
+                } else if (!activeAttacker.card.ability.includes('INVINCIBLE')) {
+                    activeAttacker.card.hp -= enemy.atk; 
+                }
+                
+                attackSuccess = true; 
+                targetForAnim = enemy; 
+                break;
             }
         }
         if (!attackSuccess && my < 300 && !activeAttacker.card.rushThisTurn) { 
-            if (hasEnemyWard) { playErrorSound(); showPopup("敵の【守護】が邪魔です！", '#ff0000'); activeAttacker = null; return; }
-            enemyHP -= activeAttacker.card.atk; attackSuccess = true; targetForAnim = 'FACE'; showPopup("ダイレクトアタック！！", '#ffaa00');
+            if (hasEnemyWard) { 
+                playErrorSound(); 
+                showPopup("敵の【守護】が邪魔です！", '#ff0000'); 
+                activeAttacker = null; 
+                return; 
+            }
+            enemyHP -= activeAttacker.card.atk; 
+            attackSuccess = true; 
+            targetForAnim = 'FACE'; 
+            showPopup("ダイレクトアタック！！", '#ffaa00');
         } else if (!attackSuccess && my < 300 && activeAttacker.card.rushThisTurn) {
-            playErrorSound(); showPopup("突進はリーダーを攻撃できません", '#f00'); activeAttacker = null; return;
+            playErrorSound(); 
+            showPopup("突進はリーダーを攻撃できません", '#f00'); 
+            activeAttacker = null; 
+            return;
         }
         
         if (attackSuccess) {
-            playAttackSound(); playDamageSound();
+            playAttackSound(); 
+            playDamageSound();
             addBattleLog(`あなたの ${activeAttacker.card.name} が ${targetForAnim === 'FACE' ? '敵リーダー' : targetForAnim.name} に攻撃！`, true);
 
             activeAttacker.card.attackAnimTimer = 15;
             activeAttacker.card.attackTargetX = targetForAnim === 'FACE' ? 400 : targetForAnim.x + CARD_W/2;
             activeAttacker.card.attackTargetY = targetForAnim === 'FACE' ? 100 : targetForAnim.y + CARD_H/2;
 
-            if (activeAttacker.card.ability.includes('ATTACK_LEADER_DMG_1')) playerHP -= 1;
-            if (activeAttacker.card.ability.includes('HEAL_FULL_ON_KILL') && activeAttacker.card.hp > 0) activeAttacker.card.hp = activeAttacker.card.maxHp;
-            activeAttacker.card.attacksLeft--; if (activeAttacker.card.attacksLeft <= 0) activeAttacker.card.ready = false;
+            if (activeAttacker.card.ability.includes('ATTACK_LEADER_DMG_1')) {
+                playerHP -= 1;
+            }
+            if (activeAttacker.card.ability.includes('HEAL_FULL_ON_KILL') && activeAttacker.card.hp > 0) {
+                activeAttacker.card.hp = activeAttacker.card.maxHp;
+            }
+            
+            activeAttacker.card.attacksLeft--; 
+            if (activeAttacker.card.attacksLeft <= 0) {
+                activeAttacker.card.ready = false;
+            }
         }
-        checkDeath(); activeAttacker = null;
+        checkDeath(); 
+        activeAttacker = null;
     }
     checkWinLoss();
 }
 
 // ----------------------------------------------------
-// ブラウザ標準機能でゴーストクリックを完全排除
+// PointerEventのみを使用してゴーストクリックを100%防止する
 // ----------------------------------------------------
-canvas.addEventListener('mousedown', function(e) { handleInputStartReal(e); });
-canvas.addEventListener('touchstart', function(e) { 
-    if (e.cancelable) e.preventDefault(); // ここで魔法のゴーストブロック発動！
-    handleInputStartReal(e); 
-}, {passive: false});
+canvas.addEventListener('pointerdown', handleInputStartReal, {passive: false}); 
+canvas.addEventListener('pointermove', handleInputMove, {passive: false}); 
+canvas.addEventListener('pointerup', handleInputEnd, {passive: false}); 
+canvas.addEventListener('pointercancel', handleInputEnd, {passive: false});
 
-canvas.addEventListener('mousemove', handleInputMove);
-canvas.addEventListener('touchmove', function(e) { 
-    if (e.cancelable) e.preventDefault(); handleInputMove(e); 
-}, {passive: false});
+// ※スマホ特有のスクロールやズーム等のデフォルト挙動を止める
+canvas.addEventListener('touchstart', function(e) { if(e.cancelable) e.preventDefault(); }, {passive: false});
+canvas.addEventListener('touchmove', function(e) { if(e.cancelable) e.preventDefault(); }, {passive: false});
 
-canvas.addEventListener('mouseup', handleInputEnd);
-canvas.addEventListener('touchend', function(e) { 
-    if (e.cancelable) e.preventDefault(); handleInputEnd(e); 
-}, {passive: false});
+// ==========================================
+// ターン処理関連
+// ==========================================
+function processTurnEndEffects(isPlayer) {
+    try {
+        let board = isPlayer ? playerBoard : enemyBoard;
+        board.forEach(c => {
+            let abStr = c.ability.join(',');
+            c.ability.forEach(ab => {
+                let hm = ab.match(/TURN_END_HEAL_LEADER_(\d+)/);
+                if (hm) { 
+                    let h = parseInt(hm[1]); 
+                    if (isPlayer) playerHP = Math.min(pMaxHP, playerHP + h); 
+                    else enemyHP = Math.min(eMaxHP, enemyHP + h); 
+                    playHealSound(); showPopup(`ターン終了回復`, '#fbc02d'); 
+                }
+                if (ab === 'TURN_END_HEAL_FULL') c.hp = c.maxHp;
+                if (ab === 'TURN_END_DESTROY_SELF') c.hp = 0;
+                if (ab === 'TURN_END_BANISH') c.hp = 0; 
+                let bm = ab.match(/TURN_END_BURN_FACE_(\d+)/);
+                if (bm) { 
+                    let d = parseInt(bm[1]); 
+                    if (isPlayer) enemyHP -= d; else playerHP -= d; 
+                    playDamageSound(); 
+                }
+                let dm = ab.match(/TURN_END_DRAW_(\d+)/);
+                if (dm) { 
+                    drawCardToHand(isPlayer, parseInt(dm[1])); 
+                }
+                if (ab === 'TURN_END_SUMMON_CUCUMBER') { 
+                    if(board.length < 5) board.push(createCard(TOKENS.CUCUMBER_SOLDIER)); 
+                }
+                if (ab === 'TURN_END_SUMMON_DRAGON') { 
+                    if(board.length < 5) board.push(createCard(TOKENS.DRAGON_5_5)); 
+                }
+                if (ab === 'TURN_END_SUMMON_SKELETON') { 
+                    if(board.length < 5) board.push(createCard(TOKENS.SKELETON)); 
+                }
+                if (ab === 'TURN_END_BOTH_DRAW_2') { 
+                    drawCardToHand(true, 2); 
+                    drawCardToHand(false, 2); 
+                    showPopup("お互い2ドロー！", "#00bcd4"); 
+                }
+            });
+            c.rushThisTurn = false; 
+        });
+        checkDeath();
+    } catch(e) { console.error("Turn End Error:", e); }
+}
+
+function endTurn() {
+    processTurnEndEffects(true); 
+    globalTurn++; 
+    showPopup("相手のターン", '#aaa');
+    
+    if (enemyMaxPP < 10) enemyMaxPP++; 
+    enemyPP = enemyMaxPP;
+    
+    enemyBoard.forEach(c => { 
+        if(c.type === 'FOLLOWER') { 
+            c.ready = true; 
+            c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1; 
+        }
+    });
+    
+    cardsPlayedThisTurn = 0; 
+    hasEvolvedThisTurn = false;
+    processTurnStartCountdown(false); 
+    drawCardToHand(false, 1);
+    
+    enemyAITask(); 
+}
+
+async function enemyAITask() {
+    isAITurn = true; 
+    try {
+        await new Promise(r => setTimeout(r, 1000));
+        if (gameState !== 'BATTLE') return;
+
+        let canPlay = true;
+        while(canPlay && gameState === 'BATTLE') {
+            canPlay = false; 
+            let sortedHand = enemyHand.slice().sort((a,b) => b.cost - a.cost);
+            
+            for (let i = 0; i < sortedHand.length; i++) {
+                let c = sortedHand[i]; 
+                let handIdx = enemyHand.indexOf(c); 
+                if (handIdx === -1) continue;
+                
+                let cst = c.cost;
+                if (c.ability.includes('VENGEANCE_COST_1') && enemyHP <= 10) cst = 1;
+
+                if (enemyPP >= cst) {
+                    let target = null, targetFace = false;
+                    
+                    if (requiresTarget(c)) {
+                        let validTargets = playerBoard.filter(t => !t.ability.includes('INVINCIBLE') && (t.type === 'FOLLOWER' || (c.ability.join(',').includes('AMULET_DESTROY') && t.type === 'AMULET')));
+                        let reqFollowerOnly = c.ability.some(a => a.includes('DEBUFF') || a.includes('KILL_TARGET') || a.includes('DESTROY_AMULET'));
+                        
+                        if (validTargets.length > 0) {
+                            target = validTargets[Math.floor(Math.random() * validTargets.length)];
+                        } else if (!reqFollowerOnly) {
+                            targetFace = true;
+                        } else { 
+                            continue; 
+                        }
+                    }
+                    
+                    if (c.type === 'SPELL' || ((c.type === 'FOLLOWER' || c.type === 'AMULET') && enemyBoard.length < 5)) {
+                        let played = playCardFromHand({card:c, index:handIdx}, target, targetFace, false);
+                        if (played) { 
+                            showEnemyPlayNotification(c); 
+                            canPlay = true; 
+                            await new Promise(r => setTimeout(r, 1200)); 
+                            break; 
+                        }
+                    }
+                }
+            }
+        }
+
+        if (gameState === 'BATTLE' && !hasEvolvedThisTurn && enemyEP > 0 && canEnemyEvolve()) {
+            let unevolved = enemyBoard.filter(c => c.type === 'FOLLOWER' && !c.isEvolved);
+            if (unevolved.length > 0) {
+                let c = unevolved[0]; 
+                enemyEP--; 
+                c.isEvolved = true; 
+                c.evolveTimer = 30;
+                c.atk += 2; c.hp += 2; c.maxHp += 2; c.baseAtk += 2; c.baseHp += 2;
+                
+                if (!c.ready && c.attacksLeft > 0) { 
+                    c.ready = true; 
+                    if (!c.ability.includes('STORM')) c.rushThisTurn = true; 
+                }
+                c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1;
+                
+                hasEvolvedThisTurn = true; 
+                addBattleLog(`敵が「${c.name}」を進化！`, false);
+                playEvolveSound(); 
+                showPopup('敵が進化！', '#ffeb3b'); 
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        }
+
+        let canAttack = true;
+        while(canAttack && gameState === 'BATTLE') {
+            canAttack = false; 
+            let attacker = enemyBoard.find(c => c.type === 'FOLLOWER' && c.ready && c.attacksLeft > 0 && c.hp > 0);
+            
+            if (attacker) {
+                let target = null; 
+                let playerWards = playerBoard.filter(c => c.ability.includes('WARD') && !c.ability.includes('INVINCIBLE') && c.type === 'FOLLOWER');
+                let targetForAnim = null;
+
+                let playerTotalAtk = 0;
+                playerBoard.forEach(c => { if(c.type === 'FOLLOWER' && c.ready) playerTotalAtk += c.atk; });
+                
+                let isPinch = (enemyHP <= 4) || (playerTotalAtk >= enemyHP);
+
+                if (playerWards.length > 0) {
+                    target = playerWards.find(w => attacker.atk >= w.hp) || playerWards[0];
+                } else {
+                    let bestTrade = null; 
+                    let bestScore = -100;
+                    
+                    playerBoard.forEach(pf => {
+                        if (pf.type !== 'FOLLOWER' || pf.ability.includes('INVINCIBLE')) return;
+                        if (pf.ability.includes('DEATH_SUMMON_MORDECAI') && pf.atk < 7 && pf.hp < 7) return; 
+                        
+                        let canKill = (attacker.atk >= pf.hp || attacker.ability.includes('ATTACK_KILL')); 
+                        let willDie = (!attacker.ability.includes('INVINCIBLE') && (attacker.hp <= pf.atk || pf.ability.includes('ATTACK_KILL')));
+                        let score = 0;
+                        
+                        if (isPinch && canKill) {
+                            score = 100 + pf.atk * 20; 
+                        } else {
+                            if (canKill && !willDie) score = 50 + pf.atk * 10;
+                            else if (canKill && willDie) {
+                                if (attacker.ability.includes('WARD') && enemyHP >= 10 && !pf.ability.includes('WARD')) score = -20;
+                                else score = (pf.atk >= attacker.atk || pf.cost >= attacker.cost) ? 20 + pf.atk * 5 : -10;
+                            }
+                            else if (!canKill && willDie) score = -50; 
+                        }
+                        if (score > bestScore && score > 0) { 
+                            bestScore = score; 
+                            bestTrade = pf; 
+                        }
+                    });
+                    
+                    if (!isPinch && attacker.atk >= playerHP && !attacker.rushThisTurn) { 
+                        target = null; 
+                    } else if (bestTrade) { 
+                        target = bestTrade; 
+                    } else if (attacker.rushThisTurn) { 
+                        target = null; 
+                    }
+                }
+
+                if (target) {
+                    let atkHasKill = attacker.ability.includes('ATTACK_KILL'); 
+                    let defHasKill = target.ability.includes('ATTACK_KILL');
+                    
+                    if (atkHasKill && !target.ability.includes('INVINCIBLE')) target.hp = 0; 
+                    else if (!target.ability.includes('INVINCIBLE')) target.hp -= attacker.atk; 
+                    
+                    if (defHasKill && !attacker.ability.includes('INVINCIBLE')) attacker.hp = 0;
+                    else if (!attacker.ability.includes('INVINCIBLE')) attacker.hp -= target.atk;
+                    
+                    targetForAnim = target;
+                } else if (!attacker.rushThisTurn) { 
+                    playerHP -= attacker.atk; 
+                    targetForAnim = 'FACE'; 
+                } else { 
+                    attacker.attacksLeft = 0; 
+                    continue; 
+                }
+                
+                playAttackSound(); 
+                playDamageSound();
+                addBattleLog(`敵の ${attacker.name} が ${targetForAnim === 'FACE' ? 'あなたのリーダー' : targetForAnim.name} に攻撃！`, false);
+
+                attacker.attackAnimTimer = 15;
+                attacker.attackTargetX = targetForAnim === 'FACE' ? 400 : targetForAnim.x + CARD_W/2;
+                attacker.attackTargetY = targetForAnim === 'FACE' ? 700 : targetForAnim.y + CARD_H/2;
+
+                if (attacker.ability.includes('ATTACK_LEADER_DMG_1')) playerHP -= 1;
+                if (attacker.ability.includes('HEAL_FULL_ON_KILL') && attacker.hp > 0) attacker.hp = attacker.maxHp;
+                
+                attacker.attacksLeft--; 
+                if (attacker.attacksLeft <= 0) attacker.ready = false;
+                
+                checkDeath(); 
+                canAttack = true; 
+                await new Promise(r => setTimeout(r, 800));
+            }
+        }
+    } catch(e) {
+        console.error("AI Error:", e);
+    } finally {
+        if(gameState === 'BATTLE') {
+            checkWinLoss(); 
+            processTurnEndEffects(false);
+            
+            if (playerMaxPP < 10) playerMaxPP++; 
+            playerPP = playerMaxPP;
+            
+            playerBoard.forEach(c => { 
+                if(c.type === 'FOLLOWER'){ 
+                    c.ready = true; 
+                    c.attacksLeft = c.ability.includes('TWICE_ATTACK') ? 2 : 1; 
+                }
+            });
+            
+            cardsPlayedThisTurn = 0; 
+            processTurnStartCountdown(true); 
+            drawCardToHand(true, 1); 
+            globalTurn++; 
+            hasEvolvedThisTurn = false;
+            
+            showPopup("あなたのターン！", '#00f2fe'); 
+            isHandHidden = false; 
+            
+            if (canPlayerEvolve() && !p1EvolvedNotified) { 
+                setTimeout(()=>showPopup("進化が可能に！", "#ffeb3b"), 800); 
+                p1EvolvedNotified = true; 
+            }
+        }
+        isAITurn = false; 
+    }
+}
+
+function checkWinLoss() {
+    if (playerHP <= 0 || enemyHP <= 0) {
+        if (gameState !== 'GAMEOVER') {
+            gameState = 'GAMEOVER'; 
+            if (playerHP <= 0) { 
+                winMessage = 'YOU LOSE...'; 
+            } else { 
+                winMessage = 'YOU WIN!!'; 
+                playerGold += 100; 
+                showPopup("100 G獲得！", '#ffd700'); 
+            }
+            saveData(); 
+        }
+    }
+}
 
 // ==========================================
 // 描画関連
@@ -1368,29 +2611,37 @@ function updateCardPositions() {
         playerHand.forEach((c, idx) => {
             if (draggedCard && draggedCard.card === c) return; 
             let offset = idx - (phLen - 1) / 2;
-            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * 80; c.targetY = isHandHidden ? 900 : (630 + Math.abs(offset) * 8); 
-            c.x += (c.targetX - c.x) * 0.15; c.y += (c.targetY - c.y) * 0.15; 
+            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * 80; 
+            c.targetY = isHandHidden ? 900 : (630 + Math.abs(offset) * 8); 
+            c.x += (c.targetX - c.x) * 0.15; 
+            c.y += (c.targetY - c.y) * 0.15; 
         });
 
         let ehLen = enemyHand.length;
         enemyHand.forEach((c, idx) => {
             let offset = idx - (ehLen - 1) / 2;
-            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * 60; c.targetY = (!isAITurn) ? -150 : -50 + Math.abs(offset) * 5; 
-            c.x += (c.targetX - c.x) * 0.15; c.y += (c.targetY - c.y) * 0.15;
+            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * 60; 
+            c.targetY = (!isAITurn) ? -150 : -50 + Math.abs(offset) * 5; 
+            c.x += (c.targetX - c.x) * 0.15; 
+            c.y += (c.targetY - c.y) * 0.15;
         });
 
         let pbLen = playerBoard.length;
         playerBoard.forEach((c, idx) => {
             let offset = idx - (pbLen - 1) / 2;
-            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * (CARD_W + 15); c.targetY = 450;
-            c.x += (c.targetX - c.x) * 0.2; c.y += (c.targetY - c.y) * 0.2;
+            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * (CARD_W + 15); 
+            c.targetY = 450;
+            c.x += (c.targetX - c.x) * 0.2; 
+            c.y += (c.targetY - c.y) * 0.2;
         });
 
         let ebLen = enemyBoard.length;
         enemyBoard.forEach((c, idx) => {
             let offset = idx - (ebLen - 1) / 2;
-            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * (CARD_W + 15); c.targetY = 250;
-            c.x += (c.targetX - c.x) * 0.2; c.y += (c.targetY - c.y) * 0.2;
+            c.targetX = (canvas.width / 2 - CARD_W / 2) + offset * (CARD_W + 15); 
+            c.targetY = 250;
+            c.x += (c.targetX - c.x) * 0.2; 
+            c.y += (c.targetY - c.y) * 0.2;
         });
     } catch(e) {}
 }
@@ -1407,24 +2658,46 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
         }
 
         ctx.save();
+        
         if (c.evolveTimer > 0) {
-            ctx.translate(c.x + CARD_W/2, c.y + CARD_H/2); ctx.scale(Math.abs(Math.cos(c.evolveTimer * 0.2)), 1);
-            ctx.translate(-(c.x + CARD_W/2), -(c.y + CARD_H/2)); c.evolveTimer--;
+            ctx.translate(c.x + CARD_W/2, c.y + CARD_H/2); 
+            ctx.scale(Math.abs(Math.cos(c.evolveTimer * 0.2)), 1);
+            ctx.translate(-(c.x + CARD_W/2), -(c.y + CARD_H/2)); 
+            c.evolveTimer--;
         }
 
-        if (c.ready && c.attacksLeft > 0 && !isEnemy && playerBoard.includes(c) && c.type === 'FOLLOWER' && !evolveMode && !isLog) { ctx.shadowBlur = 15; ctx.shadowColor = '#00f2fe'; } 
-        else if (isPlayable && c.type !== 'ENEMY_HAND' && !isHandHidden && !isLog) { ctx.shadowBlur = 10; ctx.shadowColor = '#00ff66'; } 
-        else if (evolveMode && !isEnemy && playerBoard.includes(c) && !c.isEvolved && c.type === 'FOLLOWER' && !isLog) { ctx.shadowBlur = 20; ctx.shadowColor = '#ffeb3b'; }
-        else if (!isLog) { ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.6)'; }
+        if (c.ready && c.attacksLeft > 0 && !isEnemy && playerBoard.includes(c) && c.type === 'FOLLOWER' && !evolveMode && !isLog) { 
+            ctx.shadowBlur = 15; ctx.shadowColor = '#00f2fe'; 
+        } 
+        else if (isPlayable && c.type !== 'ENEMY_HAND' && !isHandHidden && !isLog) { 
+            ctx.shadowBlur = 10; ctx.shadowColor = '#00ff66'; 
+        } 
+        else if (evolveMode && !isEnemy && playerBoard.includes(c) && !c.isEvolved && c.type === 'FOLLOWER' && !isLog) { 
+            ctx.shadowBlur = 20; ctx.shadowColor = '#ffeb3b'; 
+        }
+        else if (!isLog) { 
+            ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.6)'; 
+        }
         
-        ctx.fillStyle = c.color || '#333'; ctx.fillRect(c.x, c.y, CARD_W, CARD_H);
+        ctx.fillStyle = c.color || '#333'; 
+        ctx.fillRect(c.x, c.y, CARD_W, CARD_H);
         ctx.lineWidth = 3;
         
         if (c.type === 'ENEMY_HAND' && !isLog) {
-            ctx.strokeStyle = '#555'; ctx.strokeRect(c.x, c.y, CARD_W, CARD_H);
-            ctx.fillStyle = SLEEVE_COLORS[enemySleeveColor]; ctx.fillRect(c.x + 4, c.y + 4, CARD_W - 8, CARD_H - 8);
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(c.x + 8, c.y + 8, CARD_W - 16, CARD_H - 16);
-            ctx.fillStyle = '#000'; ctx.fillRect(c.x + CARD_W/2 - 10, c.y + CARD_H/2 - 10, 20, 20); ctx.restore(); return;
+            ctx.strokeStyle = '#555'; 
+            ctx.strokeRect(c.x, c.y, CARD_W, CARD_H);
+            
+            ctx.fillStyle = SLEEVE_COLORS[enemySleeveColor]; 
+            ctx.fillRect(c.x + 4, c.y + 4, CARD_W - 8, CARD_H - 8);
+            
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)'; 
+            ctx.lineWidth = 2; 
+            ctx.strokeRect(c.x + 8, c.y + 8, CARD_W - 16, CARD_H - 16);
+            
+            ctx.fillStyle = '#000'; 
+            ctx.fillRect(c.x + CARD_W/2 - 10, c.y + CARD_H/2 - 10, 20, 20); 
+            ctx.restore(); 
+            return;
         }
 
         if (c.isEvolved) { ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 4; }
@@ -1432,95 +2705,233 @@ function drawCard(c, isEnemy = false, isPlayable = false, isLog = false) {
         else if (c.ability.includes('WARD')) { ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 5; }
         else if (c.ability.includes('INVINCIBLE')) { ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 5; }
         else if (c.ability.includes('ATTACK_KILL')) { ctx.strokeStyle = '#9c27b0'; ctx.lineWidth = 4; }
-        else if (c.type === 'SPELL') ctx.strokeStyle = '#9c27b0'; else ctx.strokeStyle = '#222';
+        else if (c.type === 'SPELL') { ctx.strokeStyle = '#9c27b0'; }
+        else { ctx.strokeStyle = '#222'; }
         
-        ctx.strokeRect(c.x, c.y, CARD_W, CARD_H); ctx.restore();
+        ctx.strokeRect(c.x, c.y, CARD_W, CARD_H); 
+        ctx.restore();
 
-        ctx.fillStyle = c.textColor || '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(c.name || '???', c.x + CARD_W/2, c.y + 25);
-        ctx.font = '9px sans-serif'; const lines = (c.desc || '').split('\n'); lines.forEach((line, i) => ctx.fillText(line, c.x + CARD_W/2, c.y + 45 + (i * 12)));
+        ctx.fillStyle = c.textColor || '#fff'; 
+        ctx.font = 'bold 11px sans-serif'; 
+        ctx.textAlign = 'center'; 
+        ctx.fillText(c.name || '???', c.x + CARD_W/2, c.y + 25);
+        
+        ctx.font = '9px sans-serif'; 
+        const lines = (c.desc || '').split('\n'); 
+        lines.forEach((line, i) => {
+            ctx.fillText(line, c.x + CARD_W/2, c.y + 45 + (i * 12));
+        });
 
-        ctx.fillStyle = '#0055ff'; ctx.beginPath(); ctx.arc(c.x + 14, c.y + 14, 12, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; 
+        ctx.fillStyle = '#0055ff'; 
+        ctx.beginPath(); 
+        ctx.arc(c.x + 14, c.y + 14, 12, 0, Math.PI*2); 
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 14px sans-serif'; 
         let cst = c.cost || 0;
-        if (c.ability && c.ability.includes('VENGEANCE_COST_1') && (isEnemy ? enemyHP : playerHP) <= 10) cst = 1;
+        if (c.ability && c.ability.includes('VENGEANCE_COST_1') && (isEnemy ? enemyHP : playerHP) <= 10) {
+            cst = 1;
+        }
         ctx.fillText(cst, c.x + 14, c.y + 19);
 
         if (c.countdown > 0) {
-            ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(c.x + CARD_W/2, c.y + CARD_H/2 + 20, 15, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font = 'bold 16px sans-serif'; ctx.fillText(c.countdown, c.x + CARD_W/2, c.y + CARD_H/2 + 25);
+            ctx.fillStyle = '#ffeb3b'; 
+            ctx.beginPath(); 
+            ctx.arc(c.x + CARD_W/2, c.y + CARD_H/2 + 20, 15, 0, Math.PI*2); 
+            ctx.fill();
+            
+            ctx.fillStyle = '#000'; 
+            ctx.font = 'bold 16px sans-serif'; 
+            ctx.fillText(c.countdown, c.x + CARD_W/2, c.y + CARD_H/2 + 25);
         }
 
         if (c.type === 'FOLLOWER') {
-            ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(c.x + 14, c.y + CARD_H - 14, 12, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = (c.atk > c.baseAtk) ? '#00ff00' : (c.atk < c.baseAtk ? '#ff3333' : '#fff'); ctx.fillText(c.atk || 0, c.x + 14, c.y + CARD_H - 9);
-            ctx.fillStyle = '#ff2255'; ctx.beginPath(); ctx.arc(c.x + CARD_W - 14, c.y + CARD_H - 14, 12, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = (c.hp < c.maxHp) ? '#ff9999' : (c.hp > c.baseHp ? '#00ff00' : '#fff'); ctx.fillText(c.hp || 0, c.x + CARD_W - 14, c.y + CARD_H - 9);
+            ctx.fillStyle = '#ffaa00'; 
+            ctx.beginPath(); 
+            ctx.arc(c.x + 14, c.y + CARD_H - 14, 12, 0, Math.PI*2); 
+            ctx.fill();
+            
+            ctx.fillStyle = (c.atk > c.baseAtk) ? '#00ff00' : (c.atk < c.baseAtk ? '#ff3333' : '#fff'); 
+            ctx.fillText(c.atk || 0, c.x + 14, c.y + CARD_H - 9);
+            
+            ctx.fillStyle = '#ff2255'; 
+            ctx.beginPath(); 
+            ctx.arc(c.x + CARD_W - 14, c.y + CARD_H - 14, 12, 0, Math.PI*2); 
+            ctx.fill();
+            
+            ctx.fillStyle = (c.hp < c.maxHp) ? '#ff9999' : (c.hp > c.baseHp ? '#00ff00' : '#fff'); 
+            ctx.fillText(c.hp || 0, c.x + CARD_W - 14, c.y + CARD_H - 9);
         }
-    } catch(e) { } finally { c.x = origX; c.y = origY; }
+    } catch(e) { 
+        
+    } finally { 
+        c.x = origX; 
+        c.y = origY; 
+    }
 }
 
 function drawUpdateNotesScreen() {
-    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('アップデート履歴', canvas.width/2, 60);
+    ctx.fillStyle = '#111'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 30px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('アップデート履歴', canvas.width/2, 60);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('戻る', 70, 45);
 
-    ctx.textAlign = 'left'; let drawY = 120;
+    ctx.textAlign = 'left'; 
+    let drawY = 120;
+    
     UPDATE_LOGS.forEach(log => {
         if (drawY > 780) return; 
-        ctx.fillStyle = '#00f2fe'; ctx.font = 'bold 20px sans-serif'; ctx.fillText(log.version + ' の変更点', 100, drawY); drawY += 30;
-        ctx.fillStyle = '#ccc'; ctx.font = '16px sans-serif'; log.notes.forEach(note => { ctx.fillText(note, 120, drawY); drawY += 25; });
+        ctx.fillStyle = '#00f2fe'; 
+        ctx.font = 'bold 20px sans-serif'; 
+        ctx.fillText(log.version + ' の変更点', 100, drawY); 
+        drawY += 30;
+        
+        ctx.fillStyle = '#ccc'; 
+        ctx.font = '16px sans-serif'; 
+        log.notes.forEach(note => { 
+            ctx.fillText(note, 120, drawY); 
+            drawY += 25; 
+        });
         drawY += 15;
     });
 }
 
 function drawSettingsScreen() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('設定', 400, 100);
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('設定', 400, 100);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('戻る', 70, 45);
 
-    ctx.font = 'bold 24px sans-serif'; ctx.fillText('マスターボリューム', 400, 250);
-    ctx.fillStyle = '#333'; ctx.fillRect(200, 280, 400, 30);
-    ctx.fillStyle = '#00f2fe'; ctx.fillRect(200, 280, 400 * masterVolume, 30);
-    ctx.strokeStyle = '#fff'; ctx.strokeRect(200, 280, 400, 30);
-    ctx.fillStyle = '#fff'; ctx.fillText(Math.floor(masterVolume * 100) + '%', 400, 340);
+    ctx.font = 'bold 24px sans-serif'; 
+    ctx.fillText('マスターボリューム', 400, 250);
+    
+    ctx.fillStyle = '#333'; 
+    ctx.fillRect(200, 280, 400, 30);
+    
+    ctx.fillStyle = '#00f2fe'; 
+    ctx.fillRect(200, 280, 400 * masterVolume, 30);
+    
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(200, 280, 400, 30);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.fillText(Math.floor(masterVolume * 100) + '%', 400, 340);
 
     ctx.fillText('カードスリーブ', 400, 450);
+    
     for(let i = 0; i < 3; i++) {
         let x = 200 + i * 150;
-        ctx.fillStyle = SLEEVE_COLORS[i]; ctx.fillRect(x, 500, 100, 140);
-        ctx.strokeStyle = (sleeveColor === i) ? '#ffeb3b' : '#333'; ctx.lineWidth = (sleeveColor === i) ? 5 : 2;
-        ctx.strokeRect(x, 500, 100, 140); ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText(SLEEVE_NAMES[i], x + 50, 665);
+        ctx.fillStyle = SLEEVE_COLORS[i]; 
+        ctx.fillRect(x, 500, 100, 140);
+        
+        ctx.strokeStyle = (sleeveColor === i) ? '#ffeb3b' : '#333'; 
+        ctx.lineWidth = (sleeveColor === i) ? 5 : 2;
+        ctx.strokeRect(x, 500, 100, 140); 
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = '16px sans-serif'; 
+        ctx.fillText(SLEEVE_NAMES[i], x + 50, 665);
     }
 }
 
 function drawShopScreen() {
-    ctx.fillStyle = '#1a0d00'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ff9800'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('SHOP', canvas.width/2, 80);
-    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 30, 40);
+    ctx.fillStyle = '#1a0d00'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#ff9800'; 
+    ctx.font = 'bold 40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('SHOP', canvas.width/2, 80);
+    
+    ctx.fillStyle = '#ffd700'; 
+    ctx.font = 'bold 20px sans-serif'; 
+    ctx.textAlign = 'right'; 
+    ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 30, 40);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('戻る', 70, 45);
 
     for(let i=0; i<SHOP_ITEMS.length; i++) {
-        let item = SHOP_ITEMS[i]; let ix = 150; let iy = 200 + i * 140;
-        ctx.fillStyle = '#3e2723'; ctx.fillRect(ix, iy, 500, 100); ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 3; ctx.strokeRect(ix, iy, 500, 100);
+        let item = SHOP_ITEMS[i]; 
+        let ix = 150; 
+        let iy = 200 + i * 140;
         
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.font = 'bold 24px sans-serif'; ctx.fillText(item.name, ix + 30, iy + 40);
-        ctx.fillStyle = '#aaa'; ctx.font = '14px sans-serif'; ctx.fillText(item.desc, ix + 30, iy + 75);
+        ctx.fillStyle = '#3e2723'; 
+        ctx.fillRect(ix, iy, 500, 100); 
         
-        ctx.fillStyle = (playerGold >= item.price) ? '#ffd700' : '#ff3333'; ctx.textAlign = 'right'; ctx.font = 'bold 28px sans-serif'; ctx.fillText(`${item.price} G`, ix + 470, iy + 60);
+        ctx.strokeStyle = '#ff9800'; 
+        ctx.lineWidth = 3; 
+        ctx.strokeRect(ix, iy, 500, 100);
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.textAlign = 'left'; 
+        ctx.font = 'bold 24px sans-serif'; 
+        ctx.fillText(item.name, ix + 30, iy + 40);
+        
+        ctx.fillStyle = '#aaa'; 
+        ctx.font = '14px sans-serif'; 
+        ctx.fillText(item.desc, ix + 30, iy + 75);
+        
+        ctx.fillStyle = (playerGold >= item.price) ? '#ffd700' : '#ff3333'; 
+        ctx.textAlign = 'right'; 
+        ctx.font = 'bold 28px sans-serif'; 
+        ctx.fillText(`${item.price} G`, ix + 470, iy + 60);
     }
 }
 
 function drawMainMenu() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 20; ctx.shadowColor = '#00f2fe'; ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right'; ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
-    ctx.fillStyle = '#888'; ctx.font = '14px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`v5.1.0`, 10, 20);
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 50px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.shadowBlur = 20; 
+    ctx.shadowColor = '#00f2fe'; 
+    ctx.fillText('SAIKYO DAICHAN', canvas.width/2, 150); 
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = '#ffd700'; 
+    ctx.font = 'bold 20px sans-serif'; 
+    ctx.textAlign = 'right'; 
+    ctx.fillText(`所持金: ${playerGold} G`, canvas.width - 20, 40);
+    
+    ctx.fillStyle = '#888'; 
+    ctx.font = '14px sans-serif'; 
+    ctx.textAlign = 'left'; 
+    ctx.fillText(`v5.2.0`, 10, 20);
 
     const modes = [
         { y: 250, label: '通常対戦', color: '#1e88e5', desc: '好きなデッキを選んでAIと戦う' },
@@ -1529,53 +2940,132 @@ function drawMainMenu() {
     ];
 
     modes.forEach(m => {
-        ctx.fillStyle = m.color; ctx.fillRect(200, m.y, 400, 100); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(200, m.y, 400, 100);
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 30px sans-serif'; ctx.fillText(m.label, 400, m.y + 45);
-        ctx.font = '14px sans-serif'; ctx.fillText(m.desc, 400, m.y + 80);
+        ctx.fillStyle = m.color; 
+        ctx.fillRect(200, m.y, 400, 100); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 4; 
+        ctx.strokeRect(200, m.y, 400, 100);
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.textAlign = 'center'; 
+        ctx.font = 'bold 30px sans-serif'; 
+        ctx.fillText(m.label, 400, m.y + 45);
+        
+        ctx.font = '14px sans-serif'; 
+        ctx.fillText(m.desc, 400, m.y + 80);
     });
 
-    ctx.fillStyle = '#1a0d00'; ctx.fillRect(350, 710, 100, 80); ctx.strokeStyle = '#ff9800'; ctx.strokeRect(350, 710, 100, 80);
-    ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🛒', 400, 760); ctx.font = '12px sans-serif'; ctx.fillText('SHOP', 400, 782);
+    ctx.fillStyle = '#1a0d00'; 
+    ctx.fillRect(350, 710, 100, 80); 
+    ctx.strokeStyle = '#ff9800'; 
+    ctx.strokeRect(350, 710, 100, 80);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = '40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('🛒', 400, 760); 
+    ctx.font = '12px sans-serif'; 
+    ctx.fillText('SHOP', 400, 782);
 
-    ctx.fillStyle = '#222'; ctx.fillRect(710, 710, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(710, 710, 80, 80);
-    ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('📗', 750, 760); ctx.font = '12px sans-serif'; ctx.fillText('アプデ履歴', 750, 782);
+    ctx.fillStyle = '#222'; 
+    ctx.fillRect(710, 710, 80, 80); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(710, 710, 80, 80);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = '40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('📗', 750, 760); 
+    ctx.font = '12px sans-serif'; 
+    ctx.fillText('アプデ履歴', 750, 782);
 
-    ctx.fillStyle = '#222'; ctx.fillRect(10, 710, 80, 80); ctx.strokeStyle = '#fff'; ctx.strokeRect(10, 710, 80, 80);
-    ctx.fillStyle = '#fff'; ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔧', 50, 760); ctx.font = '12px sans-serif'; ctx.fillText('設定', 50, 782);
+    ctx.fillStyle = '#222'; 
+    ctx.fillRect(10, 710, 80, 80); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(10, 710, 80, 80);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = '40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('🔧', 50, 760); 
+    ctx.font = '12px sans-serif'; 
+    ctx.fillText('設定', 50, 782);
 }
 
 function drawCoinToss() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 36px sans-serif'; 
+    ctx.textAlign = 'center';
     
     if (coinTossState === 0 || coinTossState === 1) {
         ctx.fillText('先攻後攻を決定中...', 400, 300);
         let scale = 1, isFront = true;
-        if (coinTossState === 0) { scale = Math.cos(coinTossTimer * 0.2); isFront = scale > 0; } 
-        else { isFront = isPlayerFirst; scale = 1; }
+        
+        if (coinTossState === 0) { 
+            scale = Math.cos(coinTossTimer * 0.2); 
+            isFront = scale > 0; 
+        } else { 
+            isFront = isPlayerFirst; 
+            scale = 1; 
+        }
 
-        ctx.save(); ctx.translate(400, 450); ctx.scale(Math.abs(scale), 1);
+        ctx.save(); 
+        ctx.translate(400, 450); 
+        ctx.scale(Math.abs(scale), 1);
+        
         if (isFront) {
-            ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#f57f17'; ctx.lineWidth = 4; ctx.stroke();
-            ctx.fillStyle = '#d84315'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('表', 0, 12);
+            ctx.fillStyle = '#ffeb3b'; 
+            ctx.beginPath(); 
+            ctx.arc(0, 0, 60, 0, Math.PI * 2); 
+            ctx.fill();
+            ctx.strokeStyle = '#f57f17'; 
+            ctx.lineWidth = 4; 
+            ctx.stroke();
+            ctx.fillStyle = '#d84315'; 
+            ctx.font = 'bold 32px sans-serif'; 
+            ctx.textAlign = 'center'; 
+            ctx.fillText('表', 0, 12);
         } else {
-            ctx.fillStyle = '#ce93d8'; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#8e24aa'; ctx.lineWidth = 4; ctx.stroke();
-            ctx.fillStyle = '#4a148c'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('裏', 0, 12);
+            ctx.fillStyle = '#ce93d8'; 
+            ctx.beginPath(); 
+            ctx.arc(0, 0, 60, 0, Math.PI * 2); 
+            ctx.fill();
+            ctx.strokeStyle = '#8e24aa'; 
+            ctx.lineWidth = 4; 
+            ctx.stroke();
+            ctx.fillStyle = '#4a148c'; 
+            ctx.font = 'bold 32px sans-serif'; 
+            ctx.textAlign = 'center'; 
+            ctx.fillText('裏', 0, 12);
         }
         ctx.restore();
     } else if (coinTossState === 2) {
-        ctx.fillStyle = isPlayerFirst ? '#00f2fe' : '#ff5722'; ctx.font = 'bold 48px sans-serif'; ctx.fillText(isPlayerFirst ? '先攻！！' : '後攻！！', 400, 400);
+        ctx.fillStyle = isPlayerFirst ? '#00f2fe' : '#ff5722'; 
+        ctx.font = 'bold 48px sans-serif'; 
+        ctx.fillText(isPlayerFirst ? '先攻！！' : '後攻！！', 400, 400);
     }
 }
 
 function drawBossSelectScreen() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('ボス難易度を選択', canvas.width/2, 100);
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('ボス難易度を選択', canvas.width/2, 100);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('戻る', 70, 45);
 
     const levels = [
         { y: 200, label: 'Lv1: 帝国小隊 (HP 25)', color: '#4caf50', desc: '初級。通常のフォロワーで戦う。' },
@@ -1584,186 +3074,508 @@ function drawBossSelectScreen() {
     ];
 
     levels.forEach(l => {
-        ctx.fillStyle = l.color; ctx.fillRect(200, l.y, 400, 100); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(200, l.y, 400, 100);
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 26px sans-serif'; ctx.fillText(l.label, 400, l.y + 45);
-        ctx.font = '14px sans-serif'; ctx.fillText(l.desc, 400, l.y + 80);
+        ctx.fillStyle = l.color; 
+        ctx.fillRect(200, l.y, 400, 100); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 4; 
+        ctx.strokeRect(200, l.y, 400, 100);
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.textAlign = 'center'; 
+        ctx.font = 'bold 26px sans-serif'; 
+        ctx.fillText(l.label, 400, l.y + 45);
+        
+        ctx.font = '14px sans-serif'; 
+        ctx.fillText(l.desc, 400, l.y + 80);
     });
 }
 
 function drawClassSelectScreen() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('使用するクラスを選択', canvas.width/2, 100);
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 36px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('使用するクラスを選択', canvas.width/2, 100);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('戻る', 70, 45);
 
     const keys = Object.keys(DECKS);
     keys.forEach((key, idx) => {
-        let dx = 70 + (idx % 2) * 340; let dy = 160 + Math.floor(idx / 2) * 150; let info = DECK_INFO[key];
-        ctx.fillStyle = info.color; ctx.fillRect(dx, dy, 310, 110); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(dx, dy, 310, 110);
-        ctx.fillStyle = getTextColor(info.color); ctx.font = 'bold 20px sans-serif'; ctx.fillText(info.name, dx + 155, dy + 40);
-        ctx.font = '12px sans-serif'; ctx.fillText(info.desc, dx + 155, dy + 75);
+        let dx = 70 + (idx % 2) * 340; 
+        let dy = 160 + Math.floor(idx / 2) * 150; 
+        let info = DECK_INFO[key];
+        
+        ctx.fillStyle = info.color; 
+        ctx.fillRect(dx, dy, 310, 110); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 3; 
+        ctx.strokeRect(dx, dy, 310, 110);
+        
+        ctx.fillStyle = getTextColor(info.color); 
+        ctx.font = 'bold 20px sans-serif'; 
+        ctx.fillText(info.name, dx + 155, dy + 40);
+        
+        ctx.font = '12px sans-serif'; 
+        ctx.fillText(info.desc, dx + 155, dy + 75);
     });
 }
 
 function drawArchetypeSelectScreen() {
-    ctx.fillStyle = '#0b0c16'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0b0c16'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     let classInfo = DECK_INFO[selectedClassKey];
-    ctx.fillStyle = classInfo.color; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center'; 
+    
+    ctx.fillStyle = classInfo.color; 
+    ctx.font = 'bold 36px sans-serif'; 
+    ctx.textAlign = 'center'; 
     ctx.fillText(`${classInfo.name}のデッキタイプを選択`, canvas.width/2, 100);
 
-    ctx.fillStyle = '#555'; ctx.fillRect(20, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('戻る', 70, 45);
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(20, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(20, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('戻る', 70, 45);
 
     const archs = classInfo.archetypes;
     archs.forEach((arch, idx) => {
-        let dx = 200; let dy = 200 + idx * 150;
-        ctx.fillStyle = '#222'; ctx.fillRect(dx, dy, 400, 110); ctx.strokeStyle = classInfo.color; ctx.lineWidth = 4; ctx.strokeRect(dx, dy, 400, 110);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.fillText(arch.name, dx + 200, dy + 45);
-        ctx.fillStyle = '#aaa'; ctx.font = '14px sans-serif'; ctx.fillText(arch.desc, dx + 200, dy + 80);
+        let dx = 200; 
+        let dy = 200 + idx * 150;
+        
+        ctx.fillStyle = '#222'; 
+        ctx.fillRect(dx, dy, 400, 110); 
+        ctx.strokeStyle = classInfo.color; 
+        ctx.lineWidth = 4; 
+        ctx.strokeRect(dx, dy, 400, 110);
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 24px sans-serif'; 
+        ctx.fillText(arch.name, dx + 200, dy + 45);
+        
+        ctx.fillStyle = '#aaa'; 
+        ctx.font = '14px sans-serif'; 
+        ctx.fillText(arch.desc, dx + 200, dy + 80);
     });
 }
 
 function drawDraftScreen() {
-    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ff007f'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 10; ctx.shadowColor = '#fff';
-    ctx.fillText('PRIZE GET! カードを選択！', canvas.width/2, 100); ctx.shadowBlur = 0;
-    ctx.fillStyle = '#fff'; ctx.font = '20px sans-serif'; ctx.fillText(`Drafting: ${draftCount} / 40`, canvas.width/2, 150);
+    ctx.fillStyle = '#111'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#ff007f'; 
+    ctx.font = 'bold 40px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.shadowBlur = 10; 
+    ctx.shadowColor = '#fff';
+    ctx.fillText('PRIZE GET! カードを選択！', canvas.width/2, 100); 
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = '20px sans-serif'; 
+    ctx.fillText(`Drafting: ${draftCount} / 40`, canvas.width/2, 150);
 
     for(let i=0; i<3; i++) {
-        let c = draftOptions[i]; let dx = 150 + i * 180; let dy = 350;
-        ctx.fillStyle = c.color || '#333'; ctx.fillRect(dx, dy, 160, 230); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(dx, dy, 160, 230);
-        ctx.fillStyle = c.textColor; ctx.font = 'bold 16px sans-serif'; ctx.fillText(c.name, dx + 80, dy + 40);
-        ctx.font = '12px sans-serif'; const lines = (c.desc || '').split('\n'); lines.forEach((line, j) => ctx.fillText(line, dx + 80, dy + 100 + (j * 15)));
-        ctx.fillStyle = '#0055ff'; ctx.beginPath(); ctx.arc(dx + 25, dy + 25, 18, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.fillText(c.cost, dx + 25, dy + 32);
+        let c = draftOptions[i]; 
+        let dx = 150 + i * 180; 
+        let dy = 350;
+        
+        ctx.fillStyle = c.color || '#333'; 
+        ctx.fillRect(dx, dy, 160, 230); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 4; 
+        ctx.strokeRect(dx, dy, 160, 230);
+        
+        ctx.fillStyle = c.textColor; 
+        ctx.font = 'bold 16px sans-serif'; 
+        ctx.fillText(c.name, dx + 80, dy + 40);
+        
+        ctx.font = '12px sans-serif'; 
+        const lines = (c.desc || '').split('\n'); 
+        lines.forEach((line, j) => {
+            ctx.fillText(line, dx + 80, dy + 100 + (j * 15));
+        });
+        
+        ctx.fillStyle = '#0055ff'; 
+        ctx.beginPath(); 
+        ctx.arc(dx + 25, dy + 25, 18, 0, Math.PI*2); 
+        ctx.fill(); 
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 18px sans-serif'; 
+        ctx.fillText(c.cost, dx + 25, dy + 32);
+        
         if (c.type === 'FOLLOWER') {
-            ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(dx + 25, dy + 205, 18, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(c.atk, dx + 25, dy + 212);
-            ctx.fillStyle = '#ff2255'; ctx.beginPath(); ctx.arc(dx + 135, dy + 205, 18, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(c.hp, dx + 135, dy + 212);
+            ctx.fillStyle = '#ffaa00'; 
+            ctx.beginPath(); 
+            ctx.arc(dx + 25, dy + 205, 18, 0, Math.PI*2); 
+            ctx.fill(); 
+            
+            ctx.fillStyle = '#fff'; 
+            ctx.fillText(c.atk, dx + 25, dy + 212);
+            
+            ctx.fillStyle = '#ff2255'; 
+            ctx.beginPath(); 
+            ctx.arc(dx + 135, dy + 205, 18, 0, Math.PI*2); 
+            ctx.fill(); 
+            
+            ctx.fillStyle = '#fff'; 
+            ctx.fillText(c.hp, dx + 135, dy + 212);
         }
     }
 }
 
 function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = playerHP <= 0 ? '#ff3333' : '#00f2fe'; ctx.font = 'bold 60px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(winMessage, canvas.width/2, canvas.height/2 - 50);
-    ctx.fillStyle = '#3f51b5'; ctx.fillRect(300, 550, 200, 50); ctx.strokeStyle = '#fff'; ctx.strokeRect(300, 550, 200, 50); ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.fillText('メインメニューへ', 400, 583);
+    ctx.fillStyle = 'rgba(0,0,0,0.85)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = playerHP <= 0 ? '#ff3333' : '#00f2fe'; 
+    ctx.font = 'bold 60px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText(winMessage, canvas.width/2, canvas.height/2 - 50);
+    
+    ctx.fillStyle = '#3f51b5'; 
+    ctx.fillRect(300, 550, 200, 50); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(300, 550, 200, 50); 
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 20px sans-serif'; 
+    ctx.fillText('メインメニューへ', 400, 583);
 }
 
 function drawDeck(x, y, count, isEnemy) {
-    if (count <= 0) return; ctx.save(); let col = isEnemy ? enemySleeveColor : sleeveColor;
-    ctx.fillStyle = SLEEVE_COLORS[col]; ctx.fillRect(x, y, CARD_W, CARD_H); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(x, y, CARD_W, CARD_H);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(x+5, y+5, CARD_W-10, CARD_H-10);
-    ctx.fillStyle = '#000'; ctx.fillRect(x + CARD_W - 30, y + CARD_H - 30, 26, 26);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(count, x + CARD_W - 17, y + CARD_H - 12); ctx.restore();
+    if (count <= 0) return; 
+    
+    ctx.save(); 
+    let col = isEnemy ? enemySleeveColor : sleeveColor;
+    
+    ctx.fillStyle = SLEEVE_COLORS[col]; 
+    ctx.fillRect(x, y, CARD_W, CARD_H); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.lineWidth = 3; 
+    ctx.strokeRect(x, y, CARD_W, CARD_H);
+    
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; 
+    ctx.lineWidth = 2; 
+    ctx.strokeRect(x+5, y+5, CARD_W-10, CARD_H-10);
+    
+    ctx.fillStyle = '#000'; 
+    ctx.fillRect(x + CARD_W - 30, y + CARD_H - 30, 26, 26);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 14px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText(count, x + CARD_W - 17, y + CARD_H - 12); 
+    
+    ctx.restore();
 }
 
 function drawBattleLog() {
-    ctx.fillStyle = 'rgba(0,0,0,0.95)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('プレイ履歴', 400, 60);
-    ctx.fillStyle = '#555'; ctx.fillRect(650, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(650, 20, 100, 40);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('閉じる', 700, 45);
+    ctx.fillStyle = 'rgba(0,0,0,0.95)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 36px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText('プレイ履歴', 400, 60);
+    
+    ctx.fillStyle = '#555'; 
+    ctx.fillRect(650, 20, 100, 40); 
+    ctx.strokeStyle = '#fff'; 
+    ctx.strokeRect(650, 20, 100, 40);
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 16px sans-serif'; 
+    ctx.fillText('閉じる', 700, 45);
 
-    ctx.textAlign = 'left'; let ly = 120;
+    ctx.textAlign = 'left'; 
+    let ly = 120;
+    
     for(let i = 0; i < battleLog.length; i++) {
-        if (ly > 780) break; let log = battleLog[i];
-        if (log.isPlayer === true) ctx.fillStyle = '#00f2fe'; else if (log.isPlayer === false) ctx.fillStyle = '#ff5722'; else ctx.fillStyle = '#fff';
-        ctx.font = '16px sans-serif'; ctx.fillText(`[Turn ${log.turn}] ${log.text}`, 50, ly); ly += 25;
+        if (ly > 780) break; 
+        
+        let log = battleLog[i];
+        if (log.isPlayer === true) {
+            ctx.fillStyle = '#00f2fe'; 
+        } else if (log.isPlayer === false) {
+            ctx.fillStyle = '#ff5722'; 
+        } else {
+            ctx.fillStyle = '#fff';
+        }
+        
+        ctx.font = '16px sans-serif'; 
+        ctx.fillText(`[Turn ${log.turn}] ${log.text}`, 50, ly); 
+        ly += 25;
     }
 }
 
 function drawZoomedCard() {
-    ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    let cw = CARD_W * 2.5; let ch = CARD_H * 2.5; let cx = canvas.width / 2 - cw / 2; let cy = canvas.height / 2 - ch / 2;
-    ctx.fillStyle = zoomedCard.color || '#333'; ctx.fillRect(cx, cy, cw, ch);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.strokeRect(cx, cy, cw, ch);
+    ctx.fillStyle = 'rgba(0,0,0,0.8)'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    let cw = CARD_W * 2.5; 
+    let ch = CARD_H * 2.5; 
+    let cx = canvas.width / 2 - cw / 2; 
+    let cy = canvas.height / 2 - ch / 2;
 
-    ctx.fillStyle = zoomedCard.textColor || '#fff'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(zoomedCard.name || '???', cx + cw/2, cy + 50);
-    ctx.font = '20px sans-serif'; const lines = (zoomedCard.desc || '').split('\n'); lines.forEach((line, i) => ctx.fillText(line, cx + cw/2, cy + 100 + (i * 25)));
+    ctx.fillStyle = zoomedCard.color || '#333'; 
+    ctx.fillRect(cx, cy, cw, ch);
+    
+    ctx.strokeStyle = '#fff'; 
+    ctx.lineWidth = 6; 
+    ctx.strokeRect(cx, cy, cw, ch);
 
-    ctx.fillStyle = '#0055ff'; ctx.beginPath(); ctx.arc(cx + 30, cy + 30, 25, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 28px sans-serif'; 
-    let cst = zoomedCard.cost || 0; if (zoomedCard.ability && zoomedCard.ability.includes('VENGEANCE_COST_1') && playerHP <= 10) cst = 1;
+    ctx.fillStyle = zoomedCard.textColor || '#fff'; 
+    ctx.font = 'bold 24px sans-serif'; 
+    ctx.textAlign = 'center'; 
+    ctx.fillText(zoomedCard.name || '???', cx + cw/2, cy + 50);
+
+    ctx.font = '20px sans-serif'; 
+    const lines = (zoomedCard.desc || '').split('\n'); 
+    lines.forEach((line, i) => {
+        ctx.fillText(line, cx + cw/2, cy + 100 + (i * 25));
+    });
+
+    ctx.fillStyle = '#0055ff'; 
+    ctx.beginPath(); 
+    ctx.arc(cx + 30, cy + 30, 25, 0, Math.PI*2); 
+    ctx.fill(); 
+    
+    ctx.fillStyle = '#fff'; 
+    ctx.font = 'bold 28px sans-serif'; 
+    
+    let cst = zoomedCard.cost || 0; 
+    if (zoomedCard.ability && zoomedCard.ability.includes('VENGEANCE_COST_1') && playerHP <= 10) {
+        cst = 1;
+    }
     ctx.fillText(cst, cx + 30, cy + 40);
 
     if (zoomedCard.type === 'FOLLOWER') {
-        ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(cx + 30, cy + ch - 30, 25, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.fillText(zoomedCard.atk || 0, cx + 30, cy + ch - 20);
-        ctx.fillStyle = '#ff2255'; ctx.beginPath(); ctx.arc(cx + cw - 30, cy + ch - 30, 25, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.fillText(zoomedCard.hp || 0, cx + cw - 30, cy + ch - 20);
+        ctx.fillStyle = '#ffaa00'; 
+        ctx.beginPath(); 
+        ctx.arc(cx + 30, cy + ch - 30, 25, 0, Math.PI*2); 
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.fillText(zoomedCard.atk || 0, cx + 30, cy + ch - 20);
+        
+        ctx.fillStyle = '#ff2255'; 
+        ctx.beginPath(); 
+        ctx.arc(cx + cw - 30, cy + ch - 30, 25, 0, Math.PI*2); 
+        ctx.fill();
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.fillText(zoomedCard.hp || 0, cx + cw - 30, cy + ch - 20);
     }
 }
 
 function drawBattle() {
     try {
-        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height); grad.addColorStop(0, '#0a0a1a'); grad.addColorStop(0.5, '#1a1a2e'); grad.addColorStop(1, '#0a0a1a');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 400); ctx.lineTo(canvas.width, 400); ctx.stroke();
-
-        ctx.fillStyle = '#3f51b5'; ctx.beginPath(); ctx.arc(400, 90, 50, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`ENEMY: ${enemyHP}`, 400, 95);
-        ctx.fillStyle = '#e91e63'; ctx.beginPath(); ctx.arc(400, 710, 50, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillText(`YOU: ${playerHP}`, 400, 715);
-
-        ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left';
-        ctx.fillStyle = '#00f2fe'; ctx.fillText(`PP: ${playerPP} / ${playerMaxPP}`, 30, 740);
-        ctx.fillStyle = '#ffeb3b'; ctx.fillText(`EP: ${playerEP} / ${playerMaxEP}`, 30, 770);
+        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height); 
+        grad.addColorStop(0, '#0a0a1a'); 
+        grad.addColorStop(0.5, '#1a1a2e'); 
+        grad.addColorStop(1, '#0a0a1a');
         
-        if (playerDeckClass === 'NECRO' || playerHasNecro) { ctx.fillStyle = '#aa00ff'; ctx.fillText(`墓地: ${playerGrave}`, 30, 710); }
-        if (enemyDeckClass === 'NECRO' || enemyHasNecro) { ctx.fillStyle = '#aa00ff'; ctx.fillText(`敵墓地: ${enemyGrave}`, 30, 120); }
-
-        ctx.fillStyle = '#ff0055'; ctx.fillText(`敵PP: ${enemyPP} / ${enemyMaxPP}`, 30, 60);
-        ctx.fillStyle = '#ffeb3b'; ctx.fillText(`敵EP: ${enemyEP} / ${enemyMaxEP}`, 30, 90);
-
-        ctx.fillStyle = (!isAITurn) ? '#00f2fe' : '#333'; ctx.fillRect(650, 375, 130, 50); ctx.strokeStyle = '#fff'; ctx.strokeRect(650, 375, 130, 50);
-        ctx.fillStyle = (!isAITurn) ? '#000' : '#888'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText((!isAITurn) ? 'ターン終了' : '相手のターン', 715, 405);
+        ctx.fillStyle = grad; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        ctx.fillStyle = isHandHidden ? '#4caf50' : '#d32f2f'; ctx.fillRect(680, 650, 100, 50); ctx.strokeStyle = '#fff'; ctx.strokeRect(680, 650, 100, 50);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.fillText(isHandHidden ? '手札を出す' : '手札を隠す', 730, 680);
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)'; 
+        ctx.lineWidth = 2; 
+        ctx.beginPath(); 
+        ctx.moveTo(0, 400); 
+        ctx.lineTo(canvas.width, 400); 
+        ctx.stroke();
 
-        if (!hasEvolvedThisTurn && canPlayerEvolve() && playerEP > 0) {
-            ctx.fillStyle = evolveMode ? '#ffeb3b' : '#333'; ctx.fillRect(10, 550, 100, 50); ctx.strokeStyle = '#ffeb3b'; ctx.strokeRect(10, 550, 100, 50);
-            ctx.fillStyle = evolveMode ? '#000' : '#ffeb3b'; ctx.fillText(`進化(EP:${playerEP})`, 60, 580);
+        ctx.fillStyle = '#3f51b5'; 
+        ctx.beginPath(); 
+        ctx.arc(400, 90, 50, 0, Math.PI*2); 
+        ctx.fill(); 
+        
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 3; 
+        ctx.stroke();
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 16px sans-serif'; 
+        ctx.textAlign = 'center'; 
+        ctx.fillText(`ENEMY: ${enemyHP}`, 400, 95);
+        
+        ctx.fillStyle = '#e91e63'; 
+        ctx.beginPath(); 
+        ctx.arc(400, 710, 50, 0, Math.PI*2); 
+        ctx.fill(); 
+        ctx.stroke(); 
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.fillText(`YOU: ${playerHP}`, 400, 715);
+
+        ctx.font = 'bold 16px sans-serif'; 
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#00f2fe'; 
+        ctx.fillText(`PP: ${playerPP} / ${playerMaxPP}`, 30, 740);
+        ctx.fillStyle = '#ffeb3b'; 
+        ctx.fillText(`EP: ${playerEP} / ${playerMaxEP}`, 30, 770);
+        
+        if (playerDeckClass === 'NECRO' || playerHasNecro) { 
+            ctx.fillStyle = '#aa00ff'; 
+            ctx.fillText(`墓地: ${playerGrave}`, 30, 710); 
+        }
+        if (enemyDeckClass === 'NECRO' || enemyHasNecro) { 
+            ctx.fillStyle = '#aa00ff'; 
+            ctx.fillText(`敵墓地: ${enemyGrave}`, 30, 120); 
         }
 
-        ctx.fillStyle = '#444'; ctx.fillRect(680, 20, 100, 40); ctx.strokeStyle = '#fff'; ctx.strokeRect(680, 20, 100, 40);
-        ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.fillText('📜 履歴', 730, 45);
+        ctx.fillStyle = '#ff0055'; 
+        ctx.fillText(`敵PP: ${enemyPP} / ${enemyMaxPP}`, 30, 60);
+        ctx.fillStyle = '#ffeb3b'; 
+        ctx.fillText(`敵EP: ${enemyEP} / ${enemyMaxEP}`, 30, 90);
 
-        drawDeck(670, 450, playerDeck.length, false); drawDeck(670, 200, enemyDeck.length, true);
+        ctx.fillStyle = (!isAITurn) ? '#00f2fe' : '#333'; 
+        ctx.fillRect(650, 375, 130, 50); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.strokeRect(650, 375, 130, 50);
+        
+        ctx.fillStyle = (!isAITurn) ? '#000' : '#888'; 
+        ctx.font = 'bold 16px sans-serif'; 
+        ctx.textAlign = 'center'; 
+        ctx.fillText((!isAITurn) ? 'ターン終了' : '相手のターン', 715, 405);
+        
+        ctx.fillStyle = isHandHidden ? '#4caf50' : '#d32f2f'; 
+        ctx.fillRect(680, 650, 100, 50); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.strokeRect(680, 650, 100, 50);
+        
+        ctx.fillStyle = '#fff'; 
+        ctx.font = 'bold 14px sans-serif'; 
+        ctx.fillText(isHandHidden ? '手札を出す' : '手札を隠す', 730, 680);
+
+        if (!hasEvolvedThisTurn && canPlayerEvolve() && playerEP > 0) {
+            ctx.fillStyle = evolveMode ? '#ffeb3b' : '#333'; 
+            ctx.fillRect(10, 550, 100, 50); 
+            ctx.strokeStyle = '#ffeb3b'; 
+            ctx.strokeRect(10, 550, 100, 50);
+            
+            ctx.fillStyle = evolveMode ? '#000' : '#ffeb3b'; 
+            ctx.fillText(`進化(EP:${playerEP})`, 60, 580);
+        }
+
+        ctx.fillStyle = '#444'; 
+        ctx.fillRect(680, 20, 100, 40); 
+        ctx.strokeStyle = '#fff'; 
+        ctx.strokeRect(680, 20, 100, 40);
+        ctx.fillStyle = '#fff'; 
+        ctx.font = '16px sans-serif'; 
+        ctx.fillText('📜 履歴', 730, 45);
+
+        drawDeck(670, 450, playerDeck.length, false); 
+        drawDeck(670, 200, enemyDeck.length, true);
 
         playedCardsLog.forEach((log, i) => {
-            ctx.save(); ctx.globalAlpha = Math.min(1, log.timer / 20);
-            log.card.x = 20; log.card.y = 150 + i * 140; ctx.shadowBlur = 15; ctx.shadowColor = '#ff0055';
+            ctx.save(); 
+            ctx.globalAlpha = Math.min(1, log.timer / 20);
+            
+            log.card.x = 20; 
+            log.card.y = 150 + i * 140; 
+            
+            ctx.shadowBlur = 15; 
+            ctx.shadowColor = '#ff0055';
+            
             drawCard(log.card, true, false, true); 
-            ctx.fillStyle = '#ff0055'; ctx.font = 'bold 13px sans-serif'; ctx.fillText("Enemy Played", log.card.x + CARD_W/2, log.card.y - 8);
-            ctx.restore(); log.timer--;
+            
+            ctx.fillStyle = '#ff0055'; 
+            ctx.font = 'bold 13px sans-serif'; 
+            ctx.fillText("Enemy Played", log.card.x + CARD_W/2, log.card.y - 8);
+            
+            ctx.restore(); 
+            log.timer--;
         });
+        
         playedCardsLog = playedCardsLog.filter(l => l.timer > 0);
 
         updateCardPositions();
-        enemyBoard.forEach(c => drawCard(c, true)); playerBoard.forEach(c => drawCard(c, false));
+        
+        enemyBoard.forEach(c => drawCard(c, true)); 
+        playerBoard.forEach(c => drawCard(c, false));
         enemyHand.forEach(c => drawCard({ ...c, type: 'ENEMY_HAND' }, true)); 
-        playerHand.forEach(c => drawCard(c, false, playerPP >= c.cost)); 
+        
+        playerHand.forEach(c => {
+            let cst = c.cost;
+            if (c.ability.includes('VENGEANCE_COST_1') && playerHP <= 10) {
+                cst = 1;
+            }
+            drawCard(c, false, playerPP >= cst);
+        }); 
 
         if (draggedCard) drawCard(draggedCard.card, false, true);
 
         if (activeAttacker) {
-            ctx.strokeStyle = '#ff0055'; ctx.lineWidth = 6; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.moveTo(activeAttacker.card.x + CARD_W/2, activeAttacker.card.y + CARD_H/2);
-            ctx.lineTo(mousePos.x, mousePos.y); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 10, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ff0055'; 
+            ctx.lineWidth = 6; 
+            ctx.setLineDash([10, 10]); 
+            ctx.beginPath(); 
+            ctx.moveTo(activeAttacker.card.x + CARD_W/2, activeAttacker.card.y + CARD_H/2);
+            ctx.lineTo(mousePos.x, mousePos.y); 
+            ctx.stroke(); 
+            ctx.setLineDash([]); 
+            
+            ctx.fillStyle = '#ff0055'; 
+            ctx.beginPath(); 
+            ctx.arc(mousePos.x, mousePos.y, 10, 0, Math.PI*2); 
+            ctx.fill();
         }
 
         particles.forEach((p, i) => {
-            ctx.fillStyle = p.color; ctx.globalAlpha = p.life / 30; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
-            p.x += p.vx; p.y += p.vy; p.life--;
+            ctx.fillStyle = p.color; 
+            ctx.globalAlpha = p.life / 30; 
+            ctx.beginPath(); 
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); 
+            ctx.fill();
+            
+            p.x += p.vx; 
+            p.y += p.vy; 
+            p.life--;
         });
-        ctx.globalAlpha = 1; particles = particles.filter(p => p.life > 0);
+        
+        ctx.globalAlpha = 1; 
+        particles = particles.filter(p => p.life > 0);
 
         for (let i = popups.length - 1; i >= 0; i--) {
-            let p = popups[i]; ctx.fillStyle = p.color; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.shadowBlur = 10; ctx.shadowColor = '#000'; ctx.fillText(p.text, 400, p.y);
-            p.y -= 1; p.timer--; ctx.shadowBlur = 0; if (p.timer <= 0) popups.splice(i, 1);
+            let p = popups[i]; 
+            ctx.fillStyle = p.color; 
+            ctx.font = 'bold 28px sans-serif'; 
+            ctx.textAlign = 'center'; 
+            
+            ctx.shadowBlur = 10; 
+            ctx.shadowColor = '#000'; 
+            ctx.fillText(p.text, 400, p.y);
+            
+            p.y -= 1; 
+            p.timer--; 
+            ctx.shadowBlur = 0; 
+            
+            if (p.timer <= 0) {
+                popups.splice(i, 1);
+            }
         }
 
         if (showBattleLog) drawBattleLog();
         if (zoomedCard) drawZoomedCard();
 
-    } catch(e) {}
+    } catch(e) {
+        console.error(e);
+    }
 }
 
 function draw() {
@@ -1771,10 +3583,22 @@ function draw() {
     else if (gameState === 'SHOP') drawShopScreen();
     else if (gameState === 'SETTINGS') drawSettingsScreen();
     else if (gameState === 'COIN_TOSS') {
-        drawCoinToss(); coinTossTimer--;
-        if (coinTossState === 0 && coinTossTimer <= 0) { coinTossState = 1; coinTossTimer = 36; playTone(800, 'sine', 0.2); } 
-        else if (coinTossState === 1 && coinTossTimer <= 0) { coinTossState = 2; coinTossTimer = 60; playTone(1000, 'square', 0.3); }
-        else if (coinTossState === 2 && coinTossTimer <= 0) { startGameAfterToss(); }
+        drawCoinToss(); 
+        coinTossTimer--;
+        
+        if (coinTossState === 0 && coinTossTimer <= 0) { 
+            coinTossState = 1; 
+            coinTossTimer = 36; 
+            playTone(800, 'sine', 0.2); 
+        } 
+        else if (coinTossState === 1 && coinTossTimer <= 0) { 
+            coinTossState = 2; 
+            coinTossTimer = 60; 
+            playTone(1000, 'square', 0.3); 
+        }
+        else if (coinTossState === 2 && coinTossTimer <= 0) { 
+            startGameAfterToss(); 
+        }
     }
     else if (gameState === 'BOSS_SELECT') drawBossSelectScreen();
     else if (gameState === 'CLASS_SELECT') drawClassSelectScreen();
@@ -1786,27 +3610,23 @@ function draw() {
     else if (gameState === 'GAMEOVER') { drawBattle(); drawGameOver(); }
 }
 
-function gameLoop() { draw(); requestAnimationFrame(gameLoop); } 
+function gameLoop() { 
+    draw(); 
+    requestAnimationFrame(gameLoop); 
+} 
 gameLoop();
 
 // ----------------------------------------------------
-// ブラウザ標準機能でゴーストクリックを完全排除
+// PointerEventのみを使用してゴーストクリックを100%防止する
 // ----------------------------------------------------
-canvas.addEventListener('mousedown', function(e) { handleInputStartReal(e); });
-canvas.addEventListener('touchstart', function(e) { 
-    if (e.cancelable) e.preventDefault(); 
-    handleInputStartReal(e); 
-}, {passive: false});
+canvas.addEventListener('pointerdown', handleInputStartReal, {passive: false}); 
+canvas.addEventListener('pointermove', handleInputMove, {passive: false}); 
+canvas.addEventListener('pointerup', handleInputEnd, {passive: false}); 
+canvas.addEventListener('pointercancel', handleInputEnd, {passive: false});
 
-canvas.addEventListener('mousemove', handleInputMove);
-canvas.addEventListener('touchmove', function(e) { 
-    if (e.cancelable) e.preventDefault(); handleInputMove(e); 
-}, {passive: false});
-
-canvas.addEventListener('mouseup', handleInputEnd);
-canvas.addEventListener('touchend', function(e) { 
-    if (e.cancelable) e.preventDefault(); handleInputEnd(e); 
-}, {passive: false});
+// ※スマホ特有のスクロールやズーム等のデフォルト挙動を完全に止める
+canvas.addEventListener('touchstart', function(e) { if(e.cancelable) e.preventDefault(); }, {passive: false});
+canvas.addEventListener('touchmove', function(e) { if(e.cancelable) e.preventDefault(); }, {passive: false});
 
 </script>
 </body>
