@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
-<title>Shadowverse Clone - Smartphone Ultimate</title>
+<title>Shadowverse Clone - Perfect Ultimate</title>
 <style>
     body { font-family: sans-serif; background-color: #111; color: #fff; margin: 0; padding: 0; user-select: none; overflow: hidden; touch-action: manipulation; }
     
-    /* 共通ボタン */
     .btn { padding: 10px 20px; margin: 5px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: 2px solid #fff; color: #fff; background: #444; }
     .btn-red { background: #aa2222; } .btn-blue { background: #2222aa; } .btn-green { background: #22aa22; } .btn-yellow { background: #aaaa22; } .btn-purple { background: #7722aa; }
     .btn-action { background: #ffaa00; color: #000; }
@@ -40,7 +39,7 @@
     .turn-player { background: #2e7d32; color: #fff; border: 2px solid #4caf50; }
     .turn-cpu { background: #444; color: #999; border: 2px solid #333; }
 
-    /* メインエリア (スマホ最適化) */
+    /* メインエリア */
     .field-row { display: flex; justify-content: center; align-items: center; width: 100%; position: relative; margin: 2px 0;}
     
     .leader-wrapper { display: flex; flex-direction: column; align-items: center; width: 70px; margin: 0 5px;}
@@ -49,16 +48,20 @@
     .resource-mini { font-size: 10px; background: rgba(0,0,0,0.8); padding: 2px 5px; border-radius: 5px; border: 1px solid #555; margin-top: 5px; text-align: center; width: 60px;}
     .ep-val { color: #ff00ff; } .pp-val { color: #00ccff; }
 
-    .board-area { display: flex; justify-content: center; align-items: center; gap: 5px; height: 25vh; min-height: 110px; background: rgba(255,255,255,0.03); padding: 5px; border-radius: 8px; flex-grow: 1; max-width: calc(100% - 80px); box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+    /* CPU情報（小さく復活） */
+    .cpu-top-row { display: flex; gap: 5px; height: 50px; align-items: center; width: 100%; justify-content: center; margin-bottom: -10px;}
+    #cpu-hand { display: flex; gap: -15px; height: 40px; }
+    .card-back { width: 25px; height: 40px; background: repeating-linear-gradient(45deg, #222, #222 5px, #555 5px, #555 10px); border: 1px solid #111; border-radius: 3px; }
+    .deck-visual-cpu { width: 25px; height: 40px; background: repeating-linear-gradient(45deg, #442222, #442222 5px, #663333 5px, #663333 10px); border: 1px solid #111; border-radius: 3px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .deck-visual-cpu::after { content: attr(data-count); position: absolute; background: rgba(0,0,0,0.8); padding: 2px 4px; border-radius: 3px; font-weight: bold; font-size: 10px;}
+
+    .board-area { display: flex; justify-content: center; align-items: center; gap: 5px; height: 23vh; min-height: 100px; background: rgba(255,255,255,0.03); padding: 5px; border-radius: 8px; flex-grow: 1; max-width: calc(100% - 80px); box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
     .board-area.drag-over { background: rgba(85, 107, 47, 0.5); }
 
-    .hand-area-player { display: flex; gap: 5px; height: 22vh; min-height: 100px; overflow-x: auto; padding: 5px; width: 100%; align-items: flex-end;}
+    .hand-area-player { display: flex; gap: 5px; height: 20vh; min-height: 90px; overflow-x: auto; padding: 5px; width: 100%; align-items: flex-end;}
     
-    /* 敵手札・山札の超縮小化 */
-    #cpu-info-bar { width: 100%; display: flex; justify-content: center; gap: 20px; font-size: 12px; color: #aaa; background: rgba(0,0,0,0.5); padding: 2px 0; border-radius: 5px;}
-
-    /* カードデザイン（スマホで最大限大きく） */
-    .card { width: 18vw; max-width: 80px; height: 26vw; max-height: 115px; background-color: #333; background-size: cover; background-position: center; color: #fff; border-radius: 5px; padding: 2px; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid #222; box-sizing: border-box; position: relative; text-shadow: 1px 1px 1px #000; flex-shrink: 0;}
+    /* カードデザイン（画像メイン） */
+    .card { width: 17vw; max-width: 75px; height: 24vw; max-height: 105px; background-color: #333; background-size: cover; background-position: center; color: #fff; border-radius: 5px; padding: 2px; display: flex; flex-direction: column; justify-content: space-between; border: 2px solid #222; box-sizing: border-box; position: relative; text-shadow: 1px 1px 1px #000; flex-shrink: 0;}
     .card * { pointer-events: none; }
     .evolve-btn { pointer-events: auto; }
     
@@ -96,7 +99,6 @@
     .vfx.damage { color: #ff3333; } .vfx.heal { color: #33ff33; } .vfx.buff { color: #33ffff; } .vfx.action { color: #ffcc00; font-size: 32px; }
     @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -80%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -150%) scale(1); } }
     
-    /* ドラッグ用ゴースト */
     #drag-ghost { position: fixed; pointer-events: none; z-index: 9999; width: 60px; height: 85px; background: rgba(255, 170, 0, 0.6); border: 2px dashed #fff; border-radius: 5px; display: none;}
 </style>
 </head>
@@ -161,10 +163,10 @@
     <button class="icon-btn" onclick="toggleLog()">ログ</button>
     <div id="turn-indicator" onclick="endTurn()"></div>
 
-    <!-- 敵情報 -->
-    <div id="cpu-info-bar">
-        <span>手札: <span id="cpu-hand-count">5</span>枚</span>
-        <span>山札: <span id="cpu-deck-count">35</span>枚</span>
+    <!-- CPU手札・山札 -->
+    <div class="cpu-top-row">
+        <div class="deck-visual-cpu" id="cpu-deck-visual" data-count="40"></div>
+        <div id="cpu-hand"></div>
     </div>
 
     <!-- 敵陣 -->
@@ -186,7 +188,7 @@
     </div>
 
     <!-- 自手札 -->
-    <div style="font-size:10px; color:#aaa; margin-bottom:-5px; text-align:center;">手札 (スワイプでプレイ / 長押しで詳細)</div>
+    <div style="font-size:10px; color:#aaa; margin-bottom:-5px; text-align:center;">スワイプでプレイ / 長押しで拡大</div>
     <div class="hand-area-player" id="player-hand"></div>
 </div>
 
@@ -195,328 +197,328 @@
 
 <script>
 // --- カードテキスト全解析・データベース自動生成 ---
-const RAW_CARD_DATA = `
+let RAW_DATA = `
 [白]
-モンスター / ★ / 忍者マウス(Monster_Mouth) / 2 / 2 / 1 / [潜伏]
-モンスター / ★★★ / 闇騎士(Monster_EvilNight) / 5 / 3 / 5 / [必殺] 攻撃時:戦う前に相手を破壊する
-モンスター / ★★ / 犬侍(Monster_Dog) / 4 / 2 / 2 / [疾走] 2回行動できる
-モンスター / ★ / エイリアン(Monster_Alien) / 3 / 2 / 2 / 登場時:カードを1枚引く
-モンスター / ★★ /魔法狐(Monster_Fox) / 4 / 2 / 4 / 登場時:カードを1枚引く、敵1体に1ダメージ、自身を1回復
-モンスター / ★★ / ミラーゴースト(Monster_MirrorGhost) / 3 / 1 / 1 / 戦闘発生時:相手の攻撃力と同じになる
-モンスター / ★★ / 魔法使い(Monster_Witch) / 3 / 2 / 2 / 登場時:エレメントを1枚手札に加える
-スペル / ★ / エレメント(Spell_Element) / 3 / - / - / 敵1体に3ダメージ
-スペル / ★ / 美味しいチキン(Spell_Chicken) / 3 / - / - / 味方1体を3回復
-スペル / ★★ / 石碑(Spell_Graph) / 3 / - / - / 味方1体に+1/+1を付与
-スペル / ★★★ / 悪魔の剣(Spell_DevilSword) / 4 / - / - / 自身を1ダメージ、敵1体を破壊
-スペル / ★★★ / 悪魔の炎剣(Spell_DevilFireSword) / 5 / - / - / 自身を4ダメージ、敵全体に4ダメージ
-スペル / ★★★★ / 黄金バナナ(Spell_GoldenBanana) / 5 / - / - / 味方1体を100回復
-スペル / ★ /リンゴちゃん(Spell_Apple) / 1 / - / - / 味方1体を1回復
-スペル / ★ / みかんくん(Spell_Orange) / 2 / - / - / 味方1体を2回復
-スペル / ★★ / みかんタワー(Spell_OrangeTower) / 4 / - / - / 味方全体を2回復
-モンスター / ★★ / 兵士(Monster_Soldier) / 2 / 2 / 1 / [突進]
-モンスター / ★★ / 盾兵士(Monster_ShieldSoldier) / 2 / 2 / 3 / [守護]
-モンスター / ★★ / 修道女(Monster_Nun) / 3 / 1 / 2 / 登場時:味方1体を2回復
-モンスター / ★ / 女村人(Monster_VillagerGirl) / 2 / 1 / 2 / 
-モンスター / ★ / 男村人(Monster_VillagerBoy) / 3 / 2 / 3 / 
-モンスター / ★★ / 魔術師(Monster_WitchNormal) / 4 / 2 / 3 / 登場時:敵1体に2ダメージ
-モンスター / ★★★ / ナイト(Monster_KnightNormal) / 5 / 2 / 5 / 4以上のダメージは3として扱う
-モンスター / ★★★★ / 王様(Monster_King) / 7 / 3 / 5 / 登場時:兵士と盾兵士を1体ずつ召喚
-モンスター / ★★ / 牧師(Monster_Clergyman) / 3 / 2 / 2 / 登場時:カードを1枚引く
-モンスター / ★ / からかさ小僧(Monster_Karakasa) / 1 / 1 / 1 / 
-モンスター / ★★ / 一反木綿(Monster_Ittanmomen) / 3 / 3 / 1 / [潜伏]
-モンスター / ★★ / ぬっぺふほふ(Monster_Nuppefuhofu) / 4 / 3 / 4 / [守護]
-モンスター / ★ / 武士(Monster_Bushi) / 1 / 1 / 2 / 
-モンスター / ★ / 侍(Monster_Samurai) / 3 / 2 / 2 / 2回行動できる
-スペル / ★★ / 火の玉(Spell_Hinotama) / 5 / - / - / 敵1体を破壊
-モンスター / ★★★ / ゴーレム(Monster_Golem) / 5 / 2 / 5 / [守護]
-モンスター / ★★★ / シャドー(Monster_Shadow) / 5 / 4 / 1 / [潜伏]
-モンスター / ★ / ノーム(Monster_Gnome) / 2 / 3 / 1 / 
-モンスター / ★★★ / ウルル(Monster_Ururu) / 7 / 5 / 5 / ターン終了時:自身を4回復
-モンスター / ★★★ / パルル(Monster_Paruru) / 7 / 5 / 5 / ターン終了時:ランダムな敵に2ダメージ
-モンスター / ★★★ / ルラルラ(Monster_Rurarura) / 8 / 6 / 6 / ターン終了時:敵全体に2ダメージ
-モンスター / ★★★ / ぴぃ(Monster_Pii) / 4 / 3 / 3 / 進化時:味方全体を5回復
-モンスター / ★★ / テレビくん(Monster_TVkun) / 5 / 3 / 5 / 
-モンスター / ★★★ / ワルル(Monster_Waruru) / 7 / 5 / 5 / 登場時:ランダムな敵に5ダメージ
-モンスター / ★★★ / ヒュルル(Monster_Hyururu) / 6 / 3 / 4 / 登場時:最大PPを+2増加
-モンスター / ★★★ / エルル(Monster_Eruru) / 6 / 4 / 5 / [守護]
-モンスター / ★★ / ネッキ(Monster_Nekki) / 4 / 2 / 6 / 
-モンスター / ★★ / 機械兵(Monster_NemeSoli) / 2 / 1 / 2 / [突進]
-スペル / ★★ / 神聖剣(Spell_SaikyoSword) / 5 / - / - / 敵1体を破壊
-モンスター / ★★ / 夢ウサギ(Monster_DreamRabbit) / 4 / 2 / 3 / 登場時:敵1体に-2/-0を付与
-スペル / ★★ / 怨念(Spell_Onnen) / 2 / - / - / 敵1体に-1/-1を付与
-モンスター / ★★★★ / クラーケン(Monster_Kraken) / 10 / 4 / 10 / 4回行動できる
-モンスター / ★★★★ / メガゴーレム(Monster_MegaGolem) / 8 / 5 / 7 / [守護]
+モンスター / ★ / 忍者マウス(Monster_Mouth) / 2 / 2 / 1 / [潜伏] / 特になし
+モンスター / ★★★ / 闇騎士(Monster_EvilNight) / 5 / 3 / 5 / [必殺] 攻撃時:戦う前に相手を破壊する / 
+モンスター / ★★ / 犬侍(Monster_Dog) / 4 / 2 / 2 / [疾走] 2回行動できる / 
+モンスター / ★ / エイリアン(Monster_Alien) / 3 / 2 / 2 / 登場時:カードを1枚引く / 
+モンスター / ★★ /魔法狐(Monster_Fox) / 4 / 2 / 4 / 登場時:カードを1枚引く、敵1体に1ダメージ、自身を1回復 / 
+モンスター / ★★ / ミラーゴースト(Monster_MirrorGhost) / 3 / 1 / 1 / 戦闘発生時:相手の攻撃力と同じになる / 
+モンスター / ★★ / 魔法使い(Monster_Witch) / 3 / 2 / 2 / 登場時:エレメントを1枚手札に加える / 
+スペル / ★ / エレメント(Spell_Element) / 3 / - / - / 敵1体に3ダメージ / 
+スペル / ★ / 美味しいチキン(Spell_Chicken) / 3 / - / - / 味方1体を3回復 / 
+スペル / ★★ / 石碑(Spell_Graph) / 3 / - / - / 味方1体に+1/+1を付与 / 
+スペル / ★★★ / 悪魔の剣(Spell_DevilSword) / 4 / - / - / 自身を1ダメージ、敵1体を破壊 / 
+スペル / ★★★ / 悪魔の炎剣(Spell_DevilFireSword) / 5 / - / - / 自身を4ダメージ、盤面全て破壊 / 
+スペル / ★★★★ / 黄金バナナ(Spell_GoldenBanana) / 5 / - / - / 味方1体を100回復 / 
+スペル / ★ /リンゴちゃん(Spell_Apple) / 1 / - / - / 味方1体を1回復 / 
+スペル / ★ / みかんくん(Spell_Orange) / 2 / - / - / 味方1体を2回復 / 
+スペル / ★★ / みかんタワー(Spell_OrangeTower) / 4 / - / - / 味方全体を2回復 / 
+モンスター / ★★ / 兵士(Monster_Soldier) / 2 / 2 / 1 / [突進] / 
+モンスター / ★★ / 盾兵士(Monster_ShieldSoldier) / 2 / 2 / 3 / [守護] / 
+モンスター / ★★ / 修道女(Monster_Nun) / 3 / 1 / 2 / 登場時:味方1体を2回復 / 
+モンスター / ★ / 女村人(Monster_VillagerGirl) / 2 / 1 / 2 / 効果なし / 
+モンスター / ★ / 男村人(Monster_VillagerBoy) / 3 / 2 / 3 / 効果なし / 
+モンスター / ★★ / 魔術師(Monster_WitchNormal) / 4 / 2 / 3 / 登場時:敵1体に2ダメージ / 
+モンスター / ★★★ / ナイト(Monster_KnightNormal) / 5 / 2 / 5 / 4以上のダメージは3として扱う / 
+モンスター / ★★★★ / 王様(Monster_King) / 7 / 3 / 5 / 登場時:兵士と盾兵士を1体ずつ召喚 / 
+モンスター / ★★ / 牧師(Monster_Clergyman) / 3 / 2 / 2 / 登場時:カードを1枚引く / 
+モンスター / ★ / からかさ小僧(Monster_Karakasa) / 1 / 1 / 1 / 効果なし / 
+モンスター / ★★ / 一反木綿(Monster_Ittanmomen) / 3 / 3 / 1 / [潜伏] / 
+モンスター / ★★ / ぬっぺふほふ(Monster_Nuppefuhofu) / 4 / 3 / 4 / [守護] / 
+モンスター / ★ / 武士(Monster_Bushi) / 1 / 1 / 2 / 効果なし / 
+モンスター / ★ / 侍(Monster_Samurai) / 3 / 2 / 2 / 2回行動できる / 
+スペル / ★★ / 火の玉(Spell_Hinotama) / 5 / - / - / 敵1体を破壊 / 
+モンスター / ★★★ / ゴーレム(Monster_Golem) / 5 / 2 / 5 / [守護] / 
+モンスター / ★★★ / シャドー(Monster_Shadow) / 5 / 4 / 1 / [潜伏] / 
+モンスター / ★ / ノーム(Monster_Gnome) / 2 / 3 / 1 / 効果なし / 
+モンスター / ★★★ / ウルル(Monster_Ururu) / 7 / 5 / 5 / ターン終了時:自身を4回復 / 
+モンスター / ★★★ / パルル(Monster_Paruru) / 7 / 5 / 5 / ターン終了時:ランダムな敵に2ダメージ / 
+モンスター / ★★★ / ルラルラ(Monster_Rurarura) / 8 / 6 / 6 / ターン終了時:敵全体に2ダメージ / 
+モンスター / ★★★ / ぴぃ(Monster_Pii) / 4 / 3 / 3 / 進化時:味方全体を5回復 / 
+モンスター / ★★ / テレビくん(Monster_TVkun) / 5 / 3 / 5 / 戦闘発生時:相手に-1/-0を付与 /
+モンスター / ★★★ / ワルル(Monster_Waruru) / 7 / 5 / 5 / 登場時:ランダムな敵に5ダメージ / 
+モンスター / ★★★ / ヒュルル(Monster_Hyururu) / 6 / 3 / 4 / 登場時:最大PPを+2増加 / 
+モンスター / ★★★ / エルル(Monster_Eruru) / 6 / 4 / 5 / [守護] / 
+モンスター / ★★ / ネッキ(Monster_Nekki) / 4 / 2 / 6 / 効果なし / 
+モンスター / ★★ / 機械兵(Monster_NemeSoli) / 2 / 1 / 2 / [突進] / 
+スペル / ★★ / 神聖剣(Spell_SaikyoSword) / 5 / - / - / 敵1体を破壊 / 
+モンスター / ★★ / 夢ウサギ(Monster_DreamRabbit) / 4 / 2 / 3 / 登場時:敵1体に-2/-0を付与 / 
+スペル / ★★ / 怨念(Spell_Onnen) / 2 / - / - / 敵1体に-1/-1を付与 / 
+モンスター / ★★★★ / クラーケン(Monster_Kraken) / 10 / 4 / 10 / 4回行動できる / 
+モンスター / ★★★★ / メガゴーレム(Monster_MegaGolem) / 8 / 5 / 7 / [守護] / 
 
 [赤]
-モンスター / ★★ / 炎の精霊(Monster_FlameSpirit) / 3 / 2 / 3 / 登場時:味方1体に+1/+0を付与
-モンスター / ★★ / 騎士団(Monster_Knight) / 5 / 3 / 5 / [突進]
-モンスター / ★ / 赤色の風船(Monster_RedBalloon) / 2 / 1 / 1 / 登場時:自身を1ダメージ
-モンスター / ★ / カニくん(Monster_Crab) / 2 / 1 / 2 / 
-モンスター / ★★ / マグマスライム(Monster_LavaSlime) / 3 / 2 / 2 / 登場時:敵全体に1ダメージ
-モンスター / ★★ / ファイアペン(Monster_FirePen) / 2 / 1 / 2 / 登場時:敵1体に1ダメージ
-モンスター / ★★★ / リザード(Monster_Lizard) / 4 / 3 / 3 / [突進]
-モンスター / ★★ / 赤鬼(Monster_RedOni) / 6 / 4 / 5 / 登場時:敵1体に3ダメージ
-モンスター / ★ / 青鬼(Monster_BlueOni) / 3 / 2 / 3 / 
-モンスター / ★★★ / 輪入道(Monster_Wanyudo) / 5 / 3 / 3 / 登場時:ランダムな敵に1ダメージ、これを4回繰り返す
-モンスター / ★★ / 火車(Monster_Kasha) / 4 / 2 / 3 / [突進]
-モンスター / ★★★★ / 竜(Monster_Ryu) / 8 / 7 / 8 / 登場時:敵全体に7ダメージ
-モンスター / ★★★★ / 大天狗(Monster_BigTengu) / 7 / 5 / 5 / 登場時:敵1体に4ダメージ
-モンスター / ★★ / 小天狗(Monster_MiniTengu) / 4 / 2 / 3 / [疾走]
-モンスター / ★★ / 山姥(Monster_Yamanba) / 3 / 1 / 3 / [必殺]
-モンスター / ★★★ / 九尾(Monster_Kyubi) / 4 / 2 / 3 / 登場時:ランダムな敵に2ダメージ
-モンスター / ★ / 一つ目小僧(Monster_Hitotumekozou) / 2 / 1 / 2 / 死亡時:カードを1枚引く
-モンスター / ★ / かまいたち(Monster_Kamaitati) / 2 / 2 / 1 / [突進]
-モンスター / ★★ / 猫又(Monster_Nekomata) / 3 / 1 / 3 / 登場時:味方1体に+0/+2を付与
-モンスター / ★ / 鳴釜(Monster_Narigama) / 2 / 2 / 1 / 
-モンスター / ★★ / 毛羽毛現(Monster_Keukegen) / 3 / 2 / 2 / ターン終了時:ランダムな敵に1ダメージ
-モンスター / ★★ / キツネ(Monster_FoxFox) / 3 / 2 / 2 / [疾走]
-モンスター / ★★★ / 悟空(Monster_Goku) / 5 / 3 / 5 / [突進] 2回行動できる
-モンスター / ★★ / 巫女(Monster_Miko) / 4 / 2 / 3 / ターン終了時:味方全体を1回復
-モンスター / ★★ / スズ(Monster_Suzu) / 3 / 2 / 3 / 登場時:自身を2回復
-モンスター / ★ / 猿(Monster_Saru) / 2 / 2 / 3 / 
-モンスター / ★★ / 猿将軍(Monster_SaruBoss) / 4 / 3 / 4 / 
-モンスター / ★★ / 神主(Monster_Kannusi) / 5 / 3 / 3 / 
-モンスター / ★★ / カンフー少女(Monster_Kungfu) / 3 / 2 / 3 / 
-モンスター / ★★ / 射手(Monster_Ite) / 3 / 1 / 4 / ターン開始時:ランダムな敵に1ダメージ
-スペル / ★★ / 増強の札(Spell_Ofuda) / 2 / - / - / 味方1体に-1/+3を付与
-スペル / ★★ / お守り(Spell_Omamori) / 3 / - / - / 味方1体に+0/+2を付与
-スペル / ★ / 赤の勾玉(Spell_RedMagatama) / 2 / - / - / 味方1体に+1/+0を付与
-スペル / ★ / 緑の勾玉(Spell_GreenMagatama) / 0 / - / - / カードを1枚引く
-スペル / ★ / 青の勾玉(Spell_BlueMagatama) / 2 / - / - / 味方1体に+0/+1を付与
-スペル / ★ / 黒の勾玉(Spell_BlackMagatama) / 2 / - / - / 敵1体に-1/-1を付与
-スペル / ★ / 黄の勾玉(Spell_YellowMagatama) / 1 / - / - / 自身を1回復
-スペル / ★ / 茶の勾玉(Spell_BrownMagatama) / 2 / - / - / 敵1体に2ダメージ
-モンスター / ★★ / ちびパンダ(Monster_MiniPanda) / 2 / 2 / 3 / 
-モンスター / ★★ / パンダ(Monster_Panda) / 4 / 4 / 3 / [突進]
-モンスター / ★★ / 狛犬(右)(Monster_KomainuR) / 3 / 2 / 3 / [突進]
-モンスター / ★★ / 狛犬(左)(Monster_KomainuL) / 3 / 2 / 3 / [守護]
-モンスター / ★★ / めでた餅(Monster_Mochi) / 3 / 1 / 2 / ターン終了時:自身を1回復
-モンスター / ★★ / マーク(Monster_Marc) / 6 / 5 / 5 / 攻撃時:敵全体に5ダメージ
-モンスター / ★★ / 人食い箱(Monster_Mimic) / 5 / 3 / 3 / [突進][必殺]
-モンスター / ★★ / ガンナー(Monster_Gunner) / 7 / 5 / 5 / 
-モンスター / ★★ / 爆弾ベア(Monster_BomBear) / 3 / 3 / 3 / 死亡時:敵全体に3ダメージ
-モンスター / ★★ / 狼将軍(Monster_Wolfleader) / 6 / 3 / 5 / [突進]
+モンスター / ★★ / 炎の精霊(Monster_FlameSpirit) / 3 / 2 / 3 / 登場時:味方1体に+1/+0を付与 / 
+モンスター / ★★ / 騎士団(Monster_Knight) / 5 / 3 / 5 / [突進] / 
+モンスター / ★ / 赤色の風船(Monster_RedBalloon) / 2 / 1 / 1 / 登場時:自身を1ダメージ / 
+モンスター / ★ / カニくん(Monster_Crab) / 2 / 1 / 2 / 効果なし / 
+モンスター / ★★ / マグマスライム(Monster_LavaSlime) / 3 / 2 / 2 / 登場時:敵全体に1ダメージ / 
+モンスター / ★★ / ファイアペン(Monster_FirePen) / 2 / 1 / 2 / 登場時:敵1体に1ダメージ / 
+モンスター / ★★★ / リザード(Monster_Lizard) / 4 / 3 / 3 / [突進] / 
+モンスター / ★★ / 赤鬼(Monster_RedOni) / 6 / 4 / 5 / 登場時:敵1体に3ダメージ / 
+モンスター / ★ / 青鬼(Monster_BlueOni) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★★ / 輪入道(Monster_Wanyudo) / 5 / 3 / 3 / 登場時:ランダムな敵に1ダメージ、これを4回繰り返す / 
+モンスター / ★★ / 火車(Monster_Kasha) / 4 / 2 / 3 / [突進] / 
+モンスター / ★★★★ / 竜(Monster_Ryu) / 8 / 7 / 8 / 登場時:敵全体に7ダメージ / 
+モンスター / ★★★★ / 大天狗(Monster_BigTengu) / 7 / 5 / 5 / 登場時:敵1体に4ダメージ / 
+モンスター / ★★ / 小天狗(Monster_MiniTengu) / 4 / 2 / 3 / [疾走] / 
+モンスター / ★★ / 山姥(Monster_Yamanba) / 3 / 1 / 3 / [必殺] / 
+モンスター / ★★★ / 九尾(Monster_Kyubi) / 4 / 2 / 3 / 登場時:ランダムな敵に2ダメージ / 
+モンスター / ★ / 一つ目小僧(Monster_Hitotumekozou) / 2 / 1 / 2 / 死亡時:カードを1枚引く / 
+モンスター / ★ / かまいたち(Monster_Kamaitati) / 2 / 2 / 1 / [突進] / 
+モンスター / ★★ / 猫又(Monster_Nekomata) / 3 / 1 / 3 / 登場時:味方1体に+0/+2を付与 / 
+モンスター / ★ / 鳴釜(Monster_Narigama) / 2 / 2 / 1 / 効果なし /
+モンスター / ★★ / 毛羽毛現(Monster_Keukegen) / 3 / 2 / 2 / ターン終了時:ランダムな敵に1ダメージ / 
+モンスター / ★★ / キツネ(Monster_FoxFox) / 3 / 2 / 2 / [疾走] /
+モンスター / ★★★ / 悟空(Monster_Goku) / 5 / 3 / 5 / [突進] 2回行動できる / 
+モンスター / ★★ / 巫女(Monster_Miko) / 4 / 2 / 3 / ターン終了時:味方全体を1回復 / 
+モンスター / ★★ / スズ(Monster_Suzu) / 3 / 2 / 3 / 登場時:自身を2回復 / 
+モンスター / ★ / 猿(Monster_Saru) / 2 / 2 / 3 / 効果なし /
+モンスター / ★★ / 猿将軍(Monster_SaruBoss) / 4 / 3 / 4 / 味方に[突進]を付与 /
+モンスター / ★★ / 神主(Monster_Kannusi) / 5 / 3 / 3 / 進化時:自身を1回復 /
+モンスター / ★★ / カンフー少女(Monster_Kungfu) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★ / 射手(Monster_Ite) / 3 / 1 / 4 / ターン開始時:ランダムな敵に1ダメージ / 
+スペル / ★★ / 増強の札(Spell_Ofuda) / 2 / - / - / 味方1体に-1/+3を付与 / 
+スペル / ★★ / お守り(Spell_Omamori) / 3 / - / - / 味方1体に+0/+2を付与 / 
+スペル / ★ / 赤の勾玉(Spell_RedMagatama) / 2 / - / - / 味方1体に+1/+0を付与 / 
+スペル / ★ / 緑の勾玉(Spell_GreenMagatama) / 0 / - / - / カードを1枚引く / 
+スペル / ★ / 青の勾玉(Spell_BlueMagatama) / 2 / - / - / 味方1体に+0/+1を付与 / 
+スペル / ★ / 黒の勾玉(Spell_BlackMagatama) / 2 / - / - / 敵1体に-1/-1を付与 / 
+スペル / ★ / 黄の勾玉(Spell_YellowMagatama) / 1 / - / - / 自身を1回復 / 
+スペル / ★ / 茶の勾玉(Spell_BrownMagatama) / 2 / - / - / 敵1体に2ダメージ / 
+モンスター / ★★ / ちびパンダ(Monster_MiniPanda) / 2 / 2 / 3 / 効果なし /
+モンスター / ★★ / パンダ(Monster_Panda) / 4 / 4 / 3 / [突進] / 
+モンスター / ★★ / 狛犬(右)(Monster_KomainuR) / 3 / 2 / 3 / [突進] / 
+モンスター / ★★ / 狛犬(左)(Monster_KomainuL) / 3 / 2 / 3 / [守護] / 
+モンスター / ★★ / めでた餅(Monster_Mochi) / 3 / 1 / 2 / ターン終了時:自身を1回復 / 
+モンスター / ★★ / マーク(Monster_Marc) / 6 / 5 / 5 / 攻撃時:敵全体に5ダメージ / 
+モンスター / ★★ / 人食い箱(Monster_Mimic) / 5 / 3 / 3 / [突進][必殺] / 
+モンスター / ★★ / ガンナー(Monster_Gunner) / 7 / 5 / 5 / ターン終了時:ランダムな敵に1ダメージ /
+モンスター / ★★ / 爆弾ベア(Monster_BomBear) / 3 / 3 / 3 / 死亡時:敵全体に3ダメージ / 
+モンスター / ★★ / 狼将軍(Monster_Wolfleader) / 6 / 3 / 5 / [突進] / 
 
 [青]
-モンスター / ★ / 青色の風船(Monster_BlueBalloon) / 2 / 1 / 2 / 死亡時:カードを1枚引く
-モンスター / ★ / ペン(Monster_Pen) / 2 / 1 / 2 / 
-モンスター / ★★ / キングペン(Monster_KingPen) / 4 / 2 / 4 / 
-モンスター / ★★ / くらげ(Monster_Jerryfish) / 3 / 2 / 2 / [守護] 死亡時:カードを1枚引く
-モンスター / ★★★★ / ウンディーネ(Monster_Undine) / 6 / 4 / 5 / 登場時:味方全体に+1/+1を付与
-モンスター / ★★★ / サハギン(Monster_Sahuagin) / 4 / 3 / 4 / 
-モンスター / ★★ / アイススライム(Monster_IceSlime) / 2 / 1 / 2 / 登場時:敵1体に1ダメージ
-モンスター / ★★ / 海の鬼(Monster_Seaimp) / 3 / 2 / 2 / 登場時:敵1体に2ダメージ
-モンスター / ★★ / アンコウ(Monster_Angler) / 4 / 3 / 3 / [潜伏]
-モンスター / ★★ / ビッグクラブ(Monster_Bigclab) / 5 / 4 / 5 / 
-モンスター / ★★★ / ホエール(Monster_Whale) / 7 / 5 / 5 / 
-モンスター / ★ / プチホエール(Monster_MiniWhale) / 3 / 2 / 3 / 
-モンスター / ★★ / キングホエール(Monster_KingWhale) / 5 / 3 / 5 / 
-モンスター / ★★ / メガシャーク(Monster_Megashark) / 5 / 4 / 4 / 
-モンスター / ★★ / プチシャーク(Monster_Minishark) / 3 / 3 / 1 / [必殺]
-モンスター / ★ / ココナッツ(Monster_Coconut) / 1 / 1 / 1 / 
-モンスター / ★★ / ココナッツの木(Monster_Palm) / 5 / 3 / 5 / 
-モンスター / ★★★ / マーメイド(Monster_Mermaid) / 6 / 4 / 5 / 登場時:味方全体を2回復
-モンスター / ★★★ / デカウミウシ(Monster_BigSeaslug) / 4 / 3 / 3 / 
-モンスター / ★ / ウミウシ(Monster_Seaslug) / 2 / 1 / 1 / [守護]
-モンスター / ★ / イカちゃん(Monster_Squid) / 3 / 2 / 3 / 
-スペル / ★ / アイス(Spell_Ice) / 2 / - / - / 味方1体を2回復
-モンスター / ★★★ / シーリザード(Monster_SeaLizard) / 4 / 2 / 3 / [疾走] 攻撃時:敵全体に1ダメージ
-モンスター / ★★ / マンタ(Monster_Manta) / 3 / 2 / 2 / [疾走]
-モンスター / ★★ / オコジョ(Monster_Ermine) / 3 / 1 / 1 / [潜伏]
-モンスター / ★★ / スノーマン(Monster_Snowman) / 3 / 2 / 3 / 
-モンスター / ★★★ / サンタクロース(Monster_Santa) / 4 / 3 / 3 / 
-スペル / ★★ / プレゼント(Spell_Present) / 2 / - / - / 味方全体に+1/+1を付与
-モンスター / ★★ / トナカイ(Monster_Reindeer) / 4 / 2 / 4 / [守護]
-スペル / ★★ / サプライズ(Spell_Surprise) / 3 / - / - / 敵全体に3ダメージ、カードを1枚引く
-モンスター / ★ / スター(Monster_Star) / 2 / 1 / 2 / 
-スペル / ★ / ミニキャンドル(Spell_MiniCandle) / 2 / - / - / 味方1体に+1/+0を付与
-モンスター / ★★ / 青坊主(Monster_Aobouzu) / 5 / 3 / 4 / [守護]
-モンスター / ★ / 雪ん子(Monster_Yukinko) / 3 / 2 / 2 / 登場時:敵1体に-1/-0を付与
-モンスター / ★★ / 雪女(Monster_Yukionna) / 4 / 3 / 3 / 登場時:敵全体に1ダメージ
-モンスター / ★★ / 幽霊(Monster_Yurei) / 3 / 2 / 1 / [潜伏]
-モンスター / ★★ / あしなが(Monster_Asinaga) / 4 / 3 / 4 / 
-モンスター / ★★ / てなが(Monster_Tenaga) / 4 / 3 / 4 / 
-モンスター / ★★★ / 手長足長(Monster_TenagaAsinaga) / 8 / 6 / 8 / 
-モンスター / ★★★ / 海坊主(Monster_Umibouzu) / 6 / 3 / 3 / 
-モンスター / ★★★★ / シードラゴン(Monster_SeaDragon) / 5 / 4 / 4 / 登場時:味方全体に+1/+0を付与
+モンスター / ★ / 青色の風船(Monster_BlueBalloon) / 2 / 1 / 2 / 死亡時:カードを1枚引く /
+モンスター / ★ / ペン(Monster_Pen) / 2 / 1 / 2 / 効果なし / 
+モンスター / ★★ / キングペン(Monster_KingPen) / 4 / 2 / 4 / 効果なし /
+モンスター / ★★ / くらげ(Monster_Jerryfish) / 3 / 2 / 2 / [守護] 死亡時:カードを1枚引く /
+モンスター / ★★★★ / ウンディーネ(Monster_Undine) / 6 / 4 / 5 / 登場時:味方全体に+1/+1を付与 / 
+モンスター / ★★★ / サハギン(Monster_Sahuagin) / 4 / 3 / 4 / 効果なし /
+モンスター / ★★ / アイススライム(Monster_IceSlime) / 2 / 1 / 2 / 登場時:敵1体に1ダメージ / 
+モンスター / ★★ / 海の鬼(Monster_Seaimp) / 3 / 2 / 2 / 登場時:敵1体に2ダメージ / 
+モンスター / ★★ / アンコウ(Monster_Angler) / 4 / 3 / 3 / [潜伏] / 
+モンスター / ★★ / ビッグクラブ(Monster_Bigclab) / 5 / 4 / 5 / 効果なし /
+モンスター / ★★★ / ホエール(Monster_Whale) / 7 / 5 / 5 / 効果なし /
+モンスター / ★ / プチホエール(Monster_MiniWhale) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★ / キングホエール(Monster_KingWhale) / 5 / 3 / 5 / 効果なし /
+モンスター / ★★ / メガシャーク(Monster_Megashark) / 5 / 4 / 4 / 攻撃時:相手を破壊する /
+モンスター / ★★ / プチシャーク(Monster_Minishark) / 3 / 3 / 1 / [必殺] / 
+モンスター / ★ / ココナッツ(Monster_Coconut) / 1 / 1 / 1 / 効果なし /
+モンスター / ★★ / ココナッツの木(Monster_Palm) / 5 / 3 / 5 / 効果なし /
+モンスター / ★★★ / マーメイド(Monster_Mermaid) / 6 / 4 / 5 / 登場時:味方全体を2回復 / 
+モンスター / ★★★ / デカウミウシ(Monster_BigSeaslug) / 4 / 3 / 3 / 効果なし /
+モンスター / ★ / ウミウシ(Monster_Seaslug) / 2 / 1 / 1 / [守護] /
+モンスター / ★ / イカちゃん(Monster_Squid) / 3 / 2 / 3 / 効果なし /
+スペル / ★ / アイス(Spell_Ice) / 2 / - / - / 味方1体を2回復 / 
+モンスター / ★★★ / シーリザード(Monster_SeaLizard) / 4 / 2 / 3 / [疾走] 攻撃時:敵全体に1ダメージ /
+モンスター / ★★ / マンタ(Monster_Manta) / 3 / 2 / 2 / [疾走] / 
+モンスター / ★★ / オコジョ(Monster_Ermine) / 3 / 1 / 1 / [潜伏] /
+モンスター / ★★ / スノーマン(Monster_Snowman) / 3 / 2 / 3 / 登場時:敵1体に1ダメージ /
+モンスター / ★★★ / サンタクロース(Monster_Santa) / 4 / 3 / 3 / 登場時:カードを1枚引く /
+スペル / ★★ / プレゼント(Spell_Present) / 2 / - / - / 味方全体に+1/+1を付与 / 
+モンスター / ★★ / トナカイ(Monster_Reindeer) / 4 / 2 / 4 / [守護] /
+スペル / ★★ / サプライズ(Spell_Surprise) / 3 / - / - / 敵全体に3ダメージ、カードを1枚引く / 
+モンスター / ★ / スター(Monster_Star) / 2 / 1 / 2 / 効果なし /
+スペル / ★ / ミニキャンドル(Spell_MiniCandle) / 2 / - / - / 味方1体に+1/+0を付与 / 
+モンスター / ★★ / 青坊主(Monster_Aobouzu) / 5 / 3 / 4 / [守護] /
+モンスター / ★ / 雪ん子(Monster_Yukinko) / 3 / 2 / 2 / 登場時:敵1体に-1/-0を付与 / 
+モンスター / ★★ / 雪女(Monster_Yukionna) / 4 / 3 / 3 / 登場時:敵全体に1ダメージ / 
+モンスター / ★★ / 幽霊(Monster_Yurei) / 3 / 2 / 1 / [潜伏] /
+モンスター / ★★ / あしなが(Monster_Asinaga) / 4 / 3 / 4 / 効果なし /
+モンスター / ★★ / てなが(Monster_Tenaga) / 4 / 3 / 4 / 効果なし /
+モンスター / ★★★ / 手長足長(Monster_TenagaAsinaga) / 8 / 6 / 8 / 効果なし /
+モンスター / ★★★ / 海坊主(Monster_Umibouzu) / 6 / 3 / 3 / 効果なし /
+モンスター / ★★★★ / シードラゴン(Monster_SeaDragon) / 5 / 4 / 4 / 登場時:味方全体に+1/+0を付与 / 
 
 [緑]
-モンスター / ★★ / オーク(Monster_Orc) / 4 / 2 / 3 / 死亡時:最大PPを+1増加
-モンスター / ★ / 土ゴーレム(Monster_Soilgolem) / 4 / 2 / 3 / [守護]
-モンスター / ★ / 弓使い(Monster_LiliputArcher) / 2 / 1 / 1 / 登場時:敵1体に1ダメージ
-モンスター / ★ / 剣士(Monster_LiliputKnight) / 2 / 1 / 1 / 登場時:味方1体に+1/+1を付与
-モンスター / ★★ / エルフ剣士(Monster_ElfKnight) / 3 / 2 / 2 / 登場時:味方1体に+1/+1を付与
-モンスター / ★★ / エルフ弓使い(Monster_ElfArcher) / 3 / 2 / 2 / 登場時:敵1体に1ダメージ
-モンスター / ★★★ / ダークエルフ剣士(Monster_DarkElfKnight) / 4 / 3 / 3 / 登場時:味方1体に+1/+1を付与
-モンスター / ★★★ / ダークエルフ弓使い(Monster_DarkElfArcher) / 4 / 3 / 3 / 登場時:敵1体に2ダメージ
-モンスター / ★ / ホーネット(Monster_Hornet) / 3 / 1 / 3 / [必殺]
-モンスター / ★ / マンティス(Monster_Mantis) / 2 / 1 / 2 / 
-モンスター / ★ / ビー(Monster_Bee) / 2 / 2 / 1 / [突進]
-スペル / ★ / つぼみ(Spell_Bud) / 1 / - / - / 
-モンスター / ★★★ / ドライアド(Monster_Dryad) / 6 / 4 / 5 / 
-モンスター / ★ / 芽(Monster_Dulb) / 1 / 1 / 1 / 
-モンスター / ★★ / アタックベア(Monster_AttackBear) / 3 / 2 / 3 / 登場時:敵1体に2ダメージ
-モンスター / ★★★ / アルラウネ(Monster_Aruraune) / 4 / 3 / 4 / 
-モンスター / ★ / テントウムシ(Monster_Ladybug) / 2 / 1 / 2 / 
-モンスター / ★ / フクロウ(Monster_Owl) / 2 / 2 / 1 / [潜伏]
-モンスター / ★ / スパイダー(Monster_Spider) / 2 / 1 / 2 / 
-モンスター / ★★★ / タランチュラ(Monster_Tarantula) / 6 / 4 / 5 / [必殺]
-モンスター / ★ / テディベア(Monster_TeddyBear) / 3 / 2 / 3 / 登場時:味方1体を1回復
-モンスター / ★★★ / 森のドラゴン(Monster_WoodDragon) / 5 / 3 / 5 / [突進] ターン終了時:自身を4回復
-モンスター / ★ / ラット(Monster_Rat) / 3 / 2 / 2 / 
-モンスター / ★ / かたつむり(Monster_Snail) / 2 / 1 / 2 / 
-モンスター / ★★ / かっぱ(Monster_Kappa) / 3 / 2 / 3 / 
-モンスター / ★ / かえる(Monster_Kaeru) / 2 / 1 / 2 / 
-モンスター / ★ / 小たぬき(Monster_Tanuki1) / 2 / 2 / 2 / 
-モンスター / ★★ / 中たぬき(Monster_Tanuki2) / 4 / 3 / 4 / 登場時:味方1体に+0/+1を付与
-モンスター / ★★★ / 大たぬき(Monster_Tanuki3) / 6 / 4 / 6 / [突進][守護]
-モンスター / ★★ / 釣りベア(Monster_FishBear) / 4 / 3 / 3 / 
-モンスター / ★★ / マッチョ(Monster_Macho) / 5 / 3 / 4 / 
-モンスター / ★ / 謎キノコ(Monster_NazoMush) / 4 / 2 / 2 / 
-モンスター / ★ / バット(Monster_Bat) / 2 / 1 / 2 / ターン終了時:自身を1回復
-モンスター / ★★★ / ヘッドレス(Monster_Headless) / 4 / 2 / 6 / ターン終了時:自身を6回復
-モンスター / ★ / ウルフ(Monster_Wolf) / 3 / 3 / 2 / [突進]
-モンスター / ★★ / ローパー(Monster_Roper) / 5 / 3 / 4 / 
-モンスター / ★ / イーターの芽(Monster_ManeaterA) / 3 / 1 / 3 / 
-モンスター / ★★ / マンイーター(Monster_ManeaterB) / 5 / 3 / 5 / 登場時:敵全体に1ダメージ
-モンスター / ★★★ / メガイーター(Monster_ManeaterC) / 7 / 5 / 7 / 
-モンスター / ★★★ / シルフ(Monster_Sylph) / 4 / 3 / 3 / 
-モンスター / ★ / ハナカマキリ(Monster_HanakamakiriA) / 2 / 1 / 2 / 
-モンスター / ★★ / 花蟷螂(Monster_HanakamakiriB) / 3 / 2 / 3 / ターン終了時:自身を1回復
-モンスター / ★★★★ / トレント(Monster_Treant) / 7 / 5 / 5 / 
-モンスター / ★★★★ / デストレント(Monster_DeathTreant) / 7 / 3 / 3 / 
+モンスター / ★★ / オーク(Monster_Orc) / 4 / 2 / 3 / 死亡時:最大PPを+1増加 / 
+モンスター / ★ / 土ゴーレム(Monster_Soilgolem) / 4 / 2 / 3 / [守護] /
+モンスター / ★ / 弓使い(Monster_LiliputArcher) / 2 / 1 / 1 / 登場時:敵1体に1ダメージ / 
+モンスター / ★ / 剣士(Monster_LiliputKnight) / 2 / 1 / 1 / 登場時:味方1体に+1/+1を付与 / 
+モンスター / ★★ / エルフ剣士(Monster_ElfKnight) / 3 / 2 / 2 / 登場時:味方1体に+1/+1を付与 / 
+モンスター / ★★ / エルフ弓使い(Monster_ElfArcher) / 3 / 2 / 2 / 登場時:敵1体に1ダメージ / 
+モンスター / ★★★ / ダークエルフ剣士(Monster_DarkElfKnight) / 4 / 3 / 3 / 登場時:味方1体に+1/+1を付与 / 
+モンスター / ★★★ / ダークエルフ弓使い(Monster_DarkElfArcher) / 4 / 3 / 3 / 登場時:敵1体に2ダメージ / 
+モンスター / ★ / ホーネット(Monster_Hornet) / 3 / 1 / 3 / [必殺] / 
+モンスター / ★ / マンティス(Monster_Mantis) / 2 / 1 / 2 / 効果なし /
+モンスター / ★ / ビー(Monster_Bee) / 2 / 2 / 1 / [突進] / 
+スペル / ★ / つぼみ(Spell_Bud) / 1 / - / - / カードを1枚引く /
+モンスター / ★★★ / ドライアド(Monster_Dryad) / 6 / 4 / 5 / 効果なし /
+モンスター / ★ / 芽(Monster_Dulb) / 1 / 1 / 1 / 効果なし /
+モンスター / ★★ / アタックベア(Monster_AttackBear) / 3 / 2 / 3 / 登場時:敵1体に2ダメージ / 
+モンスター / ★★★ / アルラウネ(Monster_Aruraune) / 4 / 3 / 4 / 効果なし /
+モンスター / ★ / テントウムシ(Monster_Ladybug) / 2 / 1 / 2 / 効果なし /
+モンスター / ★ / フクロウ(Monster_Owl) / 2 / 2 / 1 / [潜伏] / 
+モンスター / ★ / スパイダー(Monster_Spider) / 2 / 1 / 2 / 効果なし /
+モンスター / ★★★ / タランチュラ(Monster_Tarantula) / 6 / 4 / 5 / [必殺] /
+モンスター / ★ / テディベア(Monster_TeddyBear) / 3 / 2 / 3 / 登場時:味方1体を1回復 / 
+モンスター / ★★★ / 森のドラゴン(Monster_WoodDragon) / 5 / 3 / 5 / [突進] ターン終了時:自身を4回復 / 
+モンスター / ★ / ラット(Monster_Rat) / 3 / 2 / 2 / 効果なし /
+モンスター / ★ / かたつむり(Monster_Snail) / 2 / 1 / 2 / 効果なし /
+モンスター / ★★ / かっぱ(Monster_Kappa) / 3 / 2 / 3 / 効果なし /
+モンスター / ★ / かえる(Monster_Kaeru) / 2 / 1 / 2 / 効果なし /
+モンスター / ★ / 小たぬき(Monster_Tanuki1) / 2 / 2 / 2 / 効果なし /
+モンスター / ★★ / 中たぬき(Monster_Tanuki2) / 4 / 3 / 4 / 登場時:味方1体に+0/+1を付与 /
+モンスター / ★★★ / 大たぬき(Monster_Tanuki3) / 6 / 4 / 6 / [突進][守護] /
+モンスター / ★★ / 釣りベア(Monster_FishBear) / 4 / 3 / 3 / 効果なし /
+モンスター / ★★ / マッチョ(Monster_Macho) / 5 / 3 / 4 / 効果なし /
+モンスター / ★ / 謎キノコ(Monster_NazoMush) / 4 / 2 / 2 / 効果なし /
+モンスター / ★ / バット(Monster_Bat) / 2 / 1 / 2 / ターン終了時:自身を1回復 / 
+モンスター / ★★★ / ヘッドレス(Monster_Headless) / 4 / 2 / 6 / ターン終了時:自身を6回復 / 
+モンスター / ★ / ウルフ(Monster_Wolf) / 3 / 3 / 2 / [突進] / 
+モンスター / ★★ / ローパー(Monster_Roper) / 5 / 3 / 4 / 効果なし /
+モンスター / ★ / イーターの芽(Monster_ManeaterA) / 3 / 1 / 3 / 効果なし /
+モンスター / ★★ / マンイーター(Monster_ManeaterB) / 5 / 3 / 5 / 登場時:敵全体に1ダメージ / 
+モンスター / ★★★ / メガイーター(Monster_ManeaterC) / 7 / 5 / 7 / 効果なし /
+モンスター / ★★★ / シルフ(Monster_Sylph) / 4 / 3 / 3 / 効果なし /
+モンスター / ★ / ハナカマキリ(Monster_HanakamakiriA) / 2 / 1 / 2 / 効果なし /
+モンスター / ★★ / 花蟷螂(Monster_HanakamakiriB) / 3 / 2 / 3 / ターン終了時:自身を1回復 / 
+モンスター / ★★★★ / トレント(Monster_Treant) / 7 / 5 / 5 / 効果なし /
+モンスター / ★★★★ / デストレント(Monster_DeathTreant) / 7 / 3 / 3 / ターン終了時:自身に1ダメージ /
 
 [黄]
-モンスター / ★ / 黄色の風船(Monster_YellowBalloon) / 2 / 1 / 2 / 死亡時:自身を1回復
-モンスター / ★★ / ヒール天使(Monster_Angel) / 3 / 2 / 2 / 登場時:味方1体を2回復
-モンスター / ★★ / 夢見る羊(Monster_Sheep) / 4 / 3 / 3 / [突進]
-モンスター / ★★★ / ワイバーン(Monster_Wyburn) / 4 / 2 / 3 / [疾走]
-スペル / ★★ / キャンディ(Spell_Candy) / 3 / - / - / 味方1体を1回復
-モンスター / ★★ / クローバー(Monster_Clover) / 4 / 3 / 4 / 登場時:味方1体に+1/+0を付与
-モンスター / ★★ / ダイヤ(Monster_Diamond) / 4 / 3 / 4 / [突進]
-モンスター / ★★ / ハート(Monster_Heart) / 5 / 3 / 4 / 登場時:味方1体に+0/+2を付与
-モンスター / ★★ / スペード(Monster_Spade) / 5 / 4 / 4 / 
-モンスター / ★★ / アリス(Monster_Alice) / 4 / 2 / 3 / 登場時:味方1体を1回復
-モンスター / ★★ / チェシャ猫(Monster_CheshireCat) / 5 / 3 / 3 / 登場時:敵全体に-1/-1を付与
-モンスター / ★★ / ハンプティダンプティ(Monster_Humptydumpty) / 5 / 3 / 4 / 登場時:敵全体に3ダメージ
-モンスター / ★★★ / ハートクイーン(Monster_Queen) / 4 / 2 / 3 / ターン終了時:味方全体を1回復
-モンスター / ★★ / しろウサギ(Monster_WhiteRabbit) / 5 / 3 / 3 / 
-スペル / ★ / 紅茶(Spell_Teapot) / 4 / - / - / 味方1体に+0/+2を付与
-スペル / ★ / 毒キノコ(Spell_MadMush) / 4 / - / - / 敵1体に-1/-0を付与
-モンスター / ★★★ / 3月ウサギ(Monster_MarchHare) / 3 / 1 / 1 / 
-モンスター / ★★ / 歌花(Monster_SongFlower) / 4 / 2 / 3 / 登場時:味方1体を2回復
-モンスター / ★★ / 眠り猫(Monster_SleepCat) / 4 / - / 5 / [守護]
-モンスター / ★★ / 双子フラワー(Monster_DoubleFlowerA) / 3 / 2 / 2 / 
-モンスター / ★★★ / サンドワーム(Monster_SandWorm) / 4 / 4 / 2 / [潜伏]
-モンスター / ★ / スコーピオン(Monster_Scorpion) / 3 / 1 / 2 / [必殺]
-モンスター / ★ / サボテン(Monster_Cactus) / 2 / 2 / 2 / 
-モンスター / ★★ / バステト(Monster_Bastet) / 4 / 3 / 4 / ターン終了時:カードを1枚引く
-モンスター / ★★★ / アヌビス(Monster_Anubis) / 6 / 4 / 5 / 
-モンスター / ★★ / パトラ(Monster_Patra) / 4 / 2 / 3 / ターン終了時:味方全体を1回復
-モンスター / ★★ / ジーニィ(Monster_Genie) / 4 / 3 / 3 / 
-モンスター / ★★★★ / メジェド(Monster_Mejedo) / 8 / 4 / 4 / 
-モンスター / ★★★ / スフィンクス(Monster_Sphinx) / 6 / 3 / 3 / [守護]
-モンスター / ★★ / マミー(Monster_Mummy) / 4 / 3 / 4 / [守護]
-モンスター / ★★★ / ファラオ(Monster_Pharaoh) / 7 / 4 / 5 / 
-モンスター / ★ / コブラ(Monster_Cobra) / 3 / 2 / 1 / [突進][必殺]
-モンスター / ★★ / コカトリス(Monster_Cockatrice) / 4 / 4 / 3 / [突進]
-モンスター / ★ / ミニトリス(Monster_MiniCockatrice) / 2 / 2 / 1 / [突進]
-モンスター / ★ / アリジゴク(Monster_Antlion) / 3 / 2 / 2 / 
-モンスター / ★★ / ウォーロック(Monster_Warlock) / 4 / 2 / 3 / 登場時:敵1体に3ダメージ
-モンスター / ★★ / ギフトラビット(Monster_GiftRabbit) / 4 / 3 / 3 / 登場時:味方1体を2回復
-モンスター / ★ / チョコボーイ(Monster_ChocoBoy) / 3 / 2 / 3 / [守護]
-モンスター / ★ / チョコガール(Monster_ChocoGirl) / 3 / 2 / 3 / 
-モンスター / ★★ / チョコマスター(Monster_ChocoMaster) / 4 / 2 / 4 / 
-モンスター / ★ / チョコ(Monster_Choco) / 1 / 1 / 2 / 
-モンスター / ★★ / キャンディガール(Monster_CandyGirl) / 3 / 1 / 2 / ターン終了時:自身を1回復
-モンスター / ★★★ / ラッキードラゴン(Monster_LuckyDragon) / 5 / 3 / 4 / [突進]
-モンスター / ★★★ / バースデーケーキ(Monster_BirthdayCake) / 5 / 1 / 3 / 
-モンスター / ★ / マシュ(Monster_Mash) / 2 / 1 / 1 / 
-モンスター / ★★ / マシュタワー(Monster_MashTower) / 4 / 2 / 3 / 
-モンスター / ★★ / ケーキウサギ(Monster_CakeRabbit) / 3 / 2 / 3 / 登場時:味方1体を1回復
-モンスター / ★★ / 修道猫(Monster_StCat) / 4 / 2 / 3 / 登場時:味方1体を1回復
-モンスター / ★ / 青の幽霊(Monster_BlueGhost) / 3 / 2 / 2 / [潜伏]
-モンスター / ★ / 緑の幽霊(Monster_GreenGhost) / 3 / 2 / 2 / [潜伏]
-モンスター / ★ / 赤の幽霊(Monster_RedGhost) / 3 / 1 / 1 / [潜伏]
-モンスター / ★ / ラブバード(Monster_Lovebird) / 3 / 2 / 1 / [疾走]
-モンスター / ★★★★ / ゴッデス(Monster_Goddeth) / 10 / 7 / 7 / [無敵]
-モンスター / ★★★ / クリスタ(Monster_Crysta) / 5 / 3 / 3 / 登場時:味方1体に+0/+3を付与
-モンスター / ★★★ / バニーラビット(Monster_BunnyRabbit) / 4 / 3 / 3 / ターン終了時:味方全体を1回復
-モンスター / ★★ / サンドラ(Monster_SunDra) / 4 / 2 / 3 / 登場時:ランダムな敵に2ダメージ
-モンスター / ★★★★ / ミネルヴァ(Monster_Minerva) / 8 / 6 / 7 / 
+モンスター / ★ / 黄色の風船(Monster_YellowBalloon) / 2 / 1 / 2 / 死亡時:自身を1回復 /
+モンスター / ★★ / ヒール天使(Monster_Angel) / 3 / 2 / 2 / 登場時:味方1体を2回復 / 
+モンスター / ★★ / 夢見る羊(Monster_Sheep) / 4 / 3 / 3 / [突進] /
+モンスター / ★★★ / ワイバーン(Monster_Wyburn) / 4 / 2 / 3 / [疾走] /
+スペル / ★★ / キャンディ(Spell_Candy) / 3 / - / - / 味方1体を1回復 / 
+モンスター / ★★ / クローバー(Monster_Clover) / 4 / 3 / 4 / 登場時:味方1体に+1/+0を付与 / 
+モンスター / ★★ / ダイヤ(Monster_Diamond) / 4 / 3 / 4 / [突進] /
+モンスター / ★★ / ハート(Monster_Heart) / 5 / 3 / 4 / 登場時:味方1体に+0/+2を付与 / 
+モンスター / ★★ / スペード(Monster_Spade) / 5 / 4 / 4 / 効果なし /
+モンスター / ★★ / アリス(Monster_Alice) / 4 / 2 / 3 / 登場時:味方1体を1回復 / 
+モンスター / ★★ / チェシャ猫(Monster_CheshireCat) / 5 / 3 / 3 / 登場時:敵全体に-1/-1を付与 / 
+モンスター / ★★ / ハンプティダンプティ(Monster_Humptydumpty) / 5 / 3 / 4 / 登場時:敵全体に3ダメージ / 
+モンスター / ★★★ / ハートクイーン(Monster_Queen) / 4 / 2 / 3 / ターン終了時:味方全体を1回復 / 
+モンスター / ★★ / しろウサギ(Monster_WhiteRabbit) / 5 / 3 / 3 / 効果なし /
+スペル / ★ / 紅茶(Spell_Teapot) / 4 / - / - / 味方1体に+0/+2を付与 / 
+スペル / ★ / 毒キノコ(Spell_MadMush) / 4 / - / - / 敵1体に-1/-0を付与 / 
+モンスター / ★★★ / 3月ウサギ(Monster_MarchHare) / 3 / 1 / 1 / 効果なし /
+モンスター / ★★ / 歌花(Monster_SongFlower) / 4 / 2 / 3 / 登場時:味方1体を2回復 / 
+モンスター / ★★ / 眠り猫(Monster_SleepCat) / 4 / - / 5 / [守護] /
+モンスター / ★★ / 双子フラワー(Monster_DoubleFlowerA) / 3 / 2 / 2 / 効果なし /
+モンスター / ★★★ / サンドワーム(Monster_SandWorm) / 4 / 4 / 2 / [潜伏] / 
+モンスター / ★ / スコーピオン(Monster_Scorpion) / 3 / 1 / 2 / [必殺] / 
+モンスター / ★ / サボテン(Monster_Cactus) / 2 / 2 / 2 / 効果なし /
+モンスター / ★★ / バステト(Monster_Bastet) / 4 / 3 / 4 / ターン終了時:カードを1枚引く / 
+モンスター / ★★★ / アヌビス(Monster_Anubis) / 6 / 4 / 5 / 効果なし /
+モンスター / ★★ / パトラ(Monster_Patra) / 4 / 2 / 3 / ターン終了時:味方全体を1回復 / 
+モンスター / ★★ / ジーニィ(Monster_Genie) / 4 / 3 / 3 / 効果なし /
+モンスター / ★★★★ / メジェド(Monster_Mejedo) / 8 / 4 / 4 / 効果なし /
+モンスター / ★★★ / スフィンクス(Monster_Sphinx) / 6 / 3 / 3 / [守護] /
+モンスター / ★★ / マミー(Monster_Mummy) / 4 / 3 / 4 / [守護] / 
+モンスター / ★★★ / ファラオ(Monster_Pharaoh) / 7 / 4 / 5 / 効果なし /
+モンスター / ★ / コブラ(Monster_Cobra) / 3 / 2 / 1 / [突進][必殺] / 
+モンスター / ★★ / コカトリス(Monster_Cockatrice) / 4 / 4 / 3 / [突進] / 
+モンスター / ★ / ミニトリス(Monster_MiniCockatrice) / 2 / 2 / 1 / [突進] / 
+モンスター / ★ / アリジゴク(Monster_Antlion) / 3 / 2 / 2 / 効果なし /
+モンスター / ★★ / ウォーロック(Monster_Warlock) / 4 / 2 / 3 / 登場時:敵1体に3ダメージ / 
+モンスター / ★★ / ギフトラビット(Monster_GiftRabbit) / 4 / 3 / 3 / 登場時:味方1体を2回復 / 
+モンスター / ★ / チョコボーイ(Monster_ChocoBoy) / 3 / 2 / 3 / [守護] / 
+モンスター / ★ / チョコガール(Monster_ChocoGirl) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★ / チョコマスター(Monster_ChocoMaster) / 4 / 2 / 4 / 効果なし /
+モンスター / ★ / チョコ(Monster_Choco) / 1 / 1 / 2 / 死亡時:カードを1枚引く /
+モンスター / ★★ / キャンディガール(Monster_CandyGirl) / 3 / 1 / 2 / ターン終了時:自身を1回復 / 
+モンスター / ★★★ / ラッキードラゴン(Monster_LuckyDragon) / 5 / 3 / 4 / [突進] /
+モンスター / ★★★ / バースデーケーキ(Monster_BirthdayCake) / 5 / 1 / 3 / 効果なし /
+モンスター / ★ / マシュ(Monster_Mash) / 2 / 1 / 1 / 効果なし /
+モンスター / ★★ / マシュタワー(Monster_MashTower) / 4 / 2 / 3 / 効果なし /
+モンスター / ★★ / ケーキウサギ(Monster_CakeRabbit) / 3 / 2 / 3 / 登場時:味方1体を1回復 / 
+モンスター / ★★ / 修道猫(Monster_StCat) / 4 / 2 / 3 / 登場時:味方1体を1回復 / 
+モンスター / ★ / 青の幽霊(Monster_BlueGhost) / 3 / 2 / 2 / [潜伏] /
+モンスター / ★ / 緑の幽霊(Monster_GreenGhost) / 3 / 2 / 2 / [潜伏] /
+モンスター / ★ / 赤の幽霊(Monster_RedGhost) / 3 / 1 / 1 / [潜伏] /
+モンスター / ★ / ラブバード(Monster_Lovebird) / 3 / 2 / 1 / [疾走] / 
+モンスター / ★★★★ / ゴッデス(Monster_Goddeth) / 10 / 7 / 7 / [無敵] / 
+モンスター / ★★★ / クリスタ(Monster_Crysta) / 5 / 3 / 3 / 登場時:味方1体に+0/+3を付与 / 
+モンスター / ★★★ / バニーラビット(Monster_BunnyRabbit) / 4 / 3 / 3 / ターン終了時:味方全体を1回復 / 
+モンスター / ★★ / サンドラ(Monster_SunDra) / 4 / 2 / 3 / 登場時:ランダムな敵に2ダメージ / 
+モンスター / ★★★★ / ミネルヴァ(Monster_Minerva) / 8 / 6 / 7 / 効果なし /
 
 [紫]
-モンスター / ★★ / ファントム(Monster_Phantom) / 4 / 3 / 4 / 
-モンスター / ★★★ / ウィザード(Monster_Wizard) / 4 / 2 / 3 / 登場時:敵1体に2ダメージ
-モンスター / ★★ / インプ(Monster_Imp) / 2 / 2 / 1 / 
-モンスター / ★★★★ / キメラ(Monster_ChimeraA) / 7 / 5 / 5 / 
-モンスター / ★★★ / 動く屍(Monster_Cadaver) / 5 / 3 / 3 / 
-モンスター / ★★★ / リザードマン(Monster_Lizardman) / 6 / 4 / 5 / 登場時:敵全体に2ダメージ
-モンスター / ★★ / プチサイクロ(Monster_Chyclo) / 3 / 2 / 3 / 
-モンスター / ★★★★ / サイクロプス(Monster_Chyclops) / 5 / 3 / 3 / 
-モンスター / ★ / ミニタウロス(Monster_Minitaur) / 3 / 2 / 3 / 
-モンスター / ★★★ / メガタウロス(Monster_Megataur) / 5 / 3 / 4 / 
-モンスター / ★★★ / ミノタウロス(Monster_Minotaur) / 5 / 5 / 3 / 
-モンスター / ★★ / ロボ兵B(Monster_RoboSoldierB) / 4 / 3 / 4 / [守護]
-モンスター / ★★ / ロボ兵A(Monster_RoboSoldierA) / 4 / 3 / 3 / [突進]
-モンスター / ★★ / 古代兵器(Monster_AncientRobo) / 4 / 3 / 4 / 
-モンスター / ★★ / 壊れた古代兵器(Monster_BreakAncientRobo) / 4 / - / 2 / 
-モンスター / ★ / スケルトン(Monster_Skeleton) / 3 / 2 / 3 / 
-モンスター / ★★ / モアイ(Monster_Moai) / 5 / 3 / 5 / [守護]
-モンスター / ★★ / ガーゴイル(Monster_Gargoyle) / 3 / 2 / 2 / 
-モンスター / ★ / プチリザード(Monster_MiniLizard) / 3 / 2 / 3 / 
-モンスター / ★★★ / グリフォン(Monster_Griffon) / 6 / 4 / 5 / [疾走]
-モンスター / ★★ / ラミア(Monster_Lamia) / 4 / 3 / 3 / 
-スペル / ★ / 青色の本(Spell_BlueBook) / 2 / - / - / 味方1体に+0/+1を付与
-スペル / ★ / 緑色の本(Spell_GreenBook) / 4 / - / - / 最大PPを+1増加
-スペル / ★ / 赤色の本(Spell_RedBook) / 2 / - / - / 味方1体に+1/+0を付与
-スペル / ★ / 黄色の本(Spell_YellowBook) / 2 / - / - / 味方1体を2回復
-モンスター / ★★ / 石板(Monster_StoneSlab) / 4 / 3 / 3 / [守護]
-モンスター / ★★★ / 光る石板(Monster_LightStoneSlab) / 5 / 4 / 4 / [守護]
-モンスター / ★★★ / ロボGREEN(Monster_RoboGreen) / 5 / 4 / 4 / 
-モンスター / ★★★ / ロボBLACK(Monster_RoboBlack) / 5 / 4 / 4 / 
-モンスター / ★★★ / ロボYELLOW(Monster_RoboYellow) / 5 / 4 / 4 / [守護]
-モンスター / ★★★ / ロボRED(Monster_RoboRed) / 5 / 4 / 4 / [突進]
-モンスター / ★ / プチロボ(Monster_MiniRoboA) / 3 / 2 / 2 / 
-モンスター / ★ / ミニロボ(Monster_MiniRoboB) / 2 / 2 / 1 / 
-スペル / ★ / ランタン(Spell_Lamp) / 4 / 2 / 3 / 
-モンスター / ★★★ / クラウン(Monster_Clown) / 4 / 3 / 3 / [突進][必殺][潜伏]
-モンスター / ★★ / JOKER(Monster_Joker) / 4 / 1 / 1 / 
-モンスター / ★★ / ライオン(Monster_Lion) / 5 / 3 / 3 / 登場時:自身を3回復
-モンスター / ★★★ / テイマー(Monster_Tamer) / 5 / 2 / 3 / 
-モンスター / ★★ / ピエロ(Monster_Pierrot) / 5 / 3 / 3 / ターン終了時:味方全体に+1/+1を付与
-モンスター / ★★ / エレファント(Monster_Elephant) / 4 / 3 / 5 / 登場時:味方全体を1回復
-モンスター / ★★★ / サーカスマスター(Monster_GrandMaster) / 4 / 3 / 3 / 
-モンスター / ★★★ / がしゃどくろ(Monster_Gashadokuro) / 5 / 2 / 3 / 
-モンスター / ★★ / かごめ(Monster_Kagome) / 3 / 2 / 3 / 
-モンスター / ★★ / 琵琶牧々(Monster_Biwa) / 4 / 3 / 1 / 登場時:ランダムな敵に3ダメージ
-モンスター / ★★★ / デーモン(Monster_Demon) / 7 / 5 / 4 / 登場時:敵1体を破壊
-モンスター / ★★ / ゾンビナース(Monster_Nurse) / 4 / 2 / 3 / 登場時:味方1体を2回復
-モンスター / ★★★★ / リーパー(Monster_Reaper) / 6 / 4 / 4 / [必殺]
-モンスター / ★★ / デス(Monster_Death) / 3 / 1 / 2 / [必殺]
-モンスター / ★★ / デビルガール(Monster_DevilGirl) / 4 / 2 / 4 / ターン終了時:自身を2回復
-モンスター / ★★ / ゾンビ(Monster_Zombie) / 4 / 2 / 3 / 
-モンスター / ★★★ / ヴァンパイア(Monster_Vampire) / 6 / 3 / 6 / 登場時:味方1体に+1/+0を付与
-モンスター / ★★★ / パンプキン(Monster_Pumpkin) / 5 / 3 / 3 / ターン終了時:ランダムな敵に1ダメージ、これを2回繰り返す
-モンスター / ★★★ / ジュエルバット(Monster_JewelBat) / 7 / 5 / 5 / 
-モンスター / ★★★★ / ???(Monster_hatena) / 5 / 1 / 1 / 
-モンスター / ★★★★ / 邪(Monster_Ja) / 8 / 5 / 7 / 
-モンスター / ★★★★★ / 世界(Monster_World) / 8 / 5 / 10 / 
-モンスター / ★★★★ / ポイズンマッシュ(Monster_PoisonMush) / 7 / 4 / 5 / ターン終了時:敵全体に2ダメージ
-モンスター / ★★★★ / 死神リッチ(Monster_Lich) / 6 / 4 / 4 / [必殺]
+モンスター / ★★ / ファントム(Monster_Phantom) / 4 / 3 / 4 / 効果なし /
+モンスター / ★★★ / ウィザード(Monster_Wizard) / 4 / 2 / 3 / 登場時:敵1体に2ダメージ / 
+モンスター / ★★ / インプ(Monster_Imp) / 2 / 2 / 1 / 効果なし /
+モンスター / ★★★★ / キメラ(Monster_ChimeraA) / 7 / 5 / 5 / 効果なし /
+モンスター / ★★★ / 動く屍(Monster_Cadaver) / 5 / 3 / 3 / 効果なし /
+モンスター / ★★★ / リザードマン(Monster_Lizardman) / 6 / 4 / 5 / 登場時:敵全体に2ダメージ / 
+モンスター / ★★ / プチサイクロ(Monster_Chyclo) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★★★ / サイクロプス(Monster_Chyclops) / 5 / 3 / 3 / 効果なし /
+モンスター / ★ / ミニタウロス(Monster_Minitaur) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★★ / メガタウロス(Monster_Megataur) / 5 / 3 / 4 / 効果なし /
+モンスター / ★★★ / ミノタウロス(Monster_Minotaur) / 5 / 5 / 3 / 効果なし /
+モンスター / ★★ / ロボ兵B(Monster_RoboSoldierB) / 4 / 3 / 4 / [守護] /
+モンスター / ★★ / ロボ兵A(Monster_RoboSoldierA) / 4 / 3 / 3 / [突進] /
+モンスター / ★★ / 古代兵器(Monster_AncientRobo) / 4 / 3 / 4 / 効果なし /
+モンスター / ★★ / 壊れた古代兵器(Monster_BreakAncientRobo) / 4 / - / 2 / 効果なし /
+モンスター / ★ / スケルトン(Monster_Skeleton) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★ / モアイ(Monster_Moai) / 5 / 3 / 5 / [守護] / 
+モンスター / ★★ / ガーゴイル(Monster_Gargoyle) / 3 / 2 / 2 / 効果なし /
+モンスター / ★ / プチリザード(Monster_MiniLizard) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★★ / グリフォン(Monster_Griffon) / 6 / 4 / 5 / [疾走] /
+モンスター / ★★ / ラミア(Monster_Lamia) / 4 / 3 / 3 / 効果なし /
+スペル / ★ / 青色の本(Spell_BlueBook) / 2 / - / - / 味方1体に+0/+1を付与 / 
+スペル / ★ / 緑色の本(Spell_GreenBook) / 4 / - / - / 最大PPを+1増加 / 
+スペル / ★ / 赤色の本(Spell_RedBook) / 2 / - / - / 味方1体に+1/+0を付与 / 
+スペル / ★ / 黄色の本(Spell_YellowBook) / 2 / - / - / 味方1体を2回復 / 
+モンスター / ★★ / 石板(Monster_StoneSlab) / 4 / 3 / 3 / [守護] /
+モンスター / ★★★ / 光る石板(Monster_LightStoneSlab) / 5 / 4 / 4 / [守護] /
+モンスター / ★★★ / ロボGREEN(Monster_RoboGreen) / 5 / 4 / 4 / 効果なし /
+モンスター / ★★★ / ロボBLACK(Monster_RoboBlack) / 5 / 4 / 4 / 効果なし /
+モンスター / ★★★ / ロボYELLOW(Monster_RoboYellow) / 5 / 4 / 4 / [守護] /
+モンスター / ★★★ / ロボRED(Monster_RoboRed) / 5 / 4 / 4 / [突進] /
+モンスター / ★ / プチロボ(Monster_MiniRoboA) / 3 / 2 / 2 / 効果なし /
+モンスター / ★ / ミニロボ(Monster_MiniRoboB) / 2 / 2 / 1 / 効果なし /
+スペル / ★ / ランタン(Spell_Lamp) / 4 / 2 / 3 / 効果なし /
+モンスター / ★★★ / クラウン(Monster_Clown) / 4 / 3 / 3 / [突進][必殺][潜伏] / 
+モンスター / ★★ / JOKER(Monster_Joker) / 4 / 1 / 1 / 効果なし /
+モンスター / ★★ / ライオン(Monster_Lion) / 5 / 3 / 3 / 登場時:自身を3回復 / 
+モンスター / ★★★ / テイマー(Monster_Tamer) / 5 / 2 / 3 / 効果なし /
+モンスター / ★★ / ピエロ(Monster_Pierrot) / 5 / 3 / 3 / ターン終了時:味方全体に+1/+1を付与 / 
+モンスター / ★★ / エレファント(Monster_Elephant) / 4 / 3 / 5 / 登場時:味方全体を1回復 / 
+モンスター / ★★★ / サーカスマスター(Monster_GrandMaster) / 4 / 3 / 3 / 効果なし /
+モンスター / ★★★ / がしゃどくろ(Monster_Gashadokuro) / 5 / 2 / 3 / 効果なし /
+モンスター / ★★ / かごめ(Monster_Kagome) / 3 / 2 / 3 / 効果なし /
+モンスター / ★★ / 琵琶牧々(Monster_Biwa) / 4 / 3 / 1 / 登場時:ランダムな敵に3ダメージ / 
+モンスター / ★★★ / デーモン(Monster_Demon) / 7 / 5 / 4 / 登場時:敵1体を破壊 / 
+モンスター / ★★ / ゾンビナース(Monster_Nurse) / 4 / 2 / 3 / 登場時:味方1体を2回復 / 
+モンスター / ★★★★ / リーパー(Monster_Reaper) / 6 / 4 / 4 / [必殺] / 
+モンスター / ★★ / デス(Monster_Death) / 3 / 1 / 2 / [必殺] / 
+モンスター / ★★ / デビルガール(Monster_DevilGirl) / 4 / 2 / 4 / ターン終了時:自身を2回復 / 
+モンスター / ★★ / ゾンビ(Monster_Zombie) / 4 / 2 / 3 / 効果なし /
+モンスター / ★★★ / ヴァンパイア(Monster_Vampire) / 6 / 3 / 6 / 登場時:味方1体に+1/+0を付与 / 
+モンスター / ★★★ / パンプキン(Monster_Pumpkin) / 5 / 3 / 3 / ターン終了時:ランダムな敵に1ダメージ、これを2回繰り返す / 
+モンスター / ★★★ / ジュエルバット(Monster_JewelBat) / 7 / 5 / 5 / 効果なし /
+モンスター / ★★★★ / ???(Monster_hatena) / 5 / 1 / 1 / 効果なし /
+モンスター / ★★★★ / 邪(Monster_Ja) / 8 / 5 / 7 / 効果なし /
+モンスター / ★★★★★ / 世界(Monster_World) / 8 / 5 / 10 / 効果なし /
+モンスター / ★★★★ / ポイズンマッシュ(Monster_PoisonMush) / 7 / 4 / 5 / ターン終了時:敵全体に2ダメージ / 
+モンスター / ★★★★ / 死神リッチ(Monster_Lich) / 6 / 4 / 4 / [必殺] / 
 `;
 
 const DB = { "白": [], "赤": [], "青": [], "緑": [], "黄": [], "紫": [] };
 let currentColor = "白";
 
-RAW_CARD_DATA.split('\n').forEach(line => {
+RAW_DATA.split('\n').forEach(line => {
     line = line.trim();
     if(!line || line.startsWith('※') || line.includes('レア度')) return;
-    if(line.startsWith('[')) {
-        const match = line.match(/\[(白|赤|青|緑|黄|紫)\]/);
-        if(match) currentColor = match[1]; return;
-    }
-    const parts = line.split(' / '); if(parts.length < 7) return;
+    if(line.startsWith('[')) { const match = line.match(/\[(白|赤|青|緑|黄|紫)\]/); if(match) currentColor = match[1]; return; }
+    
+    // スラッシュの数が足りないカードエラーを防ぐため緩めにパース
+    const parts = line.split(' / ');
+    if(parts.length < 6) return; // 備考が無くても6パーツあれば通す
 
     const isMonster = parts[0].includes('モンスター');
     const nameMatch = parts[2].match(/(.+?)\((.+?)\)/);
@@ -545,7 +547,10 @@ RAW_CARD_DATA.split('\n').forEach(line => {
     if(text.match(/敵全体に(\d+)ダメージ/)) {
         let d = parseInt(RegExp.$1); actionGenerators.push((t, p) => damageAllEnemies(p, d));
     }
-    if(text.includes("敵1体を破壊")) {
+    if(text.includes("盤面全て破壊")) {
+        actionGenerators.push((t, p) => destroyAll(p));
+    }
+    if(text.includes("敵1体を破壊") || text.includes("相手を破壊")) {
         target = 'enemy_monster'; actionGenerators.push((t, p) => { if(t) destroyTarget(t); });
     }
     if(text.match(/カードを(\d+)枚引く/)) {
@@ -581,9 +586,16 @@ RAW_CARD_DATA.split('\n').forEach(line => {
             else damageCard({type: `${p}-leader`}, d); 
         });
     }
+    if(text.match(/味方1体を(\d+)回復/)) {
+        target = 'ally_monster'; let h = parseInt(RegExp.$1); actionGenerators.push((t, p) => { if(t) healCard(t, h); });
+    }
+    if(text.match(/敵1体に(\d+)ダメージ/)) {
+        target = 'enemy_monster'; let d = parseInt(RegExp.$1); actionGenerators.push((t, p) => { if(t) damageCard(t, d); });
+    }
     const combinedAction = (t, p, sIdx) => { actionGenerators.forEach(f => f(t, p, sIdx)); };
 
-    const fixedId = `${currentColor}_${img.split('.')[0]}`;
+    // 日本語名を含めることでIDを完全に固定化し保存バグを防止
+    const fixedId = `${currentColor}_${name}`;
 
     DB[currentColor].push({
         id: fixedId, colorFolder: currentColor, img: img, name: name, type: isMonster ? 'monster' : 'spell',
@@ -594,7 +606,7 @@ RAW_CARD_DATA.split('\n').forEach(line => {
 const COLORS = ["赤", "青", "緑", "黄", "紫"];
 
 // --- セーブデータ管理 ---
-const STORAGE_KEY = "shadowverse_clone_decks_v5";
+const STORAGE_KEY = "shadowverse_clone_decks_v6";
 let savedDecks = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 function saveToStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDecks)); }
 
@@ -691,7 +703,11 @@ function generateRandomDeck(color) {
         }
         let res = []; shuffled.forEach((c, i) => { for(let k=0; k<counts[i]; k++) res.push(c); }); return res;
     }
-    let deckBase = [...pickRandom(DB[color], 10, 20, 30), ...pickRandom(DB["白"], 4, 7, 10)];
+    // プールが空の時のエラーを防止
+    let colorPool = DB[color] || []; let whitePool = DB["白"] || [];
+    if(colorPool.length === 0) colorPool = whitePool;
+
+    let deckBase = [...pickRandom(colorPool, 10, 20, 30), ...pickRandom(whitePool, 4, 7, 10)];
     return deckBase.map(c => ({...c, uid: Math.random(), atkBuff: 0, hpBuff: 0, currentHp: c.hp, evolved: false, attacksLeft: c.maxAttacks})).sort(()=>Math.random()-0.5);
 }
 
@@ -740,9 +756,11 @@ function getAtk(card) { return Math.max(0, card.atk + card.atkBuff); }
 
 function render() {
     ["player", "cpu"].forEach(p => {
-        document.getElementById(`${p}-pp`).innerText = state[p].pp; document.getElementById(`${p}-maxpp`).innerText = state[p].maxPP;
-        document.getElementById(`${p}-ep`).innerText = state[p].ep; document.getElementById(`${p}-hp`).innerText = state[p].hp;
+        document.getElementById(`${p}-pp`).innerText = state[p].pp; document.getElementById(`${p}-ep`).innerText = state[p].ep; document.getElementById(`${p}-hp`).innerText = state[p].hp;
+        if(p === 'cpu') document.getElementById(`${p}-deck-visual`).setAttribute('data-count', state[p].deck.length);
+        else document.getElementById(`${p}-deck-visual`).setAttribute('data-count', state[p].deck.length);
     });
+    
     document.getElementById("cpu-hand-count").innerText = state.cpu.hand.length;
     document.getElementById("cpu-deck-count").innerText = state.cpu.deck.length;
 
@@ -750,6 +768,7 @@ function render() {
     if (state.activePlayer === 'player') { btn.className = "turn-player"; btn.innerText = "ターン終了"; } else { btn.className = "turn-cpu"; btn.innerText = "相手のターン"; }
 
     document.getElementById("player-hand").innerHTML = state.player.hand.map((c, i) => renderCardHTML(c, i, 'hand')).join('');
+    document.getElementById("cpu-hand").innerHTML = state.cpu.hand.map(() => `<div class="card-back"></div>`).join('');
     document.getElementById("player-board").innerHTML = state.player.board.map((c, i) => renderCardHTML(c, i, `board_player`)).join('');
     document.getElementById("cpu-board").innerHTML = state.cpu.board.map((c, i) => renderCardHTML(c, i, `board_cpu`)).join('');
 }
@@ -761,7 +780,6 @@ function renderCardHTML(card, index, context) {
 
     if (card.evolved) classes += " evolved"; if (isPlayable) classes += " playable";
     
-    // スマホ用タッチイベント（ドラッグ＆長押し）
     if(context !== 'builder') {
         events += `ontouchstart="t_start(event, '${context}', ${index})" ontouchmove="t_move(event)" ontouchend="t_end(event)" `;
         events += `onmousedown="t_start(event, '${context}', ${index})" onmousemove="t_move(event)" onmouseup="t_end(event)" onmouseleave="t_end(event)" oncontextmenu="event.preventDefault();" `;
@@ -807,7 +825,7 @@ function t_start(e, context, index) {
     tData = { source: context, index: index, startX: t.clientX, startY: t.clientY, isDragging: false };
     tTimer = setTimeout(() => {
         if(tData && !tData.isDragging) { openZoom(context, index); tData = null; }
-    }, 400); // 400ms長押しでズーム
+    }, 400); 
 }
 
 function t_move(e) {
@@ -821,13 +839,9 @@ function t_move(e) {
         else if (tData.source === 'board_player') { if(state.player.board[tData.index].canAttack) canDrag = true; }
 
         if(canDrag) {
-            e.preventDefault(); // スクロール防止
-            if(!ghost) {
-                ghost = document.getElementById('drag-ghost');
-                ghost.style.display = 'block';
-            }
-            ghost.style.left = (t.clientX - 30) + 'px';
-            ghost.style.top = (t.clientY - 40) + 'px';
+            e.preventDefault(); 
+            if(!ghost) { ghost = document.getElementById('drag-ghost'); ghost.style.display = 'block'; }
+            ghost.style.left = (t.clientX - 30) + 'px'; ghost.style.top = (t.clientY - 40) + 'px';
         } else { tData = null; }
     }
 }
@@ -837,7 +851,7 @@ function t_end(e) {
     if(ghost) {
         ghost.style.display = 'none'; ghost = null;
         let t = e.changedTouches ? e.changedTouches[0] : e;
-        // ゴーストを一瞬消して下の要素を取得
+        // ゴーストを消して下の要素を取得
         let el = document.elementFromPoint(t.clientX, t.clientY);
         if(el) {
             if(tData.source === 'hand') {
@@ -952,6 +966,10 @@ function damageCard(t, amt) {
 function destroyTarget(t) {
     const pKey = t.type.includes('enemy') ? (state.activePlayer === 'player' ? 'cpu' : 'player') : state.activePlayer;
     const card = state[pKey].board[t.index]; if(card) { card.currentHp = 0; showVFX(getCardDOMId(t), `DESTROY`, "damage"); }
+}
+function destroyAll(p) {
+    state.player.board.forEach((c,i)=>damageCard({type:'ally_monster', index:i}, 999));
+    state.cpu.board.forEach((c,i)=>damageCard({type:'enemy_monster', index:i}, 999));
 }
 function damageAllEnemies(p, dmg) {
     const enemy = p === 'player' ? 'cpu' : 'player'; state[enemy].board.forEach((c, i) => damageCard({type: 'enemy_monster', index: i}, dmg));
