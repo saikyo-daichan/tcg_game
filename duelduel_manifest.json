@@ -1,0 +1,17 @@
+{
+ "name": "デュエルデュエル",
+ "short_name": "デュエルデュエル",
+ "start_url": "index.html",
+ "display": "fullscreen",
+ "orientation": "landscape",
+ "background_color": "#120a1e",
+ "theme_color": "#120a1e",
+ "icons": [
+  {
+   "src": "duelduel_data/img/icon512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
