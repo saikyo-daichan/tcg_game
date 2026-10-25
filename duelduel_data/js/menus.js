@@ -2223,13 +2223,13 @@ function MakeMenus(B, Lobby, Lib) {
   const ABadge = Tex(CardGui.T_Badge2, 46.0, 46.0);
   TS.push(RBox(QBadge, 908.0, 572.0, 46.0, 46.0, 8), RBox(LBadge, 1348.0, 572.0, 46.0, 46.0, 8), RBox(ABadge, 908.0, 672.0, 46.0, 46.0, 8));
   // (browser: the player mark opens the friends (friends.js); the badge = friend requests waiting)
-  TS.push(RBox(Tex(CardGui.T_IcoPlayer, 44.0, 44.0), 1730.0, 1010.0, 44.0, 44.0, 4));
-  const TPlayers = OText(TmPeople(0), 28.0, CWhite, CInk);
-  TS.push(RPinTL(TPlayers.Root, 1780.0, 1012.0, 4));
-  TPlayers.FBadge = Tex(CardGui.T_Badge2, 40.0, 40.0);
+  // (a round 👤 button; 「!」 on its top right while friend requests are waiting)
+  TS.push(RBox(Tex(CardGui.T_BtnFriend, 104.0, 104.0), 1792.0, 950.0, 104.0, 104.0, 4));
+  const TPlayers = { Set() { } };
+  TPlayers.FBadge = Tex(CardGui.T_Badge2, 46.0, 46.0);
   Show(TPlayers.FBadge, false);
-  TS.push(RBox(TPlayers.FBadge, 1752.0, 992.0, 40.0, 40.0, 8));
-  TS.push(RBox(MenuHit(B, 124), 1715.0, 995.0, 200.0, 75.0, 9));
+  TS.push(RBox(TPlayers.FBadge, 1860.0, 940.0, 46.0, 46.0, 8));
+  TS.push(RBox(MenuHit(B, 124), 1780.0, 936.0, 136.0, 136.0, 9));
   TS.push(RPin(Txt(TmHint, 20.0, CCream), 960.0, 1032.0, 4));
   TS.push(RPin(OText(IslandCodeText(Lib), 30.0, CGold, CInk).Root, 960.0, 972.0, 4));
   const TitleSlot = RFull(new canvas({ Slots: TS }), 90);

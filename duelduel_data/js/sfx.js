@@ -21,12 +21,43 @@ function SfxFallback(Id) {
     : Id === SfxPackTear ? SfxPackOpen : Id === SfxImpact ? SfxHitBig : -1;
 }
 
-// a few audio elements per sound so the same sound can overlap
+// Served over http(s): Web Audio (every sound decoded once, played with no delay; phones stalled on <audio>).
+// Opened from a file (the sounds can't be fetched): a few audio elements per sound so the same sound can overlap.
+const SfxWeb = location.protocol.startsWith('http') && !!(window.AudioContext || window.webkitAudioContext);
+let SfxCtx = null, SfxGain = null;
+const SfxBufs = [], SfxLoads = [];
+function SfxLoad(Id) {
+  if (!SfxLoads[Id]) {
+    SfxLoads[Id] = fetch('duelduel_data/snd/' + SfxFiles[Id] + '.wav').then(r => r.arrayBuffer())
+      .then(b => SfxCtx.decodeAudioData(b)).then(buf => { SfxBufs[Id] = buf; }).catch(() => { });
+  }
+  return SfxLoads[Id];
+}
+// the browser lets sounds start only from a touch / click / key: the audio is made (and woken) there
+function SfxWake() {
+  if (!SfxWeb) return;
+  try {
+    if (!SfxCtx) {
+      SfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      SfxGain = SfxCtx.createGain();
+      SfxGain.connect(SfxCtx.destination);
+      if (TheSfxVolume !== null) SfxGain.gain.value = TheSfxVolume;
+      // every sound decoded in the background, a few at a time
+      spawn(async () => { for (let i = 0; i < SfxFiles.length; i += 4) await Promise.all([i, i + 1, i + 2, i + 3].filter(j => j < SfxFiles.length).map(SfxLoad)); });
+    }
+    if (SfxCtx.state !== 'running') SfxCtx.resume().catch(() => { });
+  } catch (e) { }
+}
+let TheSfxVolume = null;
+for (const ev of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click']) window.addEventListener(ev, SfxWake, { capture: true, passive: true });
+
 class card_sfx {
   constructor() {
     this.Pools = [];
     this.Volume = 0.8;
     try { const v = parseFloat(localStorage.getItem('dd_volume')); if (v >= 0 && v <= 1) this.Volume = v; } catch (e) { }
+    TheSfxVolume = this.Volume;
+    if (SfxGain) SfxGain.gain.value = this.Volume;
   }
   Pool(Id) {
     let p = this.Pools[Id];
@@ -40,12 +71,19 @@ class card_sfx {
   // (P = the player who hears it: always the local one in the browser)
   Play(P, Id) {
     if (Id < 0 || Id >= SfxFiles.length || !AudioUnlocked || this.Volume <= 0) return;
+    if (SfxWeb) {
+      if (!SfxCtx || SfxCtx.state !== 'running') return;
+      const buf = SfxBufs[Id];
+      if (!buf) { SfxLoad(Id); return; }
+      try { const s = SfxCtx.createBufferSource(); s.buffer = buf; s.connect(SfxGain); s.start(); } catch (e) { }
+      return;
+    }
     const p = this.Pool(Id);
     const a = p.els[p.next];
     p.next = (p.next + 1) % p.els.length;
     try { a.currentTime = 0; a.volume = this.Volume; const r = a.play(); if (r && r.catch) r.catch(() => { }); } catch (e) { }
   }
-  SetVolume(V) { this.Volume = V; try { localStorage.setItem('dd_volume', String(V)); } catch (e) { } }
+  SetVolume(V) { this.Volume = V; TheSfxVolume = V; if (SfxGain) SfxGain.gain.value = V; try { localStorage.setItem('dd_volume', String(V)); } catch (e) { } }
 }
 function MakeCardSfx() { return new card_sfx(); }
 

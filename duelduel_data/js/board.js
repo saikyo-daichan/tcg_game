@@ -164,7 +164,8 @@ class hit_hub {
       this.DragActive = true;
       this.DragFrom = Id;
       this.DragDownT = BoardPointer.DownT;
-      try { if (this.DragStartSkip && this.DragStartSkip(Id)) return; } catch (e) { console.error(e); }
+      this.DragSkipped = false;
+      try { if (this.DragStartSkip && this.DragStartSkip(Id)) { this.DragSkipped = true; return; } } catch (e) { console.error(e); }
     } else if (this.DragActive && !d && BoardPointer.DownT === this.DragDownT) {
       // the drop of that drag
       this.DragActive = false;
@@ -2078,12 +2079,18 @@ class board_ui {
     return To;
   }
 
-  // (kit DragDropNowhere) a drag let go on nothing / on itself: the selection is cancelled like clicking empty space
-  OnDragNowhere(Hit) {
+  // (kit DragDropNowhere) a drag let go on nothing: the selection is cancelled like clicking empty space.
+  // Let go on itself (Self) = a finger that slid a little while tapping: the same as a tap (the drag start already
+  // picked it; when it was picked before, this is the second tap on it)
+  OnDragNowhere(Hit, Self) {
     const Hub = this.Hub;
     Hub.DragActive = false;
     const M = this.Match;
     const Id = Hit ? Hit._hubId : undefined;
+    if (Self) {
+      if (Hub.DragSkipped && Id !== undefined) Hub.Fire(Id);
+      return;
+    }
     if (M && Id !== undefined && this.OnBoardId(Id) && M.Current === this.Who && !M.Ended && (M.Sel >= 0 || M.Pend)) Hub.Fire(99);
   }
 }

@@ -1038,8 +1038,8 @@ function CardSetSkin(P, HeroId, SkinId) {
 // ---------------------------------------------------------------- one-time gifts (given silently when the player comes)
 const CardGiftStarter = 1;
 const CardGiftVip = 2;
-// the special player (プレイヤーID 2056-9180-0421) who always has キャンディマン
-const CardVipNo = 205691800421;
+// the special player (HTML版: プレイヤーID 4004-2202-2888) who always has キャンディマン
+const CardVipNo = 400422022888;
 
 function HasBit(X, B) { return Mod(Quotient(X, B), 2) === 1; }
 
@@ -1093,8 +1093,8 @@ function CardGiveGifts(P) {
   if (Changed) CardCommit(P, E);
 }
 
-// the players who get エイぴちぴち (プレイヤーID 3944-9433-0732 and 2056-9180-0421)
-const CardEipitiNos = [394494330732, 205691800421];
+// the players who get エイぴちぴち (HTML版: プレイヤーID 4004-2202-2888)
+const CardEipitiNos = [400422022888];
 
 // ---------------------------------------------------------------- hour bonus (every 3 hours: a roulette over 7 rewards, every 5th one is bigger)
 const CardHourSeconds = 10800;

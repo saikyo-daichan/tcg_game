@@ -26,14 +26,31 @@ function FitApp() {
   }
   return { w, h };
 }
+// the safe-area insets of the screen in page px {L, R, T, B} (0 on a PC)
+let SafeProbe = null;
+function SafeInsets() {
+  if (!SafeProbe) {
+    SafeProbe = document.createElement('div');
+    SafeProbe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+      'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+    document.body.appendChild(SafeProbe);
+  }
+  const s = getComputedStyle(SafeProbe);
+  const v = x => parseFloat(x) || 0;
+  return { L: v(s.paddingLeft), R: v(s.paddingRight), T: v(s.paddingTop), B: v(s.paddingBottom) };
+}
 function InitStage(host) {
   StageEl = document.createElement('div');
   StageEl.id = 'stage';
   host.appendChild(StageEl);
   const fit = () => {
     const { w, h } = FitApp();
-    StageScale = Math.min(w / STAGE_W, h / STAGE_H);
-    StageOff = { X: (w - STAGE_W * StageScale) / 2, Y: (h - STAGE_H * StageScale) / 2 };
+    // phones: keep the game out of the notch and the home bar (touches there go to the phone, not the game)
+    const I = SafeInsets();
+    const L = AppRotated ? I.T : I.L, R = AppRotated ? I.B : I.R, T = AppRotated ? I.R : I.T, B = AppRotated ? I.L : I.B;
+    const aw = Math.max(1, w - L - R), ah = Math.max(1, h - T - B);
+    StageScale = Math.min(aw / STAGE_W, ah / STAGE_H);
+    StageOff = { X: L + (aw - STAGE_W * StageScale) / 2, Y: T + (ah - STAGE_H * StageScale) / 2 };
     StageEl.style.transform = `translate(${StageOff.X}px, ${StageOff.Y}px) scale(${StageScale})`;
   };
   window.addEventListener('resize', fit);
@@ -267,6 +284,40 @@ function SlotAt(W, X, Y, AX, AY, Z = 0, Width = null, Height = null) {
   return Width === null ? { Widget: W, X, Y, AX, AY, ZOrder: Z, SizeToContent: true } : { Widget: W, X, Y, AX, AY, W: Width, H: Height, ZOrder: Z, SizeToContent: false };
 }
 
+// tinted pictures, shared: key -> blob url (TintReady once made). TintShared turns false when the canvas can't be
+// read back (a page opened from a file); the widgets then draw their own canvas.
+const TintCache = new Map(), TintReady = new Map();
+let TintShared = true;
+function TintKey(T, C) { return T.Url + '|' + LinToCss(C, 1); }
+function TintedUrl(T, C) {
+  const key = TintKey(T, C);
+  let p = TintCache.get(key);
+  if (p) return p;
+  p = LoadImg(T).then(im => new Promise(res => {
+    if (!im || TintShared === false) { res(null); return; }
+    const w = Math.min(im.naturalWidth, 1024), h = Math.round(im.naturalHeight * w / im.naturalWidth);
+    const cnv = document.createElement('canvas');
+    cnv.width = w; cnv.height = h;
+    const g = cnv.getContext('2d');
+    g.drawImage(im, 0, 0, w, h);
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = LinToCss(C, 1);
+    g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(im, 0, 0, w, h);
+    try {
+      cnv.toBlob(b => {
+        if (!b) { res(null); return; }
+        const url = URL.createObjectURL(b);
+        TintReady.set(key, url);
+        res(url);
+      });
+    } catch (e) { TintShared = false; res(null); }
+  }));
+  TintCache.set(key, p);
+  return p;
+}
+
 // texture_block: an image with a desired size, a tint (multiply) and an opacity
 class texture_block extends widget {
   constructor(opts = {}) {
@@ -305,10 +356,35 @@ class texture_block extends widget {
     if (white) {
       if (this.cnv) { this.cnv.remove(); this.cnv = null; }
       this.el.style.backgroundImage = `url("${T.Url}")`;
+      this.TintShown = null;
       return;
     }
-    // tinted: the picture times the colour (alpha kept), drawn into a canvas (works for file:// pages too)
+    // tinted: the picture times the colour (alpha kept). Every picture+colour pair is made once and shared as an
+    // image (phones choked on one canvas per widget: ~1000 of them, only ~40 different ones)
+    const key = TintKey(T, C);
+    const ready = TintReady.get(key);
+    if (ready) { this.ShowTinted(ready); return; }
+    if (TintShared !== false) {
+      // (another colour of the same picture stays until the new one is ready; anything else is hidden meanwhile)
+      if (!this.cnv && this.TintShown !== T) { this.el.style.backgroundImage = 'none'; this.TintShown = null; }
+      TintedUrl(T, C).then(url => {
+        if (this.Img !== T || this.Tint !== C) return;
+        if (url) this.ShowTinted(url); else this.DrawCanvas();
+      });
+      return;
+    }
+    this.DrawCanvas();
+  }
+  ShowTinted(url) {
+    if (this.cnv) { this.cnv.remove(); this.cnv = null; }
+    this.el.style.backgroundImage = `url("${url}")`;
+    this.TintShown = this.Img;
+  }
+  // (a page opened from a file: the pictures can't be read back, so each widget draws its own canvas as before)
+  DrawCanvas() {
+    const T = this.Img, C = this.Tint;
     this.el.style.backgroundImage = 'none';
+    this.TintShown = null;
     if (!this.cnv) { this.cnv = document.createElement('canvas'); this.cnv.className = 'tcv'; this.el.appendChild(this.cnv); }
     const cnv = this.cnv, want = T, tint = C;
     LoadImg(T).then(im => {
@@ -452,6 +528,7 @@ function FitSize(W, H, MaxW, MaxH) { const K = Math.min(MaxW / W, MaxH / H); ret
 // while an arrow follows the finger / mouse. Long press (touch) = hover (shows the details).
 const HitRegistry = new Set();
 let DragArrow = null;
+const LongPressMs = 480;
 class WBP_CardHit extends widget {
   constructor() {
     super();
@@ -477,9 +554,9 @@ const HitInput = {
       if (e.button !== undefined && e.button > 0) return;
       e.preventDefault();
       AudioUnlock();
-      const d = { hit: H, x: e.clientX, y: e.clientY, t: performance.now(), dragging: false, pointerId: e.pointerId, touch: e.pointerType !== 'mouse', long: false };
+      const d = { hit: H, x: e.clientX, y: e.clientY, t: e.timeStamp, dragging: false, pointerId: e.pointerId, touch: e.pointerType !== 'mouse', long: false };
       this.down = d;
-      if (d.touch) d.longTimer = setTimeout(() => { if (this.down === d && !d.dragging) { d.long = true; this.SetHover(H); } }, 420);
+      if (d.touch) d.longTimer = setTimeout(() => { if (this.down === d && !d.dragging) { d.long = true; this.SetHover(H); } }, LongPressMs);
     });
   },
   SetHover(H) { if (this.hover !== H) { this.hover = H; H.Hovered.Signal(); } },
@@ -493,7 +570,8 @@ const HitInput = {
       const d = this.down;
       if (!d) return;
       const dx = e.clientX - d.x, dy = e.clientY - d.y;
-      if (!d.dragging && d.hit.Draggable && dx * dx + dy * dy > 18 * 18) {
+      const far = d.touch ? 26 : 18;
+      if (!d.dragging && d.hit.Draggable && dx * dx + dy * dy > far * far) {
         d.dragging = true;
         clearTimeout(d.longTimer);
         d.hit.Clicked.Signal();           // the drag starts: pick what was pressed
@@ -514,8 +592,10 @@ const HitInput = {
         HideDragArrow();
         const H = this.HitAt(e.clientX, e.clientY);
         if (H && H !== d.hit) setTimeout(() => H.Clicked.Signal(), 30);
-        else if (!H || H === d.hit) { if (DragDropNowhere) DragDropNowhere(d.hit); }
-      } else if (!d.long) {
+        // (Self: let go on the thing it started from = a sloppy tap, the board treats it like a tap)
+        else if (DragDropNowhere) DragDropNowhere(d.hit, H === d.hit);
+      } else if (!d.long || e.timeStamp - d.t < LongPressMs) {
+        // (a busy phone can run the long-press timer late: the finger's own times decide whether it was a tap)
         d.hit.Clicked.Signal();
       }
     };
