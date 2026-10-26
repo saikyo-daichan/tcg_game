@@ -81,7 +81,7 @@ function DraftAutoDeck(Pool, Sched) {
 }
 
 // ---------------------------------------------------------------- network
-const NET_VER = 'dd1';                 // both browsers must run the same rules (bump when the rules change)
+const NET_VER = 'dd2';                // both browsers must run the same rules (bump when the rules change)
 const NET_PREFIX = 'duelduel-' + NET_VER + '-';
 const NET_SLOTS = 4;                   // queue slots per mode
 
@@ -381,7 +381,7 @@ class pvp_session {
     // the decisions of the other browser (card_match.Decide) and its surrender
     L.OnMsg('d', m => this.Got(m.w, m.v));
     L.OnMsg('concede', m => { if (this.Match && this.Match.Concede) this.Match.Concede(m.w); });
-    L.OnMsg('prog', m => { this.Prog.Picks[this.Opp] = m.n; });
+    L.OnMsg('prog', m => { this.Prog.Picks[this.Opp] = m.n; if (this.Prog.OnOpp) this.Prog.OnOpp(); });
     L.OnMsg('stamp', m => { if (this.Match && this.Match.RemoteStamp) this.Match.RemoteStamp(m.w, m.k); });
     let R;
     try {
@@ -428,18 +428,33 @@ class pvp_session {
       Hero = (await this.PickHero(-1, false, T)) || M.FavHero();
       const Pool = DraftPool(Lib.DB, Hero.Id);
       // my progress goes to the other browser
+      // (sent at every pick; the loop is a fallback)
       let Last = -1, Drafting = true;
-      spawn(async () => { while (Drafting) { const N = this.Prog.Picks[this.MySeat]; if (N !== Last) { Last = N; L.Send({ t: 'prog', n: N }); } await Sleep(0.5); } });
+      const SendProg = () => { const N = this.Prog.Picks[this.MySeat]; if (N !== Last) { Last = N; L.Send({ t: 'prog', n: N }); } };
+      this.Prog.OnPick = () => SendProg();
+      spawn(async () => { while (Drafting) { SendProg(); await Sleep(0.5); } });
       Deck = await M.Draft(this.Prog, this.MySeat, Pool, this.Sched, true);
       Drafting = false;
+      this.Prog.OnPick = null;
       L.Send({ t: 'prog', n: DraftRounds });
     }
-    M.CloseAll();
     // everything the other browser needs to build my side
     const S = GetCardSave(P);
     L.Send({ t: 'side', hero: Hero.Id, deck: Deck.map(D => D.Id), name: TxAgent(P), back: S.Back, pic: TexRef(CardHeroPic(P, Hero)), hname: CardHeroName(P, Hero), hrace: CardHeroRace(P, Hero), prem: S.Prem, level: CardLevelOf(S.Xp).Level });
-    if (Me.UI.Notice) Me.UI.Notice(TlWaitOpp);
-    const O = await L.Next('side');
+    let O;
+    if (this.Mode !== ModeDeck) {
+      // 2Pick: the draft screen stays, with a big "waiting for the opponent  x/20" until their deck arrives
+      const Stop = new VEvent();
+      spawn(() => M.DraftWait(this.Prog, this.MySeat, Stop));
+      // (the opponent left: the wait ends too)
+      L.Closed.Await().then(() => Stop.Signal());
+      try { O = await L.Next('side'); } finally { Stop.Signal(); }
+      M.CloseAll();
+    } else {
+      M.CloseAll();
+      if (Me.UI.Notice) Me.UI.Notice(TlWaitOpp);
+      O = await L.Next('side');
+    }
     const MySide = new side({ Hero, Name: TxAgent(P), Back: S.Back, Deck, PicOverride: CardHeroPic(P, Hero), NameOverride: CardHeroName(P, Hero), RaceOverride: CardHeroRace(P, Hero), Prem: S.Prem, Level: CardLevelOf(S.Xp).Level });
     const OH = M.HeroOf(O.hero);
     const TheirSide = new side({ Hero: OH, Name: O.name, Back: O.back, Deck: O.deck.map(Id => Lib.CardById(Id)), PicOverride: TexOf(O.pic) || OH.Pic, NameOverride: O.hname, RaceOverride: O.hrace, Prem: O.prem || [], Level: O.level });

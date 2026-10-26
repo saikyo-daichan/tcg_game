@@ -111,7 +111,7 @@ class side {
     this.Level = o.Level ?? 0;                // the player's level (shown to the opponent; 0 = the computer)
     this.AiLevel = o.AiLevel ?? 0;            // the CPU's strength (boss.js): 0 初級, 1 中級, 2 上級, 3 最恐
     this.Timeouts = o.Timeouts ?? 0;          // how often the turn time ran out
-    this.TimeBonus = o.TimeBonus ?? false;    // the next turn gets CardTurnBonus seconds (the first time out)
+    this.TimedOut = o.TimedOut ?? false;      // the last turn ended because its time ran out (放置: no CardTurnActive bonus)
     this.Hp = o.Hp ?? CardHeroHp;
     this.MaxHp = o.MaxHp ?? CardHeroHp;
     this.Shield = o.Shield ?? 0;
@@ -219,13 +219,13 @@ function TgtOfUi(Id) {
   return undefined;
 }
 
-// 持ち時間: the first turn has CardTurnMax seconds, every later turn the time left over + CardTurnRegain,
-// at least CardTurnMin and at most CardTurnMax
-const CardTurnMax = 90.0;
+// 持ち時間: the first turn has CardTurnMax seconds, every later turn the time left over + CardTurnRegain
+// (+ CardTurnActive more when the last turn was ended by the player, not by the time running out), at most CardTurnMax
+// e.g. 35 s left → 35 + 30 + 45 = 110 s; timed out → 0 + 30 = 30 s
+const CardTurnMax = 120.0;
 const CardTurnMin = 30.0;
-const CardTurnRegain = 10.0;
-// the first time a player's turn time runs out, their next turn gets this much (later time outs: the usual minimum)
-const CardTurnBonus = 60.0;
+const CardTurnRegain = 30.0;
+const CardTurnActive = 45.0;
 
 // returned by the turn input when the turn time ran out
 const NavTimeout = -3;
@@ -363,11 +363,11 @@ class card_match {
     }
   }
 
-  // the turn time of side Who ran out (only the first time out gives a longer next turn); returns the time outs
+  // the turn time of side Who ran out (the next turn gets no CardTurnActive bonus); returns the time outs
   TimeUp(Who) {
     const Sd = this.S(Who);
     Sd.Timeouts += 1;
-    if (Sd.Timeouts === 1) Sd.TimeBonus = true;
+    Sd.TimedOut = true;
     this.LogBoth(Who, TlTimeUp(TxYou), TlTimeUp(TxOpponent));
     return Sd.Timeouts;
   }
@@ -570,6 +570,12 @@ class card_match {
     // amulets: 6 an own amulet whose countdown can still go down, 7 any amulet
     if (R === 6) { if (T.Side === Who) { const U = this.AmuletAt(Who, T.Col); if (U && U.Count > 0) return true; } return false; }
     if (R === 7) return !!this.AmuletAt(T.Side, T.Col);
+    // 10 any monster or amulet (an enemy monster under 威圧 / 潜伏 can't be picked)
+    if (R === 10) {
+      const U10 = At(this.S(T.Side).Board, T.Col);
+      if (!U10) return false;
+      return !(T.Side !== Who && !U10.Def.Amulet && U10.Hidden());
+    }
     if (R === 8 && T.Col < 0) return true;
     if (R === 9) {
       if (T.Side !== Who && T.Col < 0) return true;
@@ -1293,7 +1299,10 @@ class card_match {
       this.Pop(Hero(Who), TxPlus(N), true);
       await Sleep(0.45);
     } else if (K === fx_kind.ManaUp) {
+      const Was = A.MaxMana;
       A.MaxMana = Min(CardMaxMana, A.MaxMana + N);
+      // an amulet (マナの泉) does it at the turn start, after the mana was refilled: the new mana is full too (6/6 → 7/7)
+      if (Col >= 0 && this.AmuletAt(Who, Col)) A.Mana += A.MaxMana - Was;
       this.Refresh();
       this.Snd(SfxMana);
       this.Vfx(VfxMana, Hero(Who));
@@ -1881,6 +1890,12 @@ class card_match {
       for (let C0 = 0; C0 <= 2; C0++) if (C0 !== Col && At(A.Board, C0)) Ts.push(MkTgt(Who, C0));
       await this.KillMany(Ts);
       await this.ResolveDeaths();
+    } else if (K === fx_kind.DestroyAlly) {
+      // リボンバット: an other own monster is destroyed
+      if (T.Side === Who && T.Col !== Col && this.MonAt(Who, T.Col)) await this.Kill(T);
+    } else if (K === fx_kind.BounceAny) {
+      // ワルル: a monster or an amulet goes back to its owner's hand
+      await this.Bounce(T);
     } else if (K === fx_kind.ArtifactDeck) {
       const Deck = [];
       for (let I = 1; I <= Max(1, N); I++) Deck.push(this.RandomCard(Who, CardRandomArtifact));
@@ -2739,13 +2754,12 @@ class card_match {
   // (the time left at the end is measured by the acting side's browser and shared: Decide)
   async TakeTurn(Who) {
     if (this.TurnSeconds > 0.0) {
-      // 持ち時間: the first turn has TurnSeconds, later turns the time left over + TurnRegain (TurnMin .. TurnSeconds)
-      // the first time the time ran out, the next turn gets CardTurnBonus seconds
+      // 持ち時間: the first turn has TurnSeconds, later turns the time left over + TurnRegain
+      // (+ CardTurnActive unless the last turn timed out), TurnMin .. TurnSeconds
       const Sd = this.S(Who);
       const Give = Sd.Turns <= 1 ? this.TurnSeconds
-        : Sd.TimeBonus ? Min(this.TurnSeconds, CardTurnBonus)
-        : Min(this.TurnSeconds, Max(this.TurnMin, (At(this.Bank, Who) ?? 0.0) + this.TurnRegain));
-      Sd.TimeBonus = false;
+        : Min(this.TurnSeconds, Max(this.TurnMin, (At(this.Bank, Who) ?? 0.0) + this.TurnRegain + (Sd.TimedOut ? 0.0 : CardTurnActive)));
+      Sd.TimedOut = false;
       this.Deadline = GetSimulationElapsedTime() + Give;
     }
     if (this.Tut && Who === 0) this.Tut.Begin(this.S(Who).Turns);
@@ -3295,6 +3309,18 @@ class card_match {
     }
     if (K === fx_kind.ArtifactDeck) {
       return (Mine.Deck.length < 10 ? 4.0 : 0.5) + R;
+    }
+    if (K === fx_kind.DestroyAlly) {
+      // a loss, unless the monster was nearly dead anyway (the AI only does it when it must)
+      const U = T.Side === Who ? this.MonAt(Who, T.Col) : undefined;
+      if (U) return (U.Invincible ? -0.5 : -this.UnitValue(U) * 1.5 - 1.0) + R;
+      return -10.0;
+    }
+    if (K === fx_kind.BounceAny) {
+      if (T.Side === Who) return -6.0;
+      const U = At(Op.Board, T.Col);
+      if (U) return (U.Def.Amulet ? 2.0 + U.Def.Cost * 0.6 : this.UnitValue(U) * 1.2 + U.Def.Cost * 0.5 - 2.0) + R;
+      return -10.0;
     }
     if (K === fx_kind.HandKw) {
       const Got = Mine.Hand.filter(H => H.Def.Id === F.C);

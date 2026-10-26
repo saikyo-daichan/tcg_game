@@ -39,6 +39,11 @@ class card_face {
     this.SparkSws = o.SparkSws;
     this.PremGlow = o.PremGlow;
     this.PremSw = o.PremSw;
+    // a picture with a background (spells): ★2 keeps the background still and moves only the icon (ArtFg)
+    this.ArtFg = o.ArtFg;
+    this.FgSw = o.FgSw;
+    this.Split = null;
+    this.SplitOn = false;
     this.Prem = 0;
     this.ArtSize = V2(100, 90);
     this.Shown = null;
@@ -72,6 +77,10 @@ class card_face {
       this.Art.SetTint(D.ArtTint);
       this.ArtSize = D.IsSpell ? FitSize(D.ArtW, D.ArtH, 132 * S, 100 * S) : FitSize(D.ArtW, D.ArtH, 128 * S, 96 * S);
       this.Art.SetDesiredSize(this.ArtSize);
+      this.Split = PremSplit(D.Art);
+      this.SplitOn = false;
+      this.FgSw.Set(false);
+      this.ApplySplit();
       this.Name.SetText(D.Name);
       this.Cost.SetNum(D.Cost);
       this.Cost.SetColor(CWhite);
@@ -144,6 +153,25 @@ class card_face {
     for (const Sw of this.SparkSws) Sw.Set(L >= 1);
     this.PremSw.Set(L >= 2);
     if (L < 2) this.Art.SetDesiredSize(this.ArtSize);
+    this.ApplySplit();
+  }
+
+  // ★2 on a picture with a background: the still background in Art, the icon in ArtFg on top
+  ApplySplit() {
+    const D = this.Shown;
+    const On = !!(this.Prem >= 2 && this.Split && D);
+    if (On === this.SplitOn) return;
+    this.SplitOn = On;
+    if (On) {
+      this.Art.SetImage(this.Split[0]);
+      this.Art.SetDesiredSize(this.ArtSize);
+      this.ArtFg.SetImage(this.Split[1]);
+      this.ArtFg.SetTint(D.ArtTint);
+      this.ArtFg.SetDesiredSize(this.ArtSize);
+    } else if (D) {
+      this.Art.SetImage(D.Art);
+    }
+    this.FgSw.Set(On);
   }
 
   // one step of the プレミア animation (called about 12 times a second while shown)
@@ -156,9 +184,14 @@ class card_face {
       T.SetDesiredSize(V2(Sz, Sz));
     });
     if (this.Prem >= 2) {
-      const B = 1 + 0.05 * Sin(K * 0.22);
-      const Wob = 0.04 * Sin(K * 0.47);
-      this.Art.SetDesiredSize(V2(this.ArtSize.X * B * (1 + Wob), this.ArtSize.Y * B * (1 - Wob)));
+      if (this.SplitOn) {
+        // only the icon moves (never smaller than the picture, so the background under it stays covered)
+        this.ArtFg.SetDesiredSize(PremIconSize(this.ArtSize, K));
+      } else {
+        const B = 1 + 0.05 * Sin(K * 0.22);
+        const Wob = 0.04 * Sin(K * 0.47);
+        this.Art.SetDesiredSize(V2(this.ArtSize.X * B * (1 + Wob), this.ArtSize.Y * B * (1 - Wob)));
+      }
       this.PremGlow.SetTint(HueColor(K * 0.02));
     }
   }
@@ -180,6 +213,7 @@ function MakeCardFace(S, Hit) {
   const Glow = TexTint(CardGui.T_GlowCard, 182 * S, 246 * S, GlowReady);
   const Frame = Tex(CardGui.T_FrameMon, 150 * S, 214 * S);
   const Art = Tex(CardMon.f_slime, 100 * S, 90 * S);
+  const ArtFg = Tex(CardMon.f_slime, 100 * S, 90 * S);
   const Name = TxtLeft(TxEmpty, 12.5 * S, CWhite);
   const Gem = Tex(CardGui.T_Gem, 38 * S, 38 * S);
   const Cost = ONum(0, 20 * S, CWhite, CInk);
@@ -200,6 +234,7 @@ function MakeCardFace(S, Hit) {
     Box(Glow, -16 * S, -16 * S, 182 * S, 246 * S, 0),
     Box(Frame, 0, 0, 150 * S, 214 * S, 1),
     Pin(Art, 75 * S, 78 * S, 2),
+    Pin(ArtFg, 75 * S, 78 * S, 3),
     PinL(Name, 11 * S, 15.5 * S, 4),
     Pin(Gem, 131 * S, 16 * S, 5),
     Pin(Cost.Root, 131 * S, 16 * S, 6),
@@ -229,7 +264,23 @@ function MakeCardFace(S, Hit) {
     SparkSws: Sparks.map(T => MakeSw(T, false)),
     PremGlow,
     PremSw: MakeSw(PremGlow, false),
+    ArtFg,
+    FgSw: MakeSw(ArtFg, false),
   });
+}
+
+// [still background, icon] of a picture that has a background (the spell pictures T_Sp_*), or null
+function PremSplit(T) {
+  const Bg = T && T.Grp === 'CardGui' ? CardGui[T.Name + '_bg'] : undefined;
+  const Fg = T && T.Grp === 'CardGui' ? CardGui[T.Name + '_fg'] : undefined;
+  return Bg && Fg ? [Bg, Fg] : null;
+}
+
+// the size of a ★2 icon at animation step K: it breathes and wobbles but never gets smaller than Size
+function PremIconSize(Size, K) {
+  const B = 1.035 + 0.02 * Sin(K * 0.22);
+  const Wob = 0.015 * Sin(K * 0.47);
+  return V2(Size.X * B * (1 + Wob), Size.Y * B * (1 - Wob));
 }
 
 // ---------------------------------------------------------------- a board slot (170 x 170)
@@ -261,6 +312,11 @@ class unit_view {
     // プレミア sparkles (1st) and moving art (2nd)
     this.Sparks = o.Sparks;
     this.SparkSws = o.SparkSws;
+    // (amulets with a spell picture) ★2 moves only the icon, see card_face.ApplySplit
+    this.ArtFg = o.ArtFg;
+    this.FgSw = o.FgSw;
+    this.Split = null;
+    this.SplitOn = false;
     this.Prem = 0;
     this.ArtSize = V2(100, 100);
     this.LastU = null;
@@ -300,6 +356,22 @@ class unit_view {
     if (L < 2) this.Art.SetDesiredSize(this.ArtSize);
   }
 
+  ApplySplit(U) {
+    const On = !!(U && this.Prem >= 2 && this.Split);
+    if (On === this.SplitOn) return;
+    this.SplitOn = On;
+    if (On) {
+      this.Art.SetImage(this.Split[0]);
+      this.Art.SetDesiredSize(this.ArtSize);
+      this.ArtFg.SetImage(this.Split[1]);
+      this.ArtFg.SetTint(U.Def.ArtTint);
+      this.ArtFg.SetDesiredSize(this.ArtSize);
+    } else if (U) {
+      this.Art.SetImage(U.Def.Art);
+    }
+    this.FgSw.Set(On);
+  }
+
   Tick(K) {
     if (this.LastHid === 1) this.Smoke.SetDesiredSize(V2(176 + 10 * Sin(K * 0.21), 168 + 10 * Sin(K * 0.29 + 1)));
     if (this.Prem <= 0) return;
@@ -308,7 +380,9 @@ class unit_view {
       const Sz = 6 + 26 * V * V;
       T.SetDesiredSize(V2(Sz, Sz));
     });
-    if (this.Prem >= 2) {
+    if (this.SplitOn) {
+      this.ArtFg.SetDesiredSize(PremIconSize(this.ArtSize, K));
+    } else if (this.Prem >= 2) {
       const B = 1 + 0.05 * Sin(K * 0.22);
       const Wob = 0.04 * Sin(K * 0.47);
       this.Art.SetDesiredSize(V2(this.ArtSize.X * B * (1 + Wob), this.ArtSize.Y * B * (1 - Wob)));
@@ -336,8 +410,12 @@ class unit_view {
         this.Art.SetTint(U.Def.ArtTint);
         this.Art.SetDesiredSize(this.ArtSize);
         this.LastHid = -1;
+        this.Split = EvoPic ? null : PremSplit(U.Def.Art);
+        this.SplitOn = false;
+        this.FgSw.Set(false);
       }
       this.SetPrem(U.Prem);
+      this.ApplySplit(U);
       // 潜伏 (until it attacks): the art goes grey and smoke covers it
       const Hid = U.Hidden() ? 1 : 0;
       if (Hid !== this.LastHid) {
@@ -394,6 +472,8 @@ class unit_view {
       this.SwSet(16, false);
       this.LastHid = -1;
       this.SetPrem(0);
+      this.SplitOn = false;
+      this.FgSw.Set(false);
     }
   }
 
@@ -418,6 +498,7 @@ function MakeUnitView(IsFoe) {
   const Glow = TexTint(CardGui.T_GlowUnit, 206, 206, GlowReady);
   const Panel = Tex(IsFoe ? CardGui.T_UnitFoe : CardGui.T_UnitMe, 170, 170);
   const Art = Tex(CardMon.f_slime, 100, 100);
+  const ArtFg = Tex(CardMon.f_slime, 100, 100);
   const Taunt = Tex(CardGui.T_UnitTaunt, 170, 170);
   const Ice = Tex(CardGui.T_Freeze, 170, 170);
   const Bubble = TexTint(CardGui.T_Bubble, 170, 170, CBlue);
@@ -460,6 +541,7 @@ function MakeUnitView(IsFoe) {
         Box(Glow, -18, -18, 206, 206, 0),
         Box(Panel, 0, 0, 170, 170, 1),
         Pin(Art, 85, 78, 2),
+        Pin(ArtFg, 85, 78, 2),
         Pin(Ghost, 85, 78, 2),
         Box(GhostVeil, 12, 12, 146, 146, 3),
         Pin(Smoke, 85, 80, 3),
@@ -484,6 +566,8 @@ function MakeUnitView(IsFoe) {
     Glow, Panel, Art, Taunt, Ice, Bubble, Ghost, GhostVeil, AtkIcon, Atk, HpIcon, Hp, Zzz, KwTags, Count, Star, Flash, Smoke,
     IsFoe, Sws, Sparks,
     SparkSws: Sparks.map(T => MakeSw(T, false)),
+    ArtFg,
+    FgSw: MakeSw(ArtFg, false),
   });
   V.SetUnit(null, false, 0);
   return V;

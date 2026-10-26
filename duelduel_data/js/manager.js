@@ -258,7 +258,7 @@ class card_game_device {
         Print(`card match over, winner ${W}, mode ${Mode}`);
         const Won = W === 0, Lost = W === 1;
         const Early = !Match.FirstTurnDone;
-        const G = CardGiveMatch(Me.P, false, Won, Lost, Match.Reason, Early, Match.Rounds(), Match.Me.Summons, Match.Me.Jewels);
+        const G = CardGiveMatch(Me.P, false, Won, Lost, Match.Reason, Early, Match.Rounds(), Match.Me.Summons, Match.Me.Jewels, Level);
         CardMatchStats(Me.P, false, Mode, Mine.Id, Won, Lost, Early);
         // a win against 最恐 (the 「最恐討伐者」 achievement)
         if (Won && Level === CardAiNightmare) {

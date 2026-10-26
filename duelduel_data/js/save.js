@@ -67,6 +67,7 @@ const SvFields = [
   ['PassPrem', []],           // pass tiers whose premium reward was received
   ['PassOwned', false],       // the premium pass of this season was unlocked
   ['BossWins', 0],            // wins against the 最恐 CPU
+  ['QBossWin', 0],            // today's wins against the 最恐 CPU
 ];
 
 // one deck of the deck builder: the character and the card ids (40)
@@ -304,9 +305,17 @@ class card_quest {
     this.Coins = o.Coins ?? 0;
     this.Gems = o.Gems ?? 0;
     this.Xp = o.Xp ?? 0;
+    this.Pts = o.Pts ?? 0;      // pass points (0: CardQuestPts of the tier)
   }
 }
 
+// the pass points quest I gives
+function CardQuestPtsOf(I) {
+  const Q = At(CardQuests, I);
+  return (Q && Q.Pts > 0) ? Q.Pts : CardQuestPts(CardQuestTier(I)[0]);
+}
+
+const TqBoss1 = "CPUの強さ「最恐」に勝利する";
 const TqPlay1 = "1回対戦する（CPU戦もOK）";
 const TqPlay5 = "5回対戦する（CPU戦もOK）";
 const TqPlay10 = "10回対戦する（CPU戦もOK）";
@@ -327,7 +336,7 @@ const TqGem100 = "ジェムを100個使う";
 const TqGem500 = "ジェムを500個使う";
 const TqGem1000 = "ジェムを1000個使う";
 
-const CardQuestChains = 6;
+const CardQuestChains = 7;
 
 const CardQuests = [
   new card_quest({ Name: TqPlay1, Chain: 0, Stat: 2, Need: 1, Coins: 50, Xp: 20 }),
@@ -349,6 +358,7 @@ const CardQuests = [
   new card_quest({ Name: TqGem100, Chain: 5, Stat: 7, Need: 100, Coins: 100, Xp: 20 }),
   new card_quest({ Name: TqGem500, Chain: 5, Stat: 7, Need: 500, Coins: 300, Xp: 40 }),
   new card_quest({ Name: TqGem1000, Chain: 5, Stat: 7, Need: 1000, Coins: 500, Xp: 60 }),
+  new card_quest({ Name: TqBoss1, Chain: 6, Stat: 8, Need: 1, Coins: 300, Xp: 100, Pts: 25 }),
 ];
 
 // the quest a line shows now: its first tier that was not claimed (the last one when all were)
@@ -400,6 +410,7 @@ function CardQuestRefresh(E) {
     E.QPlayMin = 0;
     E.QPacks = 0;
     E.QGemsUsed = 0;
+    E.QBossWin = 0;
     E.QuestClaimed = [];
   }
 }
@@ -414,6 +425,7 @@ function CardQuestValue(E, I) {
     : St === 4 ? E.QJewels
     : St === 5 ? E.QPlayMin
     : St === 6 ? E.QPacks
+    : St === 8 ? E.QBossWin
     : E.QGemsUsed;
 }
 
@@ -512,7 +524,7 @@ function CardClaimQuest(P, I) {
     E.Coins += Q.Coins;
     E.Gems += Q.Gems;
     // quest points for the reward pass: the higher the tier, the more points
-    const Pts = CardQuestPts(CardQuestTier(I)[0]);
+    const Pts = CardQuestPtsOf(I);
     E.PassPts += Pts;
     const L = CardAddXp(E, Q.Xp);
     CardCommit(P, E);
@@ -596,16 +608,27 @@ function CardClaimLogin(P) {
 // ---------------------------------------------------------------- matches
 // Won / Lost (both false = draw). Reason: EndHp = a real finish, otherwise surrender / a player left.
 // Early: the match ended before the first player's first turn was over.
-function CardGiveMatch(P, Pvp, Won, Lost, Reason, Early, Rounds, Summons, Jewels) {
+// a CPU win pays by the CPU's strength (初級 / 中級 / 上級 / 最恐), however long the match was: [coins, xp]
+function CardCpuWinReward(AiLevel) {
+  return AiLevel === CardAiNightmare ? [500, 250]
+    : AiLevel === CardAiHard ? [350, 180]
+    : AiLevel === CardAiMiddle ? [250, 130]
+    : [150, 80];
+}
+
+function CardGiveMatch(P, Pvp, Won, Lost, Reason, Early, Rounds, Summons, Jewels, AiLevel = CardAiBeginner) {
   const E = CardEdit(P);
   let Coins = 0;
   let Xp = 0;
   const Real = Reason === EndHp;
   if (Won) {
-    if (Real) {
+    if (!Pvp) {
+      [Coins, Xp] = CardCpuWinReward(AiLevel);
+      if (AiLevel === CardAiNightmare) E.QBossWin += 1;
+    } else if (Real) {
       // a real win pays the most, however long the match was
-      Coins = Pvp ? 300 : 150;
-      Xp = Pvp ? 150 : 80;
+      Coins = 450;
+      Xp = 150;
     } else if (Early) {
       Coins = 10;
       Xp = 5;
@@ -695,10 +718,10 @@ const PackGem = 50;
 const Pack10Coin = 4750;
 const Pack10Gem = 450;
 
-// one card of a pack: legend 0.5%, epic 3%, rare 25%, normal 71.5% (the same for every card of the pack)
+// one card of a pack: legend 1%, epic 5%, rare 29%, normal 65% (the same for every card of the pack)
 function PackRarity(Last) {
   const X = GetRandomInt(1, 1000);
-  return X <= 5 ? RarL : X <= 35 ? RarE : X <= 285 ? RarR : RarN;
+  return X <= 10 ? RarL : X <= 60 ? RarE : X <= 350 ? RarR : RarN;
 }
 
 function PackCard(DB, R) {

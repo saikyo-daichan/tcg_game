@@ -457,7 +457,7 @@ class pass_ui {
         const Tr = CardQuestTier(QI);
         Row.Name.Set(TxPair(Q.Name, TmTier(Tr[0], Tr[1])));
         Row.Name.SetColor(St === 2 ? CGrey : CWhite);
-        Row.Reward.Set(this.QuestReward(Q, CardQuestPts(Tr[0])));
+        Row.Reward.Set(this.QuestReward(Q, CardQuestPtsOf(QI)));
         Row.Reward.SetColor(St === 2 ? CGrey : CGold);
         Row.Bar.Set(V * 1.0 / (Max(1, Q.Need) * 1.0));
         Row.Prog.Set(TxSlash(V, Q.Need));

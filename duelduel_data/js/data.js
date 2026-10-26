@@ -30,6 +30,8 @@ for (const K of [
   'SilenceFront', 'SpellLock', 'Choose',
   // --- v19
   'HandKw', 'VanishSelf', 'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon',
+  // --- web version (cards_web.js; with a target)
+  'DestroyAlly', 'BounceAny',
 ]) fx_kind[K] = K;
 Object.freeze(fx_kind);
 
@@ -37,7 +39,7 @@ Object.freeze(fx_kind);
 const NewFxKinds = new Set(['BuffOther', 'KillSelf', 'ReturnSelf', 'DrawBoth', 'DrawCheap', 'GravePick', 'FoeHandToDeck', 'HitOwnHero',
   'HitFrontSplash', 'SummonRushBuff', 'HitAllMonsters', 'HitSelf', 'HitRandomAny', 'SummonFoe', 'IfAllyBuff', 'IfAllyKw', 'FoeDiscard',
   'DeckSummon', 'GravePickSummon', 'SummonTrump', 'KillAttackTarget', 'SilenceFront', 'SpellLock', 'Choose', 'HandKw', 'VanishSelf',
-  'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon']);
+  'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon', 'DestroyAlly', 'BounceAny']);
 function IsNewFx(K) { return NewFxKinds.has(K); }
 
 // Cond: 0 always, 1 覚醒 (max mana 7 or more), 2 復讐 (own HP 10 or less), 3 own hand 2 cards or less,
@@ -58,11 +60,13 @@ function FxC(K, C, N) { return new fx({ K, N, C }); }
 function Fx0(K) { return new fx({ K }); }
 
 // what an effect is aimed at: 0 nothing, 1 an enemy monster, 2 an ally monster, 3 any monster, 4 an empty own slot,
-// 5 an other ally monster, 6 an own amulet with a countdown, 7 any amulet, 8 any monster or player, 9 an enemy monster or the enemy player
+// 5 an other ally monster, 6 an own amulet with a countdown, 7 any amulet, 8 any monster or player, 9 an enemy monster or the enemy player,
+// 10 any monster or amulet
 function FxTarget(K) {
   if (K === fx_kind.HitTarget || K === fx_kind.FreezeHit || K === fx_kind.DebuffTarget || K === fx_kind.DestroyTarget || K === fx_kind.DevourFoe) return 1;
   else if (K === fx_kind.HealTarget || K === fx_kind.BuffTarget || K === fx_kind.GiveKw) return 2;
-  else if (K === fx_kind.Devour || K === fx_kind.BuffOther) return 5;
+  else if (K === fx_kind.Devour || K === fx_kind.BuffOther || K === fx_kind.DestroyAlly) return 5;
+  else if (K === fx_kind.BounceAny) return 10;
   else if (K === fx_kind.AdvanceTarget) return 6;
   else if (K === fx_kind.DestroyAmulet) return 7;
   else if (K === fx_kind.HitAny) return 8;

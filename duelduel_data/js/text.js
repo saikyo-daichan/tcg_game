@@ -192,6 +192,8 @@ function TfAddArtifact(N) { return `手札にランダムなアーティファ�
 function TfHandKw(C, K) { return `手札の「${C}」すべてに「${K}」を付与`; }
 const TfVanishSelf = "このモンスターは消滅する";
 const TfKillOwnOthers = "自分の他のモンスターとアミュレットをすべて破壊";
+const TfDestroyAlly = "自分の味方モンスター1体を破壊する";
+const TfBounceAny = "場にあるモンスターまたはアミュレットを持ち主の手札に戻す";
 function TfArtifactDeck(N) { return `自分の山札を、ランダムなアーティファクト${N}枚にする`; }
 function TfHeroEndSummon(C) { return `自分のリーダーは「ターン終了時：「${C}」を召喚する」を得る`; }
 // a keyword the card got in the hand, above its own text
@@ -347,6 +349,8 @@ function FxTextNew(DB, F, IsSpell) {
   else if (K === fx_kind.KillOwnOthers) return TfKillOwnOthers;
   else if (K === fx_kind.ArtifactDeck) return TfArtifactDeck(N);
   else if (K === fx_kind.HeroEndSummon) return TfHeroEndSummon(CardName);
+  else if (K === fx_kind.DestroyAlly) return TfDestroyAlly;
+  else if (K === fx_kind.BounceAny) return TfBounceAny;
   return TxEmpty;
 }
 

@@ -662,7 +662,7 @@ class card_lib {
   CardById(Id) { return this.DB[Id] || this.DB[0]; }
 }
 function MakeCardLib(Code) {
-  const DB = MakeCardDB();
+  const DB = CardWebPatch(MakeCardDB());
   return new card_lib({ DB, Texts: DB.map(D => CardText(DB, D)), Helps: DB.map(D => HelpWithSummons(DB, D)), Rows: DB.map(D => CardTextRows(D)), Heroes: MakeHeroes(), IslandCode: Code });
 }
 function TxIslandCode(C) { return `島コード  ${C}`; }

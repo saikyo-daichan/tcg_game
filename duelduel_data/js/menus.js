@@ -177,8 +177,13 @@ function MakeGridCard(S, Hit) {
 }
 
 // a progress object shared by the two players of a draft (the AI and the CPU battle use it too)
+// (online: OnPick sends the own picks right away, OnOpp redraws the opponent's count as soon as it arrives)
 class draft_progress {
-  constructor() { this.Picks = [0, 0]; }
+  constructor(o = {}) {
+    this.Picks = o.Picks ?? [0, 0];
+    this.OnPick = null;
+    this.OnOpp = null;
+  }
 }
 
 // one side of the matching screen (Level 0: the computer)
@@ -742,14 +747,33 @@ class card_menus {
     this.DCount.Set(TmDeckCount(Deck.length, DraftRounds * 2));
   }
 
+  // the opponent's picks (top left, and the big count of the waiting screen)
+  ShowOppPicks(Prog, Seat) {
+    const N = At(Prog.Picks, 1 - Seat) ?? 0;
+    this.DOpp.Set(TmOppPicks(N, DraftRounds));
+    this.DWaitN.Set(TxSlash(N, DraftRounds));
+  }
+
   async OppTick(Prog, Seat, Stop) {
     let Done = false;
     Stop.Await().then(() => { Done = true; });
+    Prog.OnOpp = () => { if (!Done) this.ShowOppPicks(Prog, Seat); };
     while (!Done) {
       if (!this.Alive()) break;
-      const N = At(Prog.Picks, 1 - Seat) ?? 0;
-      this.DOpp.Set(TmOppPicks(N, DraftRounds));
+      this.ShowOppPicks(Prog, Seat);
       await Sleep(0.3);
+    }
+  }
+
+  // done with the draft first (against a player): the big waiting screen until Stop
+  async DraftWait(Prog, Seat, Stop) {
+    Show(this.DWait, true);
+    this.DTimer.Set(TxEmpty);
+    try {
+      await Race(this.OppTick(Prog, Seat, Stop), Stop.Await());
+    } finally {
+      Prog.OnOpp = null;
+      Show(this.DWait, false);
     }
   }
 
@@ -789,6 +813,7 @@ class card_menus {
         const O = At(Opts, Choice);
         if (O) Deck = [...Deck, ...O];
         if (Seat >= 0 && Seat < Prog.Picks.length) { const Pk = Prog.Picks.slice(); Pk[Seat] = R; Prog.Picks = Pk; }
+        if (Prog.OnPick) Prog.OnPick(R);
         this.UpdateCurve(Deck);
         // a short pause so that a double click doesn't also pick the next set
         const G = At(this.DGlows, Choice);
@@ -2359,6 +2384,17 @@ function MakeMenus(B, Lobby, Lib) {
     DS.push(RBox(Bv.Root, X, 745.0, 56.0, 200.0, 3), RPin(OText(I === 6 ? TmSevenUp : TxNum(I + 1), 22.0, CGold, CInk).Root, X + 28.0, 968.0, 3), RPin(T.Root, X + 28.0, 1002.0, 3));
   }
   DS.push(RPin(Txt(TmHint, 18.0, CCream), 960.0, 1044.0, 3));
+  // done first against a player: a big "waiting for the opponent" over everything until the match starts
+  const DWaitN = OText(TxEmpty, 96.0, CGold, CInk);
+  const DWait = new canvas({
+    Slots: [
+      MakeOverlayDim(0.85),
+      RPin(OText(TmDraftWaitBig, 64.0, CWhite, CInk).Root, 960.0, 440.0, 1),
+      RPin(DWaitN.Root, 960.0, 600.0, 1),
+    ],
+  });
+  Show(DWait, false);
+  DS.push(RFull(DWait, 20));
   const DraftSlot = RFull(new canvas({ Slots: DS }), 94);
 
   // ---- shop (tabs: packs / card backs / gems)
@@ -2851,7 +2887,7 @@ function MakeMenus(B, Lobby, Lib) {
     BRandom: BM1[1],
     WTitle, WBig, WSub, JDisplay, JMsg, JTitle,
     CharCanvas, CharPanels, CharTimer, CharWait, CharBackSlot,
-    DHead, DSub, DTimer, DOpp, DCount, DFaces, DGlows, DCurve, DCurveTxt,
+    DHead, DSub, DTimer, DOpp, DCount, DWait, DWaitN, DFaces, DGlows, DCurve, DCurveTxt,
     SCoins: SM[1],
     SGems: SM[2],
     SMsg,
@@ -3025,6 +3061,7 @@ const TmDraftEpic = "★ エピック確定！どちらのセットにもエピ�
 const TmDraftNormal = "どちらかのセット（2枚）を選んでデッキに加えよう";
 const TmDraftDone = "デッキ完成！";
 const TmDraftWait = "相手のデッキ構築が終わるのを待っています…";
+const TmDraftWaitBig = "対戦相手が選ぶのを待っています...";
 const TmManaCost = "マナコスト";
 const TmSevenUp = "7+";
 const TmTabPacks = "カードパック";
@@ -3034,7 +3071,7 @@ function TmBuy1Coin(N) { return `1パック　${N}コイン`; }
 function TmBuy1Gem(N) { return `1パック　${N}ジェム`; }
 function TmBuy10Coin(N) { return `10パック　${N}コイン`; }
 function TmBuy10Gem(N) { return `10パック　${N}ジェム`; }
-const TmPackRates = "1パック5枚入り。排出率：レジェンド0.5%・エピック3%・レア25%・ノーマル71.5%";
+const TmPackRates = "1パック5枚入り。排出率：レジェンド1%・エピック5%・レア29%・ノーマル65%";
 function TmPriceCoin(N) { return `${N}コイン`; }
 function TmPriceGem(N) { return `${N}ジェム`; }
 const TmBackShopHelp = "裏面を選ぶと購入できるよ。持っている裏面は選ぶと使用中になる（タイトルの「カード設定」でも変更可能）。";
@@ -3131,4 +3168,4 @@ const TmRealWin = "完全勝利！報酬アップ！";
 const TmDraw = "DRAW";
 const TmAgain = "もう一度";
 const TmToTitle = "タイトルへ";
-const TmRulesText = "・おたがいのHPは20。相手のHPを0にしたら勝ち！（HPは一部の効果を除いて20より増えない）\n・ターンのはじめにマナが全回復し、最大マナが1増える（最大10）。\n・手札のカードを選ぶ→青く光ったマスを選んで召喚。スペルは対象を選ぶ。叫びに対象があるときは、召喚のあとに対象を選ぶ。\n・モンスターは次のターンから行動できる。1ターンに「攻撃」か「となりのマスへ移動」のどちらか1回。攻撃できるのは正面か斜め前の敵、または相手プレイヤー。\n・進化：自分のモンスターを選んで「進化」で+2/+2（カードによっては特別な効果）。1ターン1回、先攻は2回・後攻は3回まで。\n・ジュエル（左下の六角形）はキャラクターごとにちがう必殺技。マナを使って1ターンに1回。\n・キーワード：挑発／速攻／特攻（召喚ターンでもモンスターに攻撃できる）／必殺／吸血／バリア（1度だけダメージ無効）／無敵／威圧（対象にならない）／潜伏（攻撃するまで対象にならない）／自傷／カウントダウン／覚醒（最大マナ7以上）／復讐（HP10以下）。\n・対戦は2種類：「通常」はデッキ構築で作った40枚のデッキ（同じカードは3枚まで）で対戦。「2Pick」はキャラ選択 → 2枚組を20回選んで40枚のデッキを作る（5・15回目はエピック、10・20回目はレジェンドが必ず入る）。\n・ショップのカードパックでカードを集めて、コレクションを完成させよう！\n・持ち時間：最初のターンは90秒。次のターンは残った時間+10秒（最低30秒・最大90秒）。時間切れでターン終了（はじめての時間切れのときだけ、次のターンは60秒）。\n・2Pickは1回最大20秒（次は残り+10秒）、手札の交換は20秒まで。\n・コントローラー：LB/RBで選ぶ、Y(△)で決定、X(□)でキャンセル、LT/RTで上下に移動（ページのある画面では、いちばん上・下でページ切り替え）。\n・実績：タイトルの「実績」で、達成した実績をえらぶと称号やバッチがもらえる。プロフィールの「称号・バッチ設定」で称号1つとバッチ3つを付けると、対戦相手に表示されるよ。";
+const TmRulesText = "・おたがいのHPは20。相手のHPを0にしたら勝ち！（HPは一部の効果を除いて20より増えない）\n・ターンのはじめにマナが全回復し、最大マナが1増える（最大10）。\n・手札のカードを選ぶ→青く光ったマスを選んで召喚。スペルは対象を選ぶ。叫びに対象があるときは、召喚のあとに対象を選ぶ。\n・モンスターは次のターンから行動できる。1ターンに「攻撃」か「となりのマスへ移動」のどちらか1回。攻撃できるのは正面か斜め前の敵、または相手プレイヤー。\n・進化：自分のモンスターを選んで「進化」で+2/+2（カードによっては特別な効果）。1ターン1回、先攻は2回・後攻は3回まで。\n・ジュエル（左下の六角形）はキャラクターごとにちがう必殺技。マナを使って1ターンに1回。\n・キーワード：挑発／速攻／特攻（召喚ターンでもモンスターに攻撃できる）／必殺／吸血／バリア（1度だけダメージ無効）／無敵／威圧（対象にならない）／潜伏（攻撃するまで対象にならない）／自傷／カウントダウン／覚醒（最大マナ7以上）／復讐（HP10以下）。\n・対戦は2種類：「通常」はデッキ構築で作った40枚のデッキ（同じカードは3枚まで）で対戦。「2Pick」はキャラ選択 → 2枚組を20回選んで40枚のデッキを作る（5・15回目はエピック、10・20回目はレジェンドが必ず入る）。\n・ショップのカードパックでカードを集めて、コレクションを完成させよう！\n・持ち時間：最初のターンは120秒。次のターンは残った時間+30秒、自分でターン終了したときはさらに+45秒（最大120秒）。時間切れでターン終了（時間切れのときは+30秒だけ）。\n・2Pickは1回最大20秒（次は残り+10秒）、手札の交換は20秒まで。\n・コントローラー：LB/RBで選ぶ、Y(△)で決定、X(□)でキャンセル、LT/RTで上下に移動（ページのある画面では、いちばん上・下でページ切り替え）。\n・実績：タイトルの「実績」で、達成した実績をえらぶと称号やバッチがもらえる。プロフィールの「称号・バッチ設定」で称号1つとバッチ3つを付けると、対戦相手に表示されるよ。";
