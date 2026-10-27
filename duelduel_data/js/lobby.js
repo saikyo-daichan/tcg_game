@@ -81,7 +81,7 @@ function DraftAutoDeck(Pool, Sched) {
 }
 
 // ---------------------------------------------------------------- network
-const NET_VER = 'dd2';                // both browsers must run the same rules (bump when the rules change)
+const NET_VER = 'dd3';               // both browsers must run the same rules (bump when the rules change)
 const NET_PREFIX = 'duelduel-' + NET_VER + '-';
 const NET_SLOTS = 4;                   // queue slots per mode
 
@@ -178,37 +178,44 @@ class card_lobby {
   RoomId(No) { return NET_PREFIX + 'room-' + No; }
 
   // players waiting in the random queue of a mode (an estimate: the queue slots that answer)
-  Waiting(Me, Mode) { this.StartPoll(); return this.WaitCache[Mode] || 0; }
+  // (asking marks the battle menu as open: the count is then refreshed every few seconds)
+  Waiting(Me, Mode) { this.LastAsk = Date.now(); this.StartPoll(); return this.WaitCache[Mode] || 0; }
+  // (web 10/27) all queue slots of both modes are asked at once; every 3 s while the battle menu is open (asked in the
+  // last 5 s), every 20 s otherwise, never during a match / own search / a hidden tab. Started when the player joins,
+  // so the number is already known when the menu opens.
   StartPoll() {
     if (this.PollOn) return;
     this.PollOn = true;
+    this.LastAsk = this.LastAsk || 0;
     spawn(async () => {
-      let Probe = null;
+      let Probe = null, Last = 0;
+      const Busy = () => !!this.Search || document.hidden || this.Players.some(C => C.InGame);
+      const Peek = async (Mode, K) => {
+        try {
+          const L = await NetConnect(Probe, this.QueueSlot(Mode, K), 3500);
+          L.Send({ t: 'peek', v: NET_VER });
+          const R = await Race(L.Next('peeked'), Sleep(3).then(() => null));
+          L.Close();
+          return R && R.waiting ? 1 : 0;
+        } catch (e) { return 0; }
+      };
       while (true) {
-        if (NetAvailable() && !this.Search) {
+        const Fast = Date.now() - this.LastAsk < 5000;
+        if (NetAvailable() && !Busy() && Date.now() - Last >= (Fast ? 3000 : 20000)) {
+          Last = Date.now();
           try {
             if (!Probe || Probe.destroyed || Probe.disconnected) { if (Probe) try { Probe.destroy(); } catch (e) { } Probe = await NetOpenPeer(null); }
-            for (const Mode of [ModeDeck, Mode2Pick]) {
-              let N = 0;
-              for (let K = 0; K < NET_SLOTS; K++) {
-                try {
-                  const L = await NetConnect(Probe, this.QueueSlot(Mode, K), 3500);
-                  L.Send({ t: 'peek', v: NET_VER });
-                  const R = await Race(L.Next('peeked'), Sleep(3).then(() => null));
-                  if (R && R.waiting) N++;
-                  L.Close();
-                } catch (e) { }
-              }
-              this.WaitCache[Mode] = N;
-            }
+            const Modes = [ModeDeck, Mode2Pick];
+            const Got = await Promise.all(Modes.map(Mode => Promise.all(IRange(0, NET_SLOTS - 1).map(K => Peek(Mode, K)))));
+            Modes.forEach((Mode, I) => { this.WaitCache[Mode] = Got[I].reduce((A, B) => A + B, 0); });
           } catch (e) { }
         }
-        await Sleep(15);
+        await Sleep(0.5);
       }
     });
   }
 
-  Join(Me) { this.Players = this.Players.filter(C => C !== Me).concat([Me]); }
+  Join(Me) { this.Players = this.Players.filter(C => C !== Me).concat([Me]); this.StartPoll(); }
   Forget(Me) { this.Players = this.Players.filter(C => C !== Me); }
   Leave(Me) { if (this.Search) { this.Search.Cancel(); this.Search = null; } }
 

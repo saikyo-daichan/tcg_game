@@ -1,4 +1,6 @@
 // sfx.js — card_sfx.verse: the sound effects (generated wav files in duelduel_data/snd)
+// (10/27) + the volume levels of the 設定 screen (SndLevel / SndSetLevel / SndGain, for the effects and the music of
+// bgm.js) and the shared audio context (SfxCtx is also made on a file:// page, for the music).
 'use strict';
 
 const SfxSelect = 0, SfxCancel = 1, SfxSummon = 2, SfxHit = 3, SfxDestroy = 4, SfxHeal = 5, SfxSpell = 6, SfxForce = 7,
@@ -33,32 +35,61 @@ function SfxLoad(Id) {
   }
   return SfxLoads[Id];
 }
-// the browser lets sounds start only from a touch / click / key: the audio is made (and woken) there
+// the browser lets sounds start only from a touch / click / key: the audio is made (and woken) there.
+// (the context is also made on a file:// page: the music of bgm.js plays on it; the effects use <audio> there)
 function SfxWake() {
-  if (!SfxWeb) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
   try {
     if (!SfxCtx) {
-      SfxCtx = new (window.AudioContext || window.webkitAudioContext)();
+      SfxCtx = new AC();
       SfxGain = SfxCtx.createGain();
       SfxGain.connect(SfxCtx.destination);
       if (TheSfxVolume !== null) SfxGain.gain.value = TheSfxVolume;
       // every sound decoded in the background, a few at a time
-      spawn(async () => { for (let i = 0; i < SfxFiles.length; i += 4) await Promise.all([i, i + 1, i + 2, i + 3].filter(j => j < SfxFiles.length).map(SfxLoad)); });
+      if (SfxWeb) spawn(async () => { for (let i = 0; i < SfxFiles.length; i += 4) await Promise.all([i, i + 1, i + 2, i + 3].filter(j => j < SfxFiles.length).map(SfxLoad)); });
     }
-    if (SfxCtx.state !== 'running') SfxCtx.resume().catch(() => { });
+    // (not while the tab is hidden: bgm.js suspends the context then)
+    if (SfxCtx.state !== 'running' && !document.hidden) SfxCtx.resume().catch(() => { });
   } catch (e) { }
 }
 let TheSfxVolume = null;
 for (const ev of ['pointerdown', 'pointerup', 'touchend', 'keydown', 'click']) window.addEventListener(ev, SfxWake, { capture: true, passive: true });
 
+// ---- volume levels (the 設定 screen, settings.js): 0 = off, 1..5; kept per device in localStorage
+// 'dd_vol_se' (effects, default 4) and 'dd_vol_bgm' (music, default 3)
+const SndMaxLevel = 5;
+const SndGains = [0, 0.12, 0.25, 0.45, 0.7, 1.0];
+function SndGain(L) { return SndGains[Math.max(0, Math.min(SndMaxLevel, L | 0))]; }
+const SndLevels = { se: 4, bgm: 3 };
+try {
+  for (const K of ['se', 'bgm']) {
+    const V = localStorage.getItem('dd_vol_' + K);
+    if (V !== null && /^[0-5]$/.test(V)) SndLevels[K] = parseInt(V, 10);
+    else if (K === 'se') {
+      // the old effects volume (0..1) becomes the nearest level
+      const Old = parseFloat(localStorage.getItem('dd_volume'));
+      if (Old >= 0 && Old <= 1) { let Best = 0; SndGains.forEach((G, I) => { if (Math.abs(G - Old) < Math.abs(SndGains[Best] - Old)) Best = I; }); SndLevels.se = Best; }
+    }
+  }
+} catch (e) { }
+function SndLevel(K) { return SndLevels[K] ?? 0; }
+function SndSetLevel(K, L) {
+  SndLevels[K] = Math.max(0, Math.min(SndMaxLevel, L | 0));
+  try { localStorage.setItem('dd_vol_' + K, String(SndLevels[K])); } catch (e) { }
+  if (K === 'se' && TheGame && TheGame.Sfx) TheGame.Sfx.ApplyVolume();
+  if (K === 'bgm' && typeof BgmVolumeChanged === 'function') BgmVolumeChanged();
+}
+
 class card_sfx {
   constructor() {
     this.Pools = [];
-    this.Volume = 0.8;
-    try { const v = parseFloat(localStorage.getItem('dd_volume')); if (v >= 0 && v <= 1) this.Volume = v; } catch (e) { }
+    this.Volume = SndGain(SndLevel('se'));
     TheSfxVolume = this.Volume;
     if (SfxGain) SfxGain.gain.value = this.Volume;
   }
+  // the level of the settings -> every effect (Web Audio gain or the <audio> volume)
+  ApplyVolume() { this.Volume = SndGain(SndLevel('se')); TheSfxVolume = this.Volume; if (SfxGain) SfxGain.gain.value = this.Volume; }
   Pool(Id) {
     let p = this.Pools[Id];
     if (!p) {
@@ -83,7 +114,8 @@ class card_sfx {
     p.next = (p.next + 1) % p.els.length;
     try { a.currentTime = 0; a.volume = this.Volume; const r = a.play(); if (r && r.catch) r.catch(() => { }); } catch (e) { }
   }
-  SetVolume(V) { this.Volume = V; TheSfxVolume = V; if (SfxGain) SfxGain.gain.value = V; try { localStorage.setItem('dd_volume', String(V)); } catch (e) { } }
+  // (0..1, kept for old callers: becomes the nearest level)
+  SetVolume(V) { let Best = 0; SndGains.forEach((G, I) => { if (Math.abs(G - V) < Math.abs(SndGains[Best] - V)) Best = I; }); SndSetLevel('se', Best); }
 }
 function MakeCardSfx() { return new card_sfx(); }
 

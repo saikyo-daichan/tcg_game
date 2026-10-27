@@ -68,6 +68,16 @@ const SvFields = [
   ['PassOwned', false],       // the premium pass of this season was unlocked
   ['BossWins', 0],            // wins against the 最恐 CPU
   ['QBossWin', 0],            // today's wins against the 最恐 CPU
+  // 無限の塔 (tower.js)
+  ['TowerBest', 0],           // the highest floor reached (0 = never played)
+  ['TowerFloor', 0],          // the floor the run in progress is on (0 = no run)
+  ['TowerHp', 0],             // the player's HP carried into that floor
+  ['TowerHero', 0],           // the run's character
+  ['TowerDeck', []],          // the run's 40 card ids (fixed for the whole run)
+  ['TowerInMatch', 0],        // 1 while a floor is being played (the page closed then = that floor was lost)
+  ['TowerOldBest', 0],        // TowerBest when the run started (the end screen's 「新記録！」)
+  // 構築済みデッキ (prebuilt.js)
+  ['PreBought', []],          // how many times each prebuilt deck was got (index in PreDecks; all 0 = the first one is free)
 ];
 
 // one deck of the deck builder: the character and the card ids (40)
@@ -718,14 +728,54 @@ const PackGem = 50;
 const Pack10Coin = 4750;
 const Pack10Gem = 450;
 
-// one card of a pack: legend 1%, epic 5%, rare 29%, normal 65% (the same for every card of the pack)
-function PackRarity(Last) {
-  const X = GetRandomInt(1, 1000);
-  return X <= 10 ? RarL : X <= 60 ? RarE : X <= 350 ? RarR : RarN;
+// (10/27) the 5 kinds of card pack (the shop's pack kind buttons). Every card of a pack is rolled on its own:
+// first whether it comes from the kind's focus (PackFocusPct %), then its rarity (PackRarity), then a random card of
+// that rarity among the focus cards (or among the other cards).
+const PackKindAll = 0;      // オールスターパック: every card, the better rates (legend 3%)
+const PackKindHigh = 1;     // マナ5以上 60%
+const PackKindLow = 2;      // マナ4以下 70%
+const PackKindMon = 3;      // モンスター 85%
+const PackKindSpell = 4;    // スペル・アミュレット 70%
+const PackKinds = 5;
+
+// the rarity rates of a kind in ‰: [legend, epic, rare, normal]
+function PackRates(Kind) {
+  return Kind === PackKindAll ? [30, 120, 350, 500] : [10, 50, 290, 650];
 }
 
-function PackCard(DB, R) {
-  const Cands = DB.filter(D => !D.Token && D.Rarity === R);
+// % of the cards of a pack that come from the kind's focus (0: no focus)
+function PackFocusPct(Kind) {
+  return Kind === PackKindHigh ? 60 : Kind === PackKindLow ? 70 : Kind === PackKindMon ? 85 : Kind === PackKindSpell ? 70 : 0;
+}
+
+// card D belongs to the focus of the kind
+function PackInFocus(Kind, D) {
+  if (Kind === PackKindHigh) return D.Cost >= 5;
+  if (Kind === PackKindLow) return D.Cost <= 4;
+  if (Kind === PackKindMon) return D.IsMonster();
+  if (Kind === PackKindSpell) return !D.IsMonster();
+  return true;
+}
+
+// one card of a pack: all-star legend 3%, epic 12%, rare 35%, normal 50% / the other kinds legend 1%, epic 5%,
+// rare 29%, normal 65% (the same for every card of the pack)
+function PackRarity(Last, Kind = PackKindAll) {
+  const Rt = PackRates(Kind);
+  const X = GetRandomInt(1, 1000);
+  return X <= Rt[0] ? RarL : X <= Rt[0] + Rt[1] ? RarE : X <= Rt[0] + Rt[1] + Rt[2] ? RarR : RarN;
+}
+
+// a random card of rarity R for a pack of the kind (the focus is rolled here); when the rolled group has no card of
+// that rarity, any card of that rarity; then any card
+function PackCard(DB, R, Kind = PackKindAll) {
+  const All = DB.filter(D => D && !D.Token);
+  const Pct = PackFocusPct(Kind);
+  let Group = All;
+  // (the rest comes from every card: a focus pack never gives fewer focus cards than a normal one would)
+  if (Pct > 0 && GetRandomInt(1, 100) <= Pct) Group = All.filter(D => PackInFocus(Kind, D));
+  let Cands = Group.filter(D => D.Rarity === R);
+  if (Cands.length === 0) Cands = All.filter(D => D.Rarity === R);
+  if (Cands.length === 0) Cands = All;
   return At(Cands, GetRandomInt(0, Cands.length - 1)) ?? At(DB, 0)
     ?? new card_def({ Id: 0, Name: TxEmpty, Cost: 0, Art: CardMon.f_slime, ArtW: 1.0, ArtH: 1.0 });
 }
@@ -751,8 +801,9 @@ function PackPrice(N, Pay) {
   return N >= 10 ? Pack10Coin : PackCoin;
 }
 
-// pays and opens N packs (1 or 10): the cards, or null when the player can't pay
-function CardBuyPacks(P, DB, N, Pay) {
+// pays and opens N packs (1 or 10) of the kind (PackKind*): the cards, or null when the player can't pay
+// (the special tickets make the last card epic / legend; it still comes from the kind's focus roll)
+function CardBuyPacks(P, DB, N, Pay, Kind = PackKindAll) {
   const E = CardEdit(P);
   const Price = PackPrice(N, Pay);
   if (Pay === PayTickets) {
@@ -776,7 +827,7 @@ function CardBuyPacks(P, DB, N, Pay) {
   const Special = Pay === PayTicketsE || Pay === PayTicketsL;
   for (let K = 1; K <= N; K++) {
     for (let I = 1; I <= PackSize; I++) {
-      const D = PackCard(DB, (Special && I === PackSize) ? PackRarityLast(Pay) : PackRarity(I === PackSize));
+      const D = PackCard(DB, (Special && I === PackSize) ? PackRarityLast(Pay) : PackRarity(I === PackSize, Kind), Kind);
       Cards.push(D);
       AddOwned(E, D.Id);
     }

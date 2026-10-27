@@ -20,13 +20,74 @@ const CardWebPatches = {
   304: { Cost: 3, Atk: 2, Hp: 2, Deadly: false, SelfDmg: 0, Cry: Fx0(fx_kind.BounceAny) },
   // ミツメヨクチ マナ6 4/4 ターン終了時:復讐状態なら+4/+4を得る
   367: { Cost: 6, Atk: 4, Hp: 4, Cry: new fx(), Death: new fx(), TurnEnd: new fx({ K: fx_kind.BuffSelf, N: 4, M: 4, Cond: 2 }) },
+  // (10/27) 輪入道 マナ5 3/3 自傷2 速攻 攻撃時:正面の敵モンスターに2ダメージ
+  158: { Cost: 5, Atk: 3, Hp: 3 },
+  // (10/27) インプ マナ3 3/1 自傷2 速攻
+  5: { Cost: 3, Atk: 3, Hp: 1 },
+  // (10/27) 呪いの霧 マナ4 敵モンスター全体に-1/-1
+  42: { Cost: 4 },
+  // (10/27) シャドウ マナ6 4/4 叫び:敵モンスター1体を破壊する
+  26: { Cost: 6, Atk: 4, Hp: 4, Cry: Fx0(fx_kind.DestroyTarget) },
 };
+
+// shorter texts printed on the card face where the generated text runs out of the text box (measured with the real
+// font: 4 lines at the big size, 5 at the middle one). The help pop-up keeps the full generated text.
+// T = the text, R = its row count for views.js (0..3 big font, 4..5 middle, 6+ small). Update when the card changes.
+const CardWebTexts = {
+  109: { T: "必殺\n叫び：自分のHPが相手より少ないなら「特攻」を得る", R: 3 },
+  114: { T: "挑発\nこのモンスターを攻撃した相手に追加で1ダメージ", R: 3 },
+  160: { T: "挑発\nターン終了時：手札が2枚以下なら「バリア」を得る", R: 3 },
+  178: { T: "叫び：「赤鬼」がいるなら+2/+2。「オニ」がいるなら「特攻」を得る", R: 3 },
+  223: { T: "叫び：ランダムなカード2枚を手札に加え、マナ-1\nターン開始時：ランダムなカード1枚を手札に加え、マナ-1", R: 4 },
+  405: { T: "墓地から合計マナ6以下のモンスターを好きなだけ選んで召喚", R: 3 },
+  413: { T: "アミュレット\nターン終了時：味方モンスター全員と自分のHPを1回復", R: 3 },
+  437: { T: "アミュレット\nカウントダウン3\n進むたび：自分のHPを1回復", R: 3 },
+  438: { T: "アミュレット\nカウントダウン3\n進むたび：カードを1枚引く", R: 3 },
+  444: { T: "アミュレット\nカウントダウン2：味方モンスター全員と自分のHPを2回復", R: 3 },
+  446: { T: "アミュレット・自傷4\nカウントダウン4\n進むたび：自分のHPを2回復", R: 3 },
+  448: { T: "アミュレット\nカウントダウン2：破壊し「ファイアリザード」を召喚", R: 3 },
+  451: { T: "アミュレット\nカウントダウン3\n進むたび：ランダムな味方1体に攻撃力+1", R: 3 },
+  463: { T: "速攻\nターン終了時：ダメージを受けているなら相手に2ダメージ", R: 3 },
+  479: { T: "吸血\n叫び：敵モンスター1体を破壊\n進化時：敵モンスター全体と相手に3ダメージ", R: 4 },
+  499: { T: "無敵\n叫び：自分の他のカードを場からすべて破壊。山札をランダムなアーティファクト20枚にする", R: 4 },
+};
+
+// cards that only exist in the web version (ids after the generated ones; never reuse or reorder an id: saves keep them)
+const CNmWeb503 = "ライトニング";
+// 最恐 CPU only (Token: never in packs / the collection / player decks; boss.js CardBossWebIds)
+const CNmWeb504 = "冥府の魔導書";
+const CNmWeb505 = "魔狼の遠吠え";
+function CardWebNew() {
+  return [
+    // ライトニング マナ2 相手プレイヤーに1ダメージ、墓地に行かず手札に戻る
+    new card_def({ Id: 503, Name: CNmWeb503, IsSpell: true, Rarity: 1, Cost: 2, Spell: FxN(fx_kind.HitFoeHero, 1), Recur: true, Art: CardGui.T_Sp_thunder, ArtW: 264.0, ArtH: 200.0, ArtTint: color(1.0, 0.95, 0.45) }),
+    // 冥府の魔導書 マナ1 カードを2枚引く (最恐)
+    new card_def({ Id: 504, Name: CNmWeb504, IsSpell: true, Token: true, Rarity: 2, Cost: 1, Spell: FxN(fx_kind.Draw, 2), Art: CardGui.T_Sp_book, ArtW: 264.0, ArtH: 200.0, ArtTint: color(0.6, 0.45, 1.0) }),
+    // 魔狼の遠吠え マナ3 「冥府の魔狼」を手札に2枚加える (最恐)
+    new card_def({ Id: 505, Name: CNmWeb505, IsSpell: true, Token: true, Rarity: 2, Cost: 3, Spell: FxC(fx_kind.AddCard, 471, 2), Art: CardGui.T_Sp_treasure, ArtW: 264.0, ArtH: 200.0, ArtTint: color(0.75, 0.5, 1.0) }),
+  ];
+}
+
+// puts a new card into one of the generated orders: after the last card For says comes before it
+function CardWebOrderAdd(Order, Id, Before) {
+  if (Order.includes(Id)) return;
+  let At = 0;
+  Order.forEach((X, I) => { if (Before(X)) At = I + 1; });
+  Order.splice(At, 0, Id);
+}
 
 // (kit.js MakeCardLib) the card list with the web patches
 function CardWebPatch(DB) {
   for (const Id in CardWebPatches) {
     const D = DB[Id];
     if (D) Object.assign(D, CardWebPatches[Id]);
+  }
+  for (const D of CardWebNew()) {
+    while (DB.length < D.Id) DB.push(undefined);
+    DB[D.Id] = D;
+    CardWebOrderAdd(CardOrderRarity, D.Id, X => DB[X] && DB[X].Rarity <= D.Rarity);
+    CardWebOrderAdd(CardOrderName, D.Id, X => DB[X] && DB[X].Name.localeCompare(D.Name, 'ja') <= 0);
+    CardWebOrderAdd(CardOrderCost, D.Id, () => true);
   }
   // the collection's cost order follows the new costs (the order inside a cost stays)
   CardOrderCost.sort((A, B) => ((DB[A] ? DB[A].Cost : 0) - (DB[B] ? DB[B].Cost : 0)));

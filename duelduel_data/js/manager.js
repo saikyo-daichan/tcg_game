@@ -110,6 +110,7 @@ class card_game_device {
         else if (Id === 119) await M.Ach.AchScreen();
         else if (Id === 109) await M.CodeScreen();
         else if (Id === 120) await M.Profile();
+        else if (Id === OptGearId) await OptScreen(M);
         else if (Id === 124) {
           // (browser) フレンド: an invitation starts a private match
           M.ShowTitle();
@@ -144,7 +145,11 @@ class card_game_device {
       if (C === 114) return;
       if (C === 110) {
         const Mode = await M.Dk.ModeSelect(TdCpuMode);
-        if (Mode >= 0 && this.CanUse(Me, Mode)) {
+        if (Mode === ModeTower) {
+          // 無限の塔 (tower.js): its own deck pick and CPU strength per floor
+          const Back = await TowerLoop(this, Me);
+          if (Back === 74) return;
+        } else if (Mode >= 0 && this.CanUse(Me, Mode)) {
           const Level = await M.Ex.LevelSelect();
           if (Level >= 0) {
             const Back = await this.CpuLoop(Me, Mode, Level);

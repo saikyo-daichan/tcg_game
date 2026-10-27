@@ -8,6 +8,7 @@
 // battle modes
 const ModeDeck = 0;
 const Mode2Pick = 1;
+const ModeTower = 2;     // 無限の塔 (CPU only, tower.js)
 
 // the time to pick a deck before a match against a player
 const DeckPickSeconds = 15.0;
@@ -97,17 +98,25 @@ class deck_ui {
     return At(this.Lib.Heroes, Id) ?? At(this.Lib.Heroes, 0) ?? new hero_def({ Id: 0, Name: TxEmpty, Race: TxEmpty, Pic: CardGui.T_HeroMe, Jewel: new fx(), JewelName: TxEmpty, JewelPic: CardGui.T_JwBook, Cost: 2 });
   }
 
-  // ------------------------------------------------------------ the battle mode (0 通常, 1 2Pick, -1 戻る)
+  // ------------------------------------------------------------ the battle mode (0 通常, 1 2Pick, 2 無限の塔, -1 戻る)
+  // (無限の塔 (128) is only offered against the CPU)
   async ModeSelect(Sub) {
     const B = this.B;
     this.ModeSub.Set(Sub);
+    const Tower = Sub === TdCpuMode;
+    this.ModeTowerSw.Set(Tower);
+    if (Tower) {
+      this.ModeTowerRec.Set(TowerBestText(this.P()));
+      this.ModeTowerRun.Set(TowerRunText(this.P()));
+    }
+    const Ids = Tower ? [125, 126, 128, 127] : [125, 126, 127];
     B.Snd(SfxOpen);
     B.Layer(this.ModeSlot, true);
     try {
-      if (ArrFind([125, 126, 127], B.CurId) === undefined) B.CurId = 125;
-      const Id = await B.Pick([125, 126, 127], 125, 127);
+      if (ArrFind(Ids, B.CurId) === undefined) B.CurId = 125;
+      const Id = await B.Pick(Ids, 125, 127);
       B.Snd(Id === 127 ? SfxCancel : SfxClick);
-      return Id === 125 ? ModeDeck : Id === 126 ? Mode2Pick : -1;
+      return Id === 125 ? ModeDeck : Id === 126 ? Mode2Pick : Id === 128 ? ModeTower : -1;
     } finally {
       B.Layer(this.ModeSlot, false);
     }
@@ -720,24 +729,38 @@ function AutoCopies(D) {
 // ---------------------------------------------------------------- building the screens
 function MakeDeckUI(B, Lib) {
   // ---- battle mode
-  const MB0 = MBtn(B, 125, BtnGold, TdModeDeck, 300.0, 330.0, 620.0, 260.0, 46.0);
-  const MB1 = MBtn(B, 126, BtnPurple, TdMode2Pick, 1000.0, 330.0, 620.0, 260.0, 46.0);
-  const MB2 = MBtn(B, 127, BtnEnd, TmBack, 810.0, 820.0, 300.0, 80.0, 30.0);
+  const MB0 = MBtn(B, 125, BtnGold, TdModeDeck, 300.0, 300.0, 620.0, 200.0, 46.0);
+  const MB1 = MBtn(B, 126, BtnPurple, TdMode2Pick, 1000.0, 300.0, 620.0, 200.0, 46.0);
+  const MB2 = MBtn(B, 127, BtnEnd, TmBack, 810.0, 840.0, 300.0, 80.0, 30.0);
   const ModeSub = OText(TxEmpty, 26.0, CCream, CInk);
+  // 無限の塔 (CPU only): a wide button with the record next to it
+  const MB3 = MBtn(B, 128, BtnBlue, TdModeTower, 300.0, 660.0, 620.0, 140.0, 46.0);
+  const ModeTowerRec = OText(TxEmpty, 30.0, CGold, CInk);
+  const ModeTowerRun = OText(TxEmpty, 22.0, CGreen, CInk);
+  const TowerRow = new canvas({
+    Slots: [
+      MB3[0],
+      RPinL(ModeTowerRec.Root, 1010.0, 676.0, 2),
+      RPinL(ModeTowerRun.Root, 1010.0, 714.0, 2),
+      RBox(TxtWrap(TdModeTowerHelp, 20.0, CBrown, 600.0), 1010.0, 736.0, 600.0, 80.0, 2),
+    ],
+  });
   const ModeRoot = new canvas({
     Slots: [
       MakeOverlayDim(0.75),
-      RBox(Tex(CardGui.T_PanelLog, 1500.0, 820.0), 210.0, 130.0, 1500.0, 820.0, 1),
-      RPin(OText(TdModeTitle, 44.0, CGold, CInk).Root, 960.0, 200.0, 2),
-      RPin(ModeSub.Root, 960.0, 262.0, 2),
+      RBox(Tex(CardGui.T_PanelLog, 1500.0, 840.0), 210.0, 120.0, 1500.0, 840.0, 1),
+      RPin(OText(TdModeTitle, 44.0, CGold, CInk).Root, 960.0, 190.0, 2),
+      RPin(ModeSub.Root, 960.0, 252.0, 2),
       MB0[0],
       MB1[0],
-      RBox(TxtWrap(TdModeDeckHelp, 22.0, CBrown, 600.0), 310.0, 630.0, 600.0, 150.0, 2),
-      RBox(TxtWrap(TdMode2PickHelp, 22.0, CBrown, 600.0), 1010.0, 630.0, 600.0, 150.0, 2),
+      RBox(TxtWrap(TdModeDeckHelp, 22.0, CBrown, 600.0), 310.0, 530.0, 600.0, 110.0, 2),
+      RBox(TxtWrap(TdMode2PickHelp, 22.0, CBrown, 600.0), 1010.0, 530.0, 600.0, 110.0, 2),
+      RFull(TowerRow, 3),
       MB2[0],
     ],
   });
   const ModeSlot = RFull(ModeRoot, 97);
+  const ModeTowerSw = MakeSw(TowerRow, false);
   // ---- the deck list (8 decks)
   const ListTitle = OText(TxEmpty, 40.0, CGold, CInk);
   const ListTimer = OText(TxEmpty, 32.0, CGold, CInk);
@@ -911,7 +934,7 @@ function MakeDeckUI(B, Lib) {
   CS.push(RPinL(ChSkinNone.Root, 990.0, 600.0, 3), RPin(ChMsg.Root, 960.0, 850.0, 3), CB[0]);
   const CharDSlot = RFull(new canvas({ Slots: CS }), 96);
   const D = new deck_ui({
-    B, Lib, ModeSlot, ModeSub, ListSlot, ListCanvas, ListTitle, ListTimer, ListMsg,
+    B, Lib, ModeSlot, ModeSub, ModeTowerSw, ModeTowerRec, ModeTowerRun, ListSlot, ListCanvas, ListTitle, ListTimer, ListMsg,
     ListBackSlot: LB[0],
     DSlots, EditSlot, EdTitle, EdHeroPic, EdHeroName, EdCount, EdPageTxt, EdMsg, EdPool, EdRows, EdRowSws,
     EdTrack, EdThumb, EdScrollSws, EdBig, EdHelp,
@@ -929,6 +952,8 @@ const TdModeDeck = "通常（デッキ）";
 const TdMode2Pick = "2Pick";
 const TdModeDeckHelp = "デッキ構築で作ったデッキで対戦！デッキを選んでからキャラクターを選ぶよ（デッキのキャラが最初に選ばれている）。";
 const TdMode2PickHelp = "その場でデッキを作る！キャラクターを選んで、2枚組のカードを20回選んで40枚のデッキを作るよ。";
+const TdModeTower = "無限の塔";
+const TdModeTowerHelp = "1階から勝ち抜き！HPは次の階に持ち越し。負けるまで続くよ。勝つたびにカードの報酬！";
 const TdCpuMode = "CPUと対戦";
 const TdRoomMode = "部屋を作る（相手も同じモードで対戦します）";
 function TdDeckNo(N) { return `デッキ${N}`; }

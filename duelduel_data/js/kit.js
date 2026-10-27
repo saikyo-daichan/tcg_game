@@ -663,7 +663,9 @@ class card_lib {
 }
 function MakeCardLib(Code) {
   const DB = CardWebPatch(MakeCardDB());
-  return new card_lib({ DB, Texts: DB.map(D => CardText(DB, D)), Helps: DB.map(D => HelpWithSummons(DB, D)), Rows: DB.map(D => CardTextRows(D)), Heroes: MakeHeroes(), IslandCode: Code });
+  // (web) cards_web.js CardWebTexts: shorter face texts where the generated one doesn't fit the card
+  const Short = D => CardWebTexts[D.Id];
+  return new card_lib({ DB, Texts: DB.map(D => Short(D) ? Short(D).T : CardText(DB, D)), Helps: DB.map(D => HelpWithSummons(DB, D)), Rows: DB.map(D => Short(D) ? Short(D).R : CardTextRows(D)), Heroes: MakeHeroes(), IslandCode: Code });
 }
 function TxIslandCode(C) { return `島コード  ${C}`; }
 function IslandCodeText(Lib) { return Lib.IslandCode.length > 0 ? TxIslandCode(Lib.IslandCode) : TxEmpty; }

@@ -220,8 +220,8 @@ const ShopBackId = 600;
 const SetBackId = 620;
 const SetBackClose = 639;
 
-// (124 = フレンド, browser only)
-const MenuTitleIds = [100, 101, 106, 107, 108, 102, 103, 119, 109, 104, 105, 120, 124];
+// (124 = フレンド, 1750 = 設定 (settings.js), browser only)
+const MenuTitleIds = [100, 101, 106, 107, 108, 102, 103, 119, 109, 104, 105, 120, 124, 1750];
 const CollPer = 24;
 const CollCols = 8;
 
@@ -243,6 +243,9 @@ class card_menus {
     this.Me = null;         // card_player (set by the manager)
     this.Picked = 0;
     this.ShopTab = 0;
+    // (10/27) the pack kind picked in the shop (PackKind*) and the kind of the pack being opened
+    this.PackKind = 0;
+    this.PackOpenKind = 0;
     this.CollFilter = -1;
     this.CollList = [];
     this.CollPageNo = 0;
@@ -862,7 +865,19 @@ class card_menus {
     this.TicketLBtn.Label.Set(TmUseTicketL(S.TicketsL));
     this.TicketLBtn.Face.SetTint(S.TicketsL > 0 ? CWhite : CGrey);
     Show(this.TicketLBtn.Glow, S.TicketsL > 0);
+    // (10/27) the pack kinds: the picked one is gold, its rates / focus / glow colour are shown
+    const K = this.PackKind;
+    this.KindBtns.forEach((Bt, I) => {
+      Bt.Face.SetImage(BtnTex(I === K ? BtnGold : BtnBlue, 320.0, 74.0));
+      Show(Bt.Glow, I === K);
+    });
+    this.PackKindGlow.SetTint(PackKindColor(K));
+    this.PackKindArt.SetTint(PackKindTint(K));
+    this.PackKindName.Set(At(TmPackKinds, K) ?? TmTabPacks);
+    this.PackKindDesc.SetText(At(TmPackKindDescs, K) ?? TxEmpty);
+    this.PackRatesTx.SetText(TmPackRatesOf(PackRates(K)));
     this.Ex.FillSkins();
+    this.Pre.Fill();
     this.STabBtns.forEach((Bt, I) => Bt.Label.SetColor(I === this.ShopTab ? CGold : CWhite));
     this.SBackPrice.forEach((Pr, I) => {
       const Price = CardBackPrice(I);
@@ -884,10 +899,12 @@ class card_menus {
   }
 
   ShopIds() {
-    const Tabs = [170, 171, 1200, 172];
-    if (this.ShopTab === 0) return [...Tabs, 173, 175, 174, 176, 1220, 1221, 179];
+    // (10/27) 構築済みデッキ 3110 (ShopTab 4); the pack kinds 3100..3104
+    const Tabs = [170, 3110, 171, 1200, 172];
+    if (this.ShopTab === 0) return [...Tabs, ...IRange(0, PackKinds - 1).map(I => 3100 + I), 173, 175, 174, 176, 1220, 1221, 179];
     if (this.ShopTab === 1) return [...Tabs, ...ShopBackOrder.map(I => ShopBackId + I), 179];
     if (this.ShopTab === 3) return [...Tabs, ...this.Ex.SkinIds(), 179];
+    if (this.ShopTab === 4) return [...Tabs, ...this.Pre.Ids(), 179];
     return [...Tabs, 190, 191, 192, 179];
   }
 
@@ -930,6 +947,20 @@ class card_menus {
           B.Snd(SfxSelect);
           this.SetShopTab(3);
           this.SMsg.Set(XsHello);
+        } else if (Id === 3110) {
+          // (10/27) 構築済みデッキ
+          B.Snd(SfxSelect);
+          this.SetShopTab(4);
+          this.SMsg.Set(TpHello);
+        } else if (Id >= 3111 && Id < 3111 + PreDecks.length) {
+          B.Snd(SfxClick);
+          this.SMsg.Set(await this.Pre.Buy(Id - 3111));
+          this.UpdateTitle();
+        } else if (Id >= 3100 && Id < 3100 + PackKinds) {
+          // (10/27) the pack kind
+          B.Snd(SfxSelect);
+          this.PackKind = Id - 3100;
+          this.SMsg.Set(At(TmPackKindDescs, this.PackKind) ?? TmShopHello);
         } else if (Id >= 1210 && Id <= 1218) {
           const K = Id - 1210;
           const Q = this.Ex.BuyQuestion(K);
@@ -951,13 +982,15 @@ class card_menus {
             B.Snd(SfxCancel);
             this.SMsg.Set(Id === 1220 ? TmNoTicketE : TmNoTicketL);
           } else {
-            const Sure = await this.Ask(Id === 1220 ? TmAskTicketE : TmAskTicketL);
+            const Kn = At(TmPackKinds, this.PackKind) ?? TmTabPacks;
+            const Sure = await this.Ask(Id === 1220 ? TmAskTicketE(Kn) : TmAskTicketL(Kn));
             if (Sure) {
               const S1 = GetCardSave(this.P());
               const Before = Lib.DB.map(D => (S1.Owned[D.Id] ?? 0) > 0);
-              const Cards = CardBuyPacks(this.P(), Lib.DB, 1, Pay);
+              const Cards = CardBuyPacks(this.P(), Lib.DB, 1, Pay, this.PackKind);
               if (Cards != null) {
                 B.Snd(SfxCoin);
+                this.PackOpenKind = this.PackKind;
                 await this.OpenPacks(Cards, Before, 1);
                 this.SMsg.Set(TmShopThanks);
               }
@@ -967,13 +1000,15 @@ class card_menus {
           const N = Id >= 175 ? 10 : 1;
           const Pay = (Id === 174 || Id === 176) ? PayGems : GetCardSave(this.P()).Tickets >= N ? PayTickets : PayCoins;
           const Price = PackPrice(N, Pay);
-          const Sure = await this.Ask(Pay === PayGems ? TmAskPackGem(N, Price) : Pay === PayTickets ? TmAskPackTicket(N, Price) : TmAskPackCoin(N, Price));
+          const Kn = At(TmPackKinds, this.PackKind) ?? TmTabPacks;
+          const Sure = await this.Ask(Pay === PayGems ? TmAskPackGem(N, Price, Kn) : Pay === PayTickets ? TmAskPackTicket(N, Price, Kn) : TmAskPackCoin(N, Price, Kn));
           if (Sure) {
             const S = GetCardSave(this.P());
             const Before = Lib.DB.map(D => (S.Owned[D.Id] ?? 0) > 0);
-            const Cards = CardBuyPacks(this.P(), Lib.DB, N, Pay);
+            const Cards = CardBuyPacks(this.P(), Lib.DB, N, Pay, this.PackKind);
             if (Cards != null) {
               B.Snd(SfxCoin);
+              this.PackOpenKind = this.PackKind;
               await this.OpenPacks(Cards, Before, N);
               this.SMsg.Set(TmShopThanks);
             } else {
@@ -1187,7 +1222,7 @@ class card_menus {
       const D = At(this.PackList, this.PackShown + I);
       if (D) Best = Max(Best, D.Rarity);
     }
-    this.PackTitle.Set(TmPackNo(Quotient(this.PackShown, PackSize) + 1, Quotient(this.PackList.length, PackSize)));
+    this.PackTitle.Set(TmPackNo(Quotient(this.PackShown, PackSize) + 1, Quotient(this.PackList.length, PackSize), At(TmPackKinds, this.PackOpenKind) ?? TmTabPacks));
     for (const G of this.PackCards) {
       G.Face.SetShown(false);
       Show(G.New.Root, false);
@@ -1233,6 +1268,8 @@ class card_menus {
       return true;
     });
     this.PackShown = 0;
+    // (10/27) the pack has the light tint of its kind
+    this.PackArt.SetTint(PackKindTint(this.PackOpenKind));
     for (const G of this.SumRoots) PackCanvas.RemoveWidget(G);
     for (const Bu of this.PackBursts) PackCanvas.RemoveWidget(Bu);
     // the 5 card faces of a pack are put on once (hidden) and stay where they are for the whole opening
@@ -1377,6 +1414,8 @@ class card_menus {
   // the detail of the card under the cursor (pack / collection screens)
   OnHover(Id) {
     const Lib = this.Lib;
+    // (10/27) the card list of the prebuilt deck purchase screen
+    this.Pre.OnHover(Id);
     if (Id >= 250 && Id < 250 + PackSize && Id - 250 < this.PackRevealed && At(this.PackList, this.PackShown + Id - 250)) {
       const D = At(this.PackList, this.PackShown + Id - 250);
       Show(this.PackHelpBox, true);
@@ -2206,7 +2245,8 @@ function MakeMenus(B, Lobby, Lib) {
   B.AddBounds(105, { X: 170.0, Y: 262.0, W: 330.0, H: 470.0 });
   TS.push(RBox(TitleFav.Root, 170.0, 262.0, 330.0, 470.0, 4));
   TS.push(RPin(OText(TmFavLabel, 22.0, CGold, CInk).Root, 335.0, 760.0, 4));
-  const MB = MoneyBar(TS, 1390.0, 20.0);
+  // (10/27: a little to the left, the フレンド button sits on its right)
+  const MB = MoneyBar(TS, 1370.0, 20.0);
   TS = MB[0];
   const TCoins = MB[1];
   const TGems = MB[2];
@@ -2248,13 +2288,19 @@ function MakeMenus(B, Lobby, Lib) {
   const ABadge = Tex(CardGui.T_Badge2, 46.0, 46.0);
   TS.push(RBox(QBadge, 908.0, 572.0, 46.0, 46.0, 8), RBox(LBadge, 1348.0, 572.0, 46.0, 46.0, 8), RBox(ABadge, 908.0, 672.0, 46.0, 46.0, 8));
   // (browser: the player mark opens the friends (friends.js); the badge = friend requests waiting)
-  // (a round 👤 button; 「!」 on its top right while friend requests are waiting)
-  TS.push(RBox(Tex(CardGui.T_BtnFriend, 104.0, 104.0), 1792.0, 950.0, 104.0, 104.0, 4));
+  // (a round 👤 button right of the coins / gems; 「!」 on its top right while friend requests are waiting)
+  TS.push(RBox(Tex(CardGui.T_BtnFriend, 92.0, 92.0), 1788.0, 9.0, 92.0, 92.0, 4));
   const TPlayers = { Set() { } };
-  TPlayers.FBadge = Tex(CardGui.T_Badge2, 46.0, 46.0);
+  TPlayers.FBadge = Tex(CardGui.T_Badge2, 42.0, 42.0);
   Show(TPlayers.FBadge, false);
-  TS.push(RBox(TPlayers.FBadge, 1860.0, 940.0, 46.0, 46.0, 8));
-  TS.push(RBox(MenuHit(B, 124), 1780.0, 936.0, 136.0, 136.0, 9));
+  TS.push(RBox(TPlayers.FBadge, 1850.0, 2.0, 42.0, 42.0, 8));
+  TS.push(RBox(MenuHit(B, 124), 1780.0, 0.0, 120.0, 112.0, 9));
+  B.AddBounds(124, { X: 1788.0, Y: 9.0, W: 92.0, H: 92.0 });
+  // (10/27) the ⚙ 設定 button at the bottom right (settings.js)
+  TS.push(RBox(Tex(CardGui.T_BtnGear, 96.0, 96.0), 1800.0, 916.0, 96.0, 96.0, 4));
+  TS.push(RPin(OText(TvGear, 22.0, CWhite, CInk).Root, 1848.0, 1036.0, 4));
+  TS.push(RBox(MenuHit(B, OptGearId), 1784.0, 904.0, 128.0, 160.0, 9));
+  B.AddBounds(OptGearId, { X: 1800.0, Y: 916.0, W: 96.0, H: 96.0 });
   TS.push(RPin(Txt(TmHint, 20.0, CCream), 960.0, 1032.0, 4));
   TS.push(RPin(OText(IslandCodeText(Lib), 30.0, CGold, CInk).Root, 960.0, 972.0, 4));
   const TitleSlot = RFull(new canvas({ Slots: TS }), 90);
@@ -2405,14 +2451,16 @@ function MakeMenus(B, Lobby, Lib) {
   SS = SM[0];
   const SMsg = OText(TxEmpty, 24.0, CWhite, CInk);
   SS.push(RPin(SMsg.Root, 960.0, 1010.0, 4));
-  // tabs: パック 170, 裏面 171, 着せ替え 1200, ジェム 172 (ShopTab 0, 1, 3, 2)
-  const ST0 = MBtn(B, 170, BtnGold, TmTabPacks, 235.0, 150.0, 340.0, 80.0, 28.0);
-  const ST1 = MBtn(B, 171, BtnBlue, TmTabBacks, 605.0, 150.0, 340.0, 80.0, 28.0);
-  const ST3 = MBtn(B, 1200, BtnBlue, XsTab, 975.0, 150.0, 340.0, 80.0, 28.0);
-  const ST2 = MBtn(B, 172, BtnPurple, TmTabGems, 1345.0, 150.0, 340.0, 80.0, 28.0);
+  // tabs: パック 170, 構築済みデッキ 3110, 裏面 171, 着せ替え 1200, ジェム 172 (ShopTab 0, 4, 1, 3, 2)
+  const ST0 = MBtn(B, 170, BtnGold, TmTabPacks, 236.0, 150.0, 280.0, 80.0, 26.0);
+  const ST4 = MBtn(B, 3110, BtnGold, TpTab, 528.0, 150.0, 280.0, 80.0, 26.0);
+  const ST1 = MBtn(B, 171, BtnBlue, TmTabBacks, 820.0, 150.0, 280.0, 80.0, 26.0);
+  const ST3 = MBtn(B, 1200, BtnBlue, XsTab, 1112.0, 150.0, 280.0, 80.0, 26.0);
+  const ST2 = MBtn(B, 172, BtnPurple, TmTabGems, 1404.0, 150.0, 280.0, 80.0, 26.0);
   const SBk = MBtn(B, 179, BtnEnd, TmBack, 1460.0, 870.0, 260.0, 80.0, 30.0);
-  SS.push(ST0[0], ST1[0], ST2[0], ST3[0], SBk[0]);
+  SS.push(ST0[0], ST1[0], ST2[0], ST3[0], ST4[0], SBk[0]);
   const Ex = MakeExtraUI(B, Lib);
+  const Pre = MakePrebuiltUI(B, Lib);
   // the special tickets open one pack each (the last card is epic or better / a legend)
   const TBE = MBtn(B, 1220, BtnPurple, TxEmpty, 300.0, 880.0, 560.0, 70.0, 20.0);
   const TBL = MBtn(B, 1221, BtnGold, TxEmpty, 880.0, 880.0, 560.0, 70.0, 20.0);
@@ -2426,10 +2474,29 @@ function MakeMenus(B, Lobby, Lib) {
   const CoinSaveTx = OText(TmSaveCoin(PackCoin * 10 - Pack10Coin), 22.0, CWhite, CInk);
   const TicketIcon = Tex(CardGui.T_TicketN, 96.0, 60.0);
   const TicketTxt = OText(TxEmpty, 26.0, CGold, CInk);
+  // (10/27) the pack kinds 3100..3104 (a column on the left), the picked kind's pack in its colour, what it gives
+  // more of and its rates
+  const KindBtns = [];
+  const KS = [];
+  TmPackKinds.forEach((Nm, I) => {
+    const Kb = MBtn(B, 3100 + I, BtnBlue, Nm, 196.0, 258.0 + I * 86.0, 320.0, 74.0, 24.0);
+    KindBtns.push(Kb[1]);
+    KS.push(Kb[0]);
+  });
+  const PackKindGlow = TexTint(CardGui.T_GlowCard, 320.0, 420.0, CGold);
+  const PackKindArt = TexTint(CardGui.T_Pack2, 236.0, 329.0, CWhite);
+  const PackKindName = OText(TxEmpty, 26.0, CWhite, CInk);
+  const PackKindDesc = TxtWrap(TxEmpty, 21.0, CBrown, 660.0);
+  const PackRatesTx = TxtWrap(TxEmpty, 18.0, CBrown, 620.0);
   const PackTab = new canvas({
     Slots: [
-      RBox(TexTint(CardGui.T_GlowCard, 420.0, 560.0, CGold), 300.0, 260.0, 420.0, 560.0, 1),
-      RBox(Tex(CardGui.T_Pack2, 330.0, 460.0), 345.0, 300.0, 330.0, 460.0, 2),
+      ...KS,
+      RBox(new color_block({ DefaultColor: color(0.85, 0.08, 0.06) }), 386.0, 244.0, 150.0, 30.0, 8),
+      RPin(OText(TmLegend3x, 18.0, CWhite, CInk).Root, 461.0, 259.0, 9),
+      RBox(PackKindGlow, 550.0, 248.0, 320.0, 420.0, 1),
+      RBox(PackKindArt, 592.0, 268.0, 236.0, 329.0, 2),
+      RPin(PackKindName.Root, 710.0, 634.0, 3),
+      RBox(PackKindDesc, 200.0, 702.0, 660.0, 60.0, 3),
       PB1[0],
       PB2[0],
       PB3[0],
@@ -2438,9 +2505,9 @@ function MakeMenus(B, Lobby, Lib) {
       RPin(CoinSaveTx.Root, 1355.0, 391.0, 9),
       RBox(new color_block({ DefaultColor: color(0.85, 0.08, 0.06) }), 1230.0, 632.0, 250.0, 38.0, 8),
       RPin(OText(TmSaveGem(PackGem * 10 - Pack10Gem), 22.0, CWhite, CInk).Root, 1355.0, 651.0, 9),
-      RBox(TicketIcon, 352.0, 780.0, 96.0, 60.0, 3),
-      RPinL(TicketTxt.Root, 460.0, 810.0, 3),
-      RBox(TxtWrap(TmPackRates, 20.0, CBrown, 560.0), 900.0, 785.0, 560.0, 80.0, 3),
+      RBox(TicketIcon, 200.0, 776.0, 96.0, 60.0, 3),
+      RPinL(TicketTxt.Root, 308.0, 806.0, 3),
+      RBox(PackRatesTx, 900.0, 776.0, 620.0, 80.0, 3),
       TBE[0],
       TBL[0],
       RBox(Tex(CardGui.T_TicketE, 64.0, 40.0), 310.0, 893.0, 64.0, 40.0, 9),
@@ -2487,7 +2554,7 @@ function MakeMenus(B, Lobby, Lib) {
   });
   GT.push(RPin(TxtDark(TmGemShopHelp, 20.0), 960.0, 800.0, 3));
   const GemTab = new canvas({ Slots: GT });
-  const ShopTabs = [RFull(PackTab, 5), RFull(BackTab, 5), RFull(GemTab, 5), Ex.SkinTab];
+  const ShopTabs = [RFull(PackTab, 5), RFull(BackTab, 5), RFull(GemTab, 5), Ex.SkinTab, Pre.Tab];
   const ShopCanvas = new canvas({ Slots: SS });
   const ShopSlot = RFull(ShopCanvas, 95);
   // purchase confirmation
@@ -2891,7 +2958,9 @@ function MakeMenus(B, Lobby, Lib) {
     SCoins: SM[1],
     SGems: SM[2],
     SMsg,
-    STabBtns: [ST0[1], ST1[1], ST2[1], ST3[1]],
+    STabBtns: [ST0[1], ST1[1], ST2[1], ST3[1], ST4[1]],
+    // (10/27) pack kinds, prebuilt decks
+    Pre, KindBtns, PackKindGlow, PackKindArt, PackKindName, PackKindDesc, PackRatesTx,
     SBackFaces, SBackPrice, SBackState, AskText,
     PackBtns: [PB1[1], PB2[1], PB3[1], PB4[1]],
     CoinBadge: [CoinSaveBg, CoinSaveTx.Root],
@@ -3037,14 +3106,15 @@ function TmUseTicketE(N) { return `エピック以上確定チケットで開け
 function TmUseTicketL(N) { return `レジェンド以上確定チケットで開ける（${N}枚）`; }
 const TmNoTicketE = "エピック以上確定チケットを持っていないよ";
 const TmNoTicketL = "レジェンド以上確定チケットを持っていないよ";
-const TmAskTicketE = "エピック以上確定チケット1枚で\nカードパックを1パック開けますか？\n（最後の1枚がエピック85%／レジェンド15%）";
-const TmAskTicketL = "レジェンド以上確定チケット1枚で\nカードパックを1パック開けますか？\n（最後の1枚が必ずレジェンド）";
+// (10/27) K = the pack kind's name
+function TmAskTicketE(K) { return `エピック以上確定チケット1枚で\n${K}を1パック開けますか？\n（最後の1枚がエピック85%／レジェンド15%）`; }
+function TmAskTicketL(K) { return `レジェンド以上確定チケット1枚で\n${K}を1パック開けますか？\n（最後の1枚が必ずレジェンド）`; }
 const TmBuy1Ticket = "1パック　ガチャチケット×1枚";
 const TmBuy10Ticket = "10パック　ガチャチケット×10枚";
 function TmSaveCoin(N) { return `${N}コインお得！`; }
 function TmSaveGem(N) { return `${N}ジェムお得！`; }
 function TmTicketHave(N) { return `ガチャチケット ×${N}枚`; }
-function TmAskPackTicket(N, T) { return `カードパックを${N}パック\nガチャチケット${T}枚で開けますか？`; }
+function TmAskPackTicket(N, T, K = TmTabPacks) { return `${K}を${N}パック\nガチャチケット${T}枚で開けますか？`; }
 const TmNoTickets = "ガチャチケットが足りないよ";
 function TmPlayerId(S) { return `プレイヤーID　${S}`; }
 function TmCodeGems(G) { return `コード成功！ +${G}ジェム`; }
@@ -3072,6 +3142,24 @@ function TmBuy1Gem(N) { return `1パック　${N}ジェム`; }
 function TmBuy10Coin(N) { return `10パック　${N}コイン`; }
 function TmBuy10Gem(N) { return `10パック　${N}ジェム`; }
 const TmPackRates = "1パック5枚入り。排出率：レジェンド1%・エピック5%・レア29%・ノーマル65%";
+// (10/27) the pack kinds (PackKind* in save.js), what they give more of, their rates (‰: [L, E, R, N])
+const TmPackKinds = ["オールスターパック", "パワフルパック", "スピーディパック", "モンスターパック", "マジックパック"];
+const TmPackKindDescs = [
+  "全カードから出る！ レジェンド排出率3倍！",
+  "マナ5以上の大型カードが出やすい！（60%以上）",
+  "マナ4以下の軽いカードが出やすい！（70%以上）",
+  "モンスターカードが出やすい！（85%以上）",
+  "スペル・アミュレットが出やすい！（70%以上）",
+];
+const TmLegend3x = "レジェンド3倍！";
+function TmPackRatesOf(Rt) { return `1パック5枚入り\n排出率：レジェンド${Rt[0] / 10}%・エピック${Rt[1] / 10}%・レア${Rt[2] / 10}%・ノーマル${Rt[3] / 10}%`; }
+// the glow (and a light tint of the pack) of every kind
+function PackKindColor(K) {
+  return K === 1 ? color(1.0, 0.45, 0.1) : K === 2 ? color(0.3, 0.95, 0.45) : K === 3 ? color(1.0, 0.25, 0.3) : K === 4 ? color(0.35, 0.55, 1.0) : CGold;
+}
+function PackKindTint(K) {
+  return K === 1 ? color(1.0, 0.75, 0.45) : K === 2 ? color(0.6, 1.0, 0.65) : K === 3 ? color(1.0, 0.6, 0.6) : K === 4 ? color(0.6, 0.7, 1.0) : CWhite;
+}
 function TmPriceCoin(N) { return `${N}コイン`; }
 function TmPriceGem(N) { return `${N}ジェム`; }
 const TmBackShopHelp = "裏面を選ぶと購入できるよ。持っている裏面は選ぶと使用中になる（タイトルの「カード設定」でも変更可能）。";
@@ -3090,13 +3178,13 @@ const TmBackBought = "新しい裏面を手に入れた！（使用中にした�
 const TmBackSet3 = "裏面を変更したよ";
 const TmVbucksOpen = "購入画面を開いています…";
 const TmGemThanks = "ジェムを受け取ったよ！ありがとう！";
-function TmAskPackCoin(N, P) { return `カードパックを${N}パック\n${P}コインで購入しますか？`; }
-function TmAskPackGem(N, P) { return `カードパックを${N}パック\n${P}ジェムで購入しますか？`; }
+function TmAskPackCoin(N, P, K = TmTabPacks) { return `${K}を${N}パック\n${P}コインで購入しますか？`; }
+function TmAskPackGem(N, P, K = TmTabPacks) { return `${K}を${N}パック\n${P}ジェムで購入しますか？`; }
 function TmAskBackCoin(P) { return `このカードの裏面を\n${P}コインで購入しますか？`; }
 function TmAskBackGem(P) { return `このカードの裏面を\n${P}ジェムで購入しますか？`; }
 const TmYesBuy = "購入する";
 const TmNo = "やめる";
-function TmPackNo(A, B) { return `カードパック　${A} / ${B}`; }
+function TmPackNo(A, B, K = TmTabPacks) { return `${K}　${A} / ${B}`; }
 function TmPackAll(N) { return `手に入れたカード（${N}枚）`; }
 const TmPackHelp = "カードを選ぶと詳しく見られるよ。";
 const TmNextPack = "次のパックを開ける";

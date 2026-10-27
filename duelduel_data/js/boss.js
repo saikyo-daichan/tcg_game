@@ -6,11 +6,11 @@
 // Uses DraftPool / DraftOptions / DraftRoundOf / DraftRounds (lobby.js) and CardDeckSize (save.js).
 'use strict';
 
-// side.AiLevel values
-const CardAiBeginner = 0;     // 初級: the classic AI
-const CardAiMiddle = 1;       // 中級
-const CardAiHard = 2;         // 上級
-const CardAiNightmare = 3;    // 最恐: 上級 AI + CardBossHp + CardBossDeck / CardBossDraftDeck
+// side.AiLevel values (rules.js AiNext)
+const CardAiBeginner = 0;     // 初級: the classic AI without useless plays / blunders
+const CardAiMiddle = 1;       // 中級: the action that leaves the best position
+const CardAiHard = 2;         // 上級: + follow-ups, lethal search, the enemy's reply played out
+const CardAiNightmare = 3;    // 最恐: 上級 AI that knows its draws / the enemy hand + CardBossHp + CardBossDeck / CardBossDraftDeck
 const CardAiLevels = 4;
 
 // the 最恐 CPU's HP (side Hp / MaxHp)
@@ -39,8 +39,15 @@ function CardAiDesc(L) {
   return TxAiBeginnerDesc;
 }
 
+// the web version's own 最恐 cards (cards_web.js CardWebNew): 冥府の魔導書 (マナ1 カードを2枚引く),
+// 魔狼の遠吠え (マナ3 「冥府の魔狼」を手札に2枚加える) — so its hand doesn't run dry late in the match
+const CardBossWebIds = [504, 505];
+
 // a card only the 最恐 CPU uses
-function CardIsBoss(D) { return CardBossIds.includes(D.Id); }
+function CardIsBoss(D) { return CardBossIds.includes(D.Id) || CardBossWebIds.includes(D.Id); }
+
+// the web 最恐 cards (CardBossWebIds order)
+function CardBossWebCards(Lib) { return CardBossWebIds.map(Id => At(Lib.DB, Id)).filter(D => D !== undefined); }
 
 // an アーティファクト (AF-*: only made by アーティファクト基地 / AF-M)
 function CardIsArtifact(D) { return CardArtifactIds.includes(D.Id); }
@@ -77,16 +84,19 @@ function CardBossFill(Pool, Deck) {
   return Out;
 }
 
-// the 最恐 CPU's 通常 deck (40 cards): every 最恐 card (+ a second copy of 4 cheap ones) and strong cards of the hero's pool
+// the 最恐 CPU's 通常 deck (40 cards): every 最恐 card (+ a second copy of 5 cheap ones: 闇の叡智 too), the web 最恐
+// cards that refill its hand (冥府の魔導書 x2, 魔狼の遠吠え) and strong cards of the hero's pool
 function CardBossDeck(Lib, HeroId) {
   const Pool = DraftPool(Lib.DB, HeroId);
   const Boss = CardBossCards(Lib);
-  const Extra = [0, 1, 3, 10].map(K => At(Boss, K)).filter(D => D !== undefined);
-  let Deck = [...Boss, ...Extra];
-  Deck = [...Deck, ...CardBossPick(Pool, 0, 2, 6)];
-  Deck = [...Deck, ...CardBossPick(Pool, 3, 3, 5)];
-  Deck = [...Deck, ...CardBossPick(Pool, 4, 4, 5)];
-  Deck = [...Deck, ...CardBossPick(Pool, 5, 6, 4)];
+  const Extra = [0, 1, 3, 10, 12].map(K => At(Boss, K)).filter(D => D !== undefined);
+  const Web = CardBossWebCards(Lib);
+  const Draw = [At(Web, 0), At(Web, 0), At(Web, 1)].filter(D => D !== undefined);
+  let Deck = [...Boss, ...Extra, ...Draw];
+  Deck = [...Deck, ...CardBossPick(Pool, 0, 2, 5)];
+  Deck = [...Deck, ...CardBossPick(Pool, 3, 3, 4)];
+  Deck = [...Deck, ...CardBossPick(Pool, 4, 4, 4)];
+  Deck = [...Deck, ...CardBossPick(Pool, 5, 6, 3)];
   Deck = [...Deck, ...CardBossPick(Pool, 7, 10, 2)];
   return CardBossFill(Pool, Deck);
 }
@@ -126,13 +136,14 @@ function CardBossDraftPicks(Pool, Sched) {
   return Deck;
 }
 
-// the 最恐 CPU's 2Pick deck: the same rarity schedule as the player, always the better option, and its 8 weakest
-// picks swapped for 最恐 cards
+// the 最恐 CPU's 2Pick deck: the same rarity schedule as the player, always the better option, and its 11 weakest
+// picks swapped for 最恐 cards (3 of them refill its hand: 冥府の魔導書, 闇の叡智, 魔狼の遠吠え)
 function CardBossDraftDeck(Lib, HeroId, Sched) {
   const Pool = DraftPool(Lib.DB, HeroId);
   const Deck = CardBossDraftPicks(Pool, Sched);
   const Boss = CardBossCards(Lib);
-  const Swaps = [0, 1, 2, 3, 6, 10, 7, 9].map(K => At(Boss, K)).filter(D => D !== undefined);
+  const Web = CardBossWebCards(Lib);
+  const Swaps = [...[0, 1, 2, 3, 6, 10, 7, 9].map(K => At(Boss, K)), At(Web, 0), At(Boss, 12), At(Web, 1)].filter(D => D !== undefined);
   const LowN = [], LowR = [];
   Deck.forEach((D, I) => { if (D.Rarity === RarN) LowN.push(I); });
   Deck.forEach((D, I) => { if (D.Rarity === RarR) LowR.push(I); });

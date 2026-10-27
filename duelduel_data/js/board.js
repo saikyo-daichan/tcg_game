@@ -31,7 +31,7 @@ function CellX(C) { return LBoardX0 + (LCell + LGap) * C; }
 // The click areas of the board (z 60, hand 70+) sit above every effect (pop-ups 51, effects 52, toast 53, cast 54, banner 55,
 // stamps 56, flying card 50) but below the overlays (85+): a widget that covers a click area and then goes away
 // leaves it "not hovered", and the next click on it is lost until the mouse moves.
-function HandHitZ(I) { return 70 + I; }
+function HandHitZ(I) { return 70 + CardMaxHand - I; }
 
 // a stand-in for the click area inside a picture button whose real click area is a separate widget
 function NoHit() { return new color_block({ DefaultColor: CWhite, DefaultOpacity: 0.0 }); }
@@ -520,7 +520,8 @@ class board_ui {
     }
   }
 
-  HandZ(I) { return 30 + I; }
+  // (web) the left card lies on top: the mana gem sits at a card's top right and stays visible in a crowded hand
+  HandZ(I) { return 30 + CardMaxHand - I; }
 
   // ids of the battle board (hand, slots, players, jewels, graves)  (<decides>: true / false)
   OnBoardId(Id) {

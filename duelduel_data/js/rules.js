@@ -22,6 +22,14 @@
 //   which calls Concede(W) there) then Concede(W). Stamps: Net.Stamp(W, K); the lobby calls RemoteStamp(W, K) on receipt.
 // - Verse race: the losers keep running in JS, so TakeTurn gives IdleLoop / Clock a stop token, WaitTurnInput stops
 //   its clock loop, and after every turn the views' CancelWait() (board.js) kills input waits that lost the race.
+// - Web AI (not in Verse): every pause of a match is this.Wait(S) (= Sleep, or nothing in a look-ahead copy). NpcTurn
+//   asks AiNext: the candidate actions are played on copies of the match (AiClone / AiTry, Sim = true: no screens, no
+//   waiting, own random numbers; the real match and its Rng are never changed) and the positions valued (AiEval).
+//   Levels: 0 初級 = the classic ScoreAct choice minus useless plays / blunders, 1 中級 = best position after the
+//   action, 2 上級 = + follow-up actions, lethal search, the enemy's reply played out, 3 最恐 = 上級 knowing its draws,
+//   the random results and the enemy hand. FxScore / ScoreAct also skip plays that do nothing (AoE on an empty board,
+//   buffs without allies, 値引きの魔法 with nothing to discount, マナ解放 that opens nothing, monsters like
+//   プレゼント箱 that break by themselves: AiDoomed). The old BestAct / BestActLv stay as the fallback if AiNext fails.
 'use strict';
 
 // ---------------------------------------------------------------- small helpers (values like Verse)
@@ -196,6 +204,75 @@ function AiKnap(Cost, Slot, Val, K, Mana, Slots) {
   return [0.0, []];
 }
 
+// ---------------------------------------------------------------- AI look-ahead helpers (card_match.AiClone / AiEval)
+// the pause of a look-ahead copy (already resolved: the copy runs through a whole action at once)
+const AiNoWait = Promise.resolve();
+// how many look-ahead copies were played (for tests)
+let AiSims = 0;
+// AiRollout: the first level that plays the enemy's reply out, how many candidates 最恐 plays out (上級: 3), and how
+// much the value inside the turn still counts next to the played-out one (measured in AI-vs-AI matches)
+const AiRollLv = 2;
+const AiRollK = 8;
+const AiRollW = 0.5;
+
+// the best value of items (mana cost, board slots) that fit into Mana and Slots (a small knapsack)
+function AiBestSet(Cost, Slot, Val, Mana, Slots) {
+  const M = Max(0, Mana), S = Max(0, Slots);
+  let Dp = [];
+  for (let I = 0; I <= M; I++) { const Row = []; for (let J = 0; J <= S; J++) Row.push(0.0); Dp.push(Row); }
+  for (let K = 0; K < Cost.length; K++) {
+    const C = Cost[K], Sl = Slot[K], V = Val[K];
+    if (C > M || Sl > S) continue;
+    const Nx = Dp.map(Row => Row.slice());
+    for (let I = C; I <= M; I++) for (let J = Sl; J <= S; J++) {
+      const T = Dp[I - C][J - Sl] + V;
+      if (T > Nx[I][J]) Nx[I][J] = T;
+    }
+    Dp = Nx;
+  }
+  return Dp[M][S];
+}
+
+// a copy of a side that the look-ahead may change (card defs and the hero are shared: they never change)
+function AiCopySide(S) {
+  const X = Object.assign(Object.create(side.prototype), S);
+  X.Hand = S.Hand.map(H => new hand_card({ Def: H.Def, Cost: H.Cost, GotKw: H.GotKw }));
+  X.Board = S.Board.map(U => U ? Object.assign(Object.create(unit.prototype), U) : null);
+  X.Deck = S.Deck.slice();
+  X.Grave = S.Grave.slice();
+  X.EndSummons = S.EndSummons.slice();
+  return X;
+}
+
+// what a player's HP is worth to the AI (the last points count most)
+function AiHpVal(H) {
+  if (H <= 0) return -60.0 + H;
+  return 1.3 * Min(H, 8) + 0.75 * Max(0, Min(H, 20) - 8) + 0.3 * Max(0, H - 20);
+}
+
+// what one more point of damage to a player with H HP is worth
+function AiFaceRate(H) { return H <= 8 ? 1.3 : H <= 20 ? 0.75 : 0.3; }
+
+// what an effect a monster leaves behind when it is destroyed gives its owner
+function AiDeathFxVal(F) {
+  const K = F.K;
+  if (K === fx_kind.None) return 0.0;
+  if (K === fx_kind.AddCard || K === fx_kind.Draw || K === fx_kind.GraveToHand || K === fx_kind.Tutor || K === fx_kind.TutorHigh || K === fx_kind.TutorSpell) return 1.8 * Max(1, F.N);
+  if (K === fx_kind.Summon || K === fx_kind.SummonKw || K === fx_kind.SummonRushBuff || K === fx_kind.SummonTrump || K === fx_kind.DeckSummon || K === fx_kind.GraveRevive) return 2.5 * Max(1, F.N);
+  if (K === fx_kind.HitRandomFoe || K === fx_kind.HitAllFoes || K === fx_kind.HitRandomEnemy) return 0.8 * Max(1, F.N) * Max(1, F.M);
+  if (K === fx_kind.HitFoeHero || K === fx_kind.HitAllEnemies) return 0.7 * F.N;
+  if (K === fx_kind.HitOwnHero || K === fx_kind.SummonFoe) return -0.7 * Max(1, F.N);
+  return 1.0;
+}
+
+// what an effect that goes off every turn (turn start / end) is worth while the monster stands
+function AiTurnFxVal(F) {
+  const K = F.K;
+  if (K === fx_kind.None) return 0.0;
+  if (K === fx_kind.HitSelf || K === fx_kind.KillSelf || K === fx_kind.VanishSelf || K === fx_kind.ReturnSelf || K === fx_kind.HitOwnHero || K === fx_kind.SummonFoe) return -0.5;
+  return 1.5;
+}
+
 // the damage a spell effect can deal to the enemy player
 function AiFxBurn(F) {
   return (F.K === fx_kind.HitFoeHero || F.K === fx_kind.HitEnemy || F.K === fx_kind.HitAny || F.K === fx_kind.HitAllEnemies) ? F.N : 0;
@@ -286,7 +363,12 @@ class card_match {
     // a death effect that adds the dead card again (首なし令嬢) starts from the mana it was played for
     this.FxSrcId = -1;
     this.FxBaseCost = -1;
+    // the AI's look-ahead copy of a match (AiClone): no screens, no waiting
+    this.Sim = false;
   }
+
+  // every pause of the match (a look-ahead copy never waits)
+  Wait(S) { return this.Sim ? AiNoWait : Sleep(S); }
 
   // ------------------------------------------------------------ online lockstep
   IsRemote(W) { return !!(this.Net && this.Net.Remote === W); }
@@ -444,7 +526,7 @@ class card_match {
   // (Finished is also set by the PvP session when the match was cancelled because a player left)
   async RefreshLoop() {
     for (;;) {
-      await Sleep(0.0);
+      await this.Wait(0.0);
       if (this.Dirty) this.RefreshNow();
       if (this.Finished) break;
     }
@@ -465,12 +547,12 @@ class card_match {
 
   async Lunge(Src, Dst) {
     for (const [W, V] of this.Vs()) spawn(() => V.FxLunge(UiOf(Loc(W, Src)), UiOf(Loc(W, Dst))));
-    await Sleep(0.2);
+    await this.Wait(0.2);
   }
 
   async DrawFx(Who, Idx, N) {
     for (const [W, V] of this.Vs()) spawn(() => V.FxDraw(W === Who ? 0 : 1, Idx, N));
-    await Sleep(0.3);
+    await this.Wait(0.3);
   }
 
   // a log line about side Who: the owner reads Mine, the other player reads Theirs
@@ -505,7 +587,7 @@ class card_match {
     }
     this.Snd(SfxAwaken);
     this.Refresh();
-    await Sleep(0.8);
+    await this.Wait(0.8);
   }
 
   // does anybody watch side Who's play from the other side?
@@ -860,7 +942,7 @@ class card_match {
 
   // the CPU's turn of the tutorial
   async TutNpc(T) {
-    await Sleep(0.8);
+    await this.Wait(0.8);
     for (const Op of TutFoeOps(this.Foe.Turns)) {
       if (this.Ended) break;
       const Idx = Op.Kind === 1 ? this.HandIdxOf(1, Op.CardId) : undefined;
@@ -883,11 +965,11 @@ class card_match {
       } else if (Op.Kind === 8 && this.UnitColOf(0, Op.Target) !== undefined) {
         this.ForceTgt = MkTgt(0, this.UnitColOf(0, Op.Target));
       }
-      await Sleep(0.7);
+      await this.Wait(0.7);
       const V = this.ViewOf(0);
       if (Op.Pages.length > 0 && V) await V.TutPages(Op.Pages);
     }
-    await Sleep(0.4);
+    await this.Wait(0.4);
   }
 
   // what the controller cursor cycles through (LB / RB) and browses (LT / RT)
@@ -968,7 +1050,7 @@ class card_match {
     this.Refresh();
     this.Snd(N >= 4 ? SfxHitBig : SfxHit);
     for (const X of Hit) this.Pop(X[0], X[1], false);
-    await Sleep(0.45);
+    await this.Wait(0.45);
   }
 
   async Damage(T, N) { await this.DamageMany([T], N); }
@@ -991,7 +1073,7 @@ class card_match {
     this.Snd(SfxHeal);
     this.Vfx(VfxHeal, T);
     this.Pop(T, TxPlus(Amount), true);
-    await Sleep(0.4);
+    await this.Wait(0.4);
     // 「自分のプレイヤーが回復するたび」 (星の精, パフェドラゴン)
     if (T.Col < 0) {
       for (let C = 0; C <= 2; C++) {
@@ -1013,7 +1095,7 @@ class card_match {
       this.Snd(SfxBuff);
       this.Vfx(VfxBuff, T);
       this.Pop(T, BuffText(N, M), true);
-      await Sleep(0.4);
+      await this.Wait(0.4);
     }
   }
 
@@ -1029,7 +1111,7 @@ class card_match {
       this.Snd(SfxDebuff);
       this.Vfx(VfxCurse, T);
       this.Pop(T, DebuffText(N, M), false);
-      await Sleep(0.4);
+      await this.Wait(0.4);
     }
   }
 
@@ -1065,7 +1147,7 @@ class card_match {
         this.Log(TlKilled(U.Def.Name));
       }
     }
-    if (Any) await Sleep(0.35);
+    if (Any) await this.Wait(0.35);
   }
 
   // does the monster already have an other one of 挑発 / 潜伏 / 無敵 / 威圧?
@@ -1080,7 +1162,7 @@ class card_match {
       if (this.KwBlocked(U, Code)) {
         this.Log(TlKwFailed(U.Def.Name, KwName(Code)));
         this.Pop(T, TlFailed, false);
-        await Sleep(0.35);
+        await this.Wait(0.35);
         return;
       }
       if (Code === KwTaunt) U.Taunt = true;
@@ -1101,7 +1183,7 @@ class card_match {
       this.Snd(SfxHeal);
       this.Vfx(Code === KwBarrier ? VfxBarrier : VfxBuff, T);
       this.Pop(T, KwName(Code), true);
-      await Sleep(0.35);
+      await this.Wait(0.35);
     }
   }
 
@@ -1198,7 +1280,7 @@ class card_match {
     const T0 = MkTgt(Who, Col);
     for (const [W, V] of this.Vs()) spawn(() => V.FxSummon(UiOf(Loc(W, T0)), D.Rarity));
     this.Toast(TlSummoned(D.Name), 1.0);
-    await Sleep(D.Rarity >= RarL ? 1.1 : D.Rarity >= RarE ? 0.7 : 0.4);
+    await this.Wait(D.Rarity >= RarL ? 1.1 : D.Rarity >= RarE ? 0.7 : 0.4);
     // amulets / monsters that give something to every ally monster coming onto the board
     if (!D.Amulet) {
       const New1 = MkTgt(Who, Col);
@@ -1227,7 +1309,7 @@ class card_match {
       U.Count -= 1;
       this.Refresh();
       this.Pop(Me1, TlCountDown(U.Count), true);
-      await Sleep(0.3);
+      await this.Wait(0.3);
       if (U.Live(U.Def.CdTick).K !== fx_kind.None) {
         await this.FxShow(Who, C, U.Def, FxShowTick);
         await this.DoFx(Who, C, U.Def.CdTick, this.Hero(Who));
@@ -1256,7 +1338,7 @@ class card_match {
       this.Snd(SfxReturn);
       Sd.Board = RuWith(Sd.Board, T.Col, null);
       this.Refresh();
-      await Sleep(0.25);
+      await this.Wait(0.25);
       if (U.Def.Token && !CardKeptToken(U.Def)) {
         this.Log(TlVanished(U.Def.Name));
       } else {
@@ -1297,7 +1379,7 @@ class card_match {
       this.Snd(SfxAwaken);
       this.Vfx(VfxBuff, Hero(Who));
       this.Pop(Hero(Who), TxPlus(N), true);
-      await Sleep(0.45);
+      await this.Wait(0.45);
     } else if (K === fx_kind.ManaUp) {
       const Was = A.MaxMana;
       A.MaxMana = Min(CardMaxMana, A.MaxMana + N);
@@ -1307,25 +1389,25 @@ class card_match {
       this.Snd(SfxMana);
       this.Vfx(VfxMana, Hero(Who));
       this.Pop(Hero(Who), TlManaUp(N), true);
-      await Sleep(0.45);
+      await this.Wait(0.45);
     } else if (K === fx_kind.GainMana) {
       A.Mana = Min(A.MaxMana, A.Mana + N);
       this.Refresh();
       this.Snd(SfxMana);
       this.Vfx(VfxMana, Hero(Who));
-      await Sleep(0.35);
+      await this.Wait(0.35);
     } else if (K === fx_kind.EvoUp) {
       A.EvoLeft += N;
       this.Refresh();
       this.Snd(SfxAwaken);
-      await Sleep(0.3);
+      await this.Wait(0.3);
     } else if (K === fx_kind.ShieldUp) {
       A.Shield += N;
       this.Refresh();
       this.Snd(SfxShield);
       this.Vfx(VfxBarrier, Hero(Who));
       this.Pop(Hero(Who), TlShieldUp(N), true);
-      await Sleep(0.45);
+      await this.Wait(0.45);
     } else if (K === fx_kind.HeroMaxUp) {
       A.MaxHp += N;
       A.Hp += N;
@@ -1333,7 +1415,7 @@ class card_match {
       this.Snd(SfxHeal);
       this.Vfx(VfxHeal, Hero(Who));
       this.Pop(Hero(Who), TxPlus(N), true);
-      await Sleep(0.45);
+      await this.Wait(0.45);
     } else if (K === fx_kind.HitFront) {
       if (Col >= 0 && this.MonAt(O, Col)) {
         this.Vfx(VfxFire, Front);
@@ -1342,7 +1424,7 @@ class card_match {
     } else if (K === fx_kind.FreezeFront) {
       if (Col >= 0 && this.MonAt(O, Col)) {
         this.Freeze(Front);
-        await Sleep(0.3);
+        await this.Wait(0.3);
       }
     } else if (K === fx_kind.KillFront) {
       if (Col >= 0 && this.MonAt(O, Col)) await this.Kill(Front);
@@ -1378,11 +1460,11 @@ class card_match {
       const T0 = this.PickOne(Thawed);
       if (T0) {
         this.Freeze(T0);
-        await Sleep(0.3);
+        await this.Wait(0.3);
       }
     } else if (K === fx_kind.FreezeAll) {
       for (const T0 of this.FoeUnitsOf(Who)) this.Freeze(T0);
-      await Sleep(0.3);
+      await this.Wait(0.3);
     } else if (K === fx_kind.BuffAllies) {
       for (const T0 of this.AllyUnitsOf(Who, Col)) await this.Buff(T0, N, F.M);
     } else if (K === fx_kind.BuffRandomAlly) {
@@ -1426,7 +1508,7 @@ class card_match {
         A.Board = RuWith(A.Board, Col, null);
         if (!U.Def.Token) A.Grave = [...A.Grave, U.Def];
         this.Refresh();
-        await Sleep(0.3);
+        await this.Wait(0.3);
         await this.Summon(Who, Col, this.CardOf(F.C));
       }
     } else if (K === fx_kind.GraveToHand) {
@@ -1490,12 +1572,12 @@ class card_match {
       this.LogBoth(Who, TlDiscount(TxYou, N), TlDiscount(TxOpponent, N));
       this.Snd(SfxMana);
       this.Refresh();
-      await Sleep(0.4);
+      await this.Wait(0.4);
     } else if (K === fx_kind.DrawDiscard) {
       // 取捨選択: the cards are drawn first (they can be thrown away too), then the discards are shown one by one
       for (let I = 1; I <= N; I++) await this.Draw(Who);
       this.Refresh();
-      await Sleep(0.5);
+      await this.Wait(0.5);
       for (let I = 1; I <= N; I++) {
         if (!(A.Hand.length > 0) || this.Ended) continue;
         await this.DiscardAt(Who, this.Rng.Int(0, A.Hand.length - 1));
@@ -1593,7 +1675,7 @@ class card_match {
       if (Tg) {
         if (Tg.Invincible) {
           this.Pop(T, TkInvincible, false);
-          await Sleep(0.35);
+          await this.Wait(0.35);
         } else {
           const GainA = Max(0, Tg.Atk);
           const GainH = Max(0, Tg.Hp);
@@ -1621,10 +1703,10 @@ class card_match {
           this.Vfx(VfxEvolve, Me1);
           this.Vfx(VfxEvolve, MkTgt(Who, Mate));
           this.Snd(SfxEvolve);
-          await Sleep(0.5);
+          await this.Wait(0.5);
           A.Board = RuWith(RuWith(A.Board, Mate, null), Col, null);
           this.Refresh();
-          await Sleep(0.2);
+          await this.Wait(0.2);
           await this.Summon(Who, Col, this.CardOf(F.C));
         }
       }
@@ -1647,7 +1729,7 @@ class card_match {
           this.Refresh();
           this.HandPop(Who, Idx, TlManaDown(N));
           this.SndTo(Who, SfxMana);
-          await Sleep(0.55);
+          await this.Wait(0.55);
         }
       }
     } else if (K === fx_kind.DebuffRandomFoe) {
@@ -1684,7 +1766,7 @@ class card_match {
         this.Vfx(VfxExplode, T);
         U.Hp = 0;
         this.Log(TlKilled(U.Def.Name));
-        await Sleep(0.35);
+        await this.Wait(0.35);
       }
     } else if (K === fx_kind.Devour) {
       // eats an other ally monster: its attack and HP are added to this one
@@ -1692,14 +1774,14 @@ class card_match {
       if (Tg && this.MonAt(Who, Col)) {
         if (Tg.Invincible) {
           this.Pop(T, TkInvincible, false);
-          await Sleep(0.35);
+          await this.Wait(0.35);
         } else {
           const GainA = Max(0, Tg.Atk);
           const GainH = Max(0, Tg.Hp);
           this.Vfx(VfxDark, T);
           Tg.Hp = Min(Tg.Hp, 0);
           this.Log(TlDevoured(Tg.Def.Name));
-          await Sleep(0.35);
+          await this.Wait(0.35);
           await this.ResolveDeaths();
           if (GainA + GainH > 0) await this.Buff(Me1, GainA, GainH);
         }
@@ -1740,7 +1822,7 @@ class card_match {
           this.Refresh();
           this.HandPop(Who, A.Hand.length - 1, TlManaDown(F.M));
           this.SndTo(Who, SfxMana);
-          await Sleep(0.3);
+          await this.Wait(0.3);
         }
       }
     } else if (K === fx_kind.GravePick) {
@@ -1856,7 +1938,7 @@ class card_match {
       this.Snd(SfxDebuff);
       this.Vfx(VfxCurse, Hero(O));
       this.Pop(Hero(O), TlSpellLockPop, false);
-      await Sleep(0.6);
+      await this.Wait(0.6);
     } else if (K === fx_kind.Choose) {
       await this.ChooseFx(Who, Col, this.CardOf(F.C), this.CardOf(F.M));
     } else if (K === fx_kind.HandKw) {
@@ -1873,7 +1955,7 @@ class card_match {
         this.LogBoth(Who, TlHandKw(TxYou, this.CardOf(F.C).Name, KwName(N)), TlHandKw(TxOpponent, this.CardOf(F.C).Name, KwName(N)));
         this.SndTo(Who, SfxBuff);
         this.Refresh();
-        await Sleep(0.5);
+        await this.Wait(0.5);
       }
     } else if (K === fx_kind.VanishSelf) {
       const U = Col >= 0 ? At(A.Board, Col) : undefined;
@@ -1883,7 +1965,7 @@ class card_match {
         A.Board = RuWith(A.Board, Col, null);
         this.Log(TlVanished(U.Def.Name));
         this.Refresh();
-        await Sleep(0.4);
+        await this.Wait(0.4);
       }
     } else if (K === fx_kind.KillOwnOthers) {
       const Ts = [];
@@ -1905,7 +1987,7 @@ class card_match {
       this.Snd(SfxShuffle);
       this.Vfx(VfxEvolve, Hero(Who));
       this.Refresh();
-      await Sleep(0.8);
+      await this.Wait(0.8);
     } else if (K === fx_kind.HeroEndSummon) {
       A.EndSummons = [...A.EndSummons, F.C];
       this.LogBoth(Who, TlHeroEndSummon(TxYou, this.CardOf(F.C).Name), TlHeroEndSummon(TxOpponent, this.CardOf(F.C).Name));
@@ -1913,7 +1995,7 @@ class card_match {
       this.Vfx(VfxDark, Hero(Who));
       this.Pop(Hero(Who), TlHeroEndSummonPop, true);
       this.Refresh();
-      await Sleep(0.6);
+      await this.Wait(0.6);
     }
   }
 
@@ -1937,7 +2019,7 @@ class card_match {
       this.Snd(SfxDebuff);
       this.Vfx(VfxCurse, T);
       this.Pop(T, TkSilenced, false);
-      await Sleep(0.6);
+      await this.Wait(0.6);
     }
   }
 
@@ -1952,7 +2034,7 @@ class card_match {
       this.Cast(D, Who, D.Cost);
       this.Snd(SfxSpell);
       this.Refresh();
-      await Sleep(this.Watched(Who) ? 1.2 : 0.6);
+      await this.Wait(this.Watched(Who) ? 1.2 : 0.6);
       this.HideCast();
       await this.DoFx(Who, Col, D.Spell, this.Hero(Who));
       if (D.Spell2.K !== fx_kind.None && !this.Ended) await this.DoFx(Who, Col, D.Spell2, this.Hero(Who));
@@ -1978,14 +2060,14 @@ class card_match {
       const N0 = A.Hand.length;
       this.HandPop(Who, Pick, TlDiscardPop);
       this.Snd(SfxDark);
-      await Sleep(0.45);
+      await this.Wait(0.45);
       for (const [X, V] of this.Vs()) spawn(() => V.FxDiscard(X === Who ? 0 : 1, Pick, N0));
-      await Sleep(0.3);
+      await this.Wait(0.3);
       A.Hand = RemoveElement(A.Hand, Pick);
       A.Grave = [...A.Grave, H.Def];
       this.LogBoth(Who, TlDiscard(TxYou, H.Def.Name), TlDiscard(TxOpponent, H.Def.Name));
       this.Refresh();
-      await Sleep(0.3);
+      await this.Wait(0.3);
     }
   }
 
@@ -1998,13 +2080,13 @@ class card_match {
     if (H) {
       const N0 = A.Hand.length;
       for (const [X, V] of this.Vs()) spawn(() => V.FxReturn(X === Who ? 0 : 1, Pick, N0));
-      await Sleep(0.3);
+      await this.Wait(0.3);
       A.Hand = RemoveElement(A.Hand, Pick);
       A.Deck = this.Rng.Shuffle([...A.Deck, H.Def]);
       this.LogBoth(Who, TlToDeck(TxYou, H.Def.Name), TlToDeck(TxOpponent, TxEmpty));
       this.Snd(SfxShuffle);
       this.Refresh();
-      await Sleep(0.3);
+      await this.Wait(0.3);
     }
   }
 
@@ -2183,7 +2265,7 @@ class card_match {
       this.Vfx(VfxEvolve, Me1);
       this.Refresh();
       this.Pop(Me1, BuffText(U.Def.EvoAtk, U.Def.EvoHp), true);
-      await Sleep(0.5);
+      await this.Wait(0.5);
       for (const F of [U.Live(U.Def.Evo), U.Live(U.Def.Evo2)]) {
         if (F.K === fx_kind.None || FxTarget(F.K) !== 0 || this.Ended) continue;
         await this.DoFx(Who, Col, F, this.Hero(Who));
@@ -2291,7 +2373,7 @@ class card_match {
       this.LogBoth(Who, TlPickDiscount(TxYou, H.Def.Name, N), TlPickDiscount(TxOpponent, TxEmpty, N));
       this.SndTo(Who, SfxMana);
       this.Refresh();
-      await Sleep(0.3);
+      await this.Wait(0.3);
     }
   }
 
@@ -2313,7 +2395,7 @@ class card_match {
       if (Dead.length === 0) break;
       this.Snd(SfxDestroy);
       for (const X of Dead) this.Vfx(VfxDestroy, MkTgt(X[0], X[1]));
-      await Sleep(0.3);
+      await this.Wait(0.3);
       for (const X of Dead) {
         const Sd = this.S(X[0]);
         Sd.Board = RuWith(Sd.Board, X[1], null);
@@ -2322,7 +2404,7 @@ class card_match {
         this.Log(TlDestroyed(D.Name));
       }
       this.Refresh();
-      await Sleep(0.2);
+      await this.Wait(0.2);
       for (const X of Dead) {
         const D = X[2].Def;
         if (X[2].Live(D.Death).K === fx_kind.None || this.Ended) continue;
@@ -2407,12 +2489,12 @@ class card_match {
       // the spell is shown big to both players before it does anything, then its target flashes
       this.Cast(D, Who, Paid);
       this.Refresh();
-      await Sleep(this.Watched(Who) ? 1.7 : 1.0);
+      await this.Wait(this.Watched(Who) ? 1.7 : 1.0);
       this.HideCast();
       if (FxTarget(D.Spell.K) > 0 && T.Col >= -1 && FxTarget(D.Spell.K) !== 4) {
         this.Flash(T);
         this.Vfx(VfxMana, T);
-        await Sleep(0.35);
+        await this.Wait(0.35);
       }
       await this.SelfHarm(Who, D);
       if (this.Ended) return;
@@ -2430,7 +2512,7 @@ class card_match {
       if (this.Watched(Who)) {
         this.Cast(D, Who, Paid);
         this.Refresh();
-        await Sleep(1.1);
+        await this.Wait(1.1);
         this.HideCast();
       }
       const U = await this.SummonCost(Who, T.Col, D, Paid);
@@ -2450,7 +2532,7 @@ class card_match {
         // (the picked target flashes too)
         if (FxTarget(this.AimedFx(D.Cry, D.Cry2).K) > 0 && T2.Col >= -1) {
           this.Flash(T2);
-          await Sleep(0.25);
+          await this.Wait(0.25);
         }
         await this.Pair(Who, T.Col, D.Cry, D.Cry2, T2);
       }
@@ -2511,7 +2593,7 @@ class card_match {
       this.Refresh();
       this.Snd(A1 >= 4 ? SfxHitBig : SfxHit);
       this.Pop(T, R[1], false);
-      await Sleep(0.45);
+      await this.Wait(0.45);
       await this.DrainHeal(Who, U, R[0]);
     } else {
       const Tg = At(O.Board, T.Col);
@@ -2528,7 +2610,7 @@ class card_match {
       this.Refresh();
       if (A1 > 0) this.Pop(T, R1[1], false);
       if (A2 > 0) this.Pop(Me1, R2[1], false);
-      await Sleep(0.5);
+      await this.Wait(0.5);
       await this.DrainHeal(Who, U, R1[0]);
       await this.DrainHeal(1 - Who, Tg, R2[0]);
       if (Tg.Hp <= 0 && U.Hp > 0 && U.Live(U.Def.OnKill).K !== fx_kind.None && !this.Ended) {
@@ -2566,7 +2648,7 @@ class card_match {
       this.Refresh();
       this.Pop(T, R1[1], false);
       if (A2 > 0) this.Pop(this.Hero(Who), R2[1], false);
-      await Sleep(0.5);
+      await this.Wait(0.5);
       await this.DrainHeal(1 - Who, Tg, R2[0]);
     }
   }
@@ -2580,7 +2662,7 @@ class card_match {
       if (To >= 0 && To < Sd.Board.length) Sd.Board = RuWith(RuWith(Sd.Board, To, U), Col, null);
       this.Log(TlMoved(U.Def.Name));
       this.Refresh();
-      await Sleep(0.25);
+      await this.Wait(0.25);
     }
   }
 
@@ -2595,7 +2677,7 @@ class card_match {
     this.Toast(H.JewelName, 1.0);
     this.JewelFx(Who);
     this.LogBoth(Who, TlJewel(TxYou, H.JewelName), TlJewel(TxOpponent, H.JewelName));
-    await Sleep(0.4);
+    await this.Wait(0.4);
     await this.DoFx(Who, -1, H.Jewel, T);
   }
 
@@ -2622,7 +2704,7 @@ class card_match {
       this.Refresh();
       this.Toast(TlEvolved(U.Def.Name), 1.2);
       this.Pop(Me1, BuffText(U.Def.EvoAtk, U.Def.EvoHp), true);
-      await Sleep(0.8);
+      await this.Wait(0.8);
       if (U.Live(U.Def.Evo).K !== fx_kind.None && !this.Ended) {
         await this.FxShow(Who, Col, U.Def, FxShowEvo);
         await this.Pair(Who, Col, U.Def.Evo, U.Def.Evo2, T2);
@@ -2634,7 +2716,7 @@ class card_match {
   async EvolveShow(Who, Col, U) {
     const T0 = MkTgt(Who, Col);
     for (const [W, V] of this.Vs()) spawn(() => V.FxEvolve(UiOf(Loc(W, T0)), U.Def, U.Prem));
-    await Sleep(1.05);
+    await this.Wait(1.05);
   }
 
   // ------------------------------------------------------------ turns
@@ -2684,13 +2766,13 @@ class card_match {
     for (let C = 0; C <= 2; C++) { const U = this.MonAt(Who, C); if (U && U.Frozen) this.Vfx(VfxIce, MkTgt(Who, C)); }
     for (const [W, V] of this.Vs()) V.Banner(W === Who ? TxYourTurn : TxTheirTurn);
     this.SndTo(Who, SfxMyTurn);
-    await Sleep(1.0);
+    await this.Wait(1.0);
     // メデューサ: this turn no spells can be played
     if (A.SpellLock) {
       for (const [W, V] of this.Vs()) V.Banner(W === Who ? TlSpellLockedMe : TlSpellLockedFoe);
       this.Vfx(VfxCurse, this.Hero(Who));
       this.Snd(SfxDebuff);
-      await Sleep(1.2);
+      await this.Wait(1.2);
     }
     // the turn evolving becomes possible is announced with a banner of its own
     const V = this.ViewOf(Who);
@@ -2698,7 +2780,7 @@ class card_match {
       V.Banner(TlEvoReady);
       this.SndTo(Who, SfxEvolve);
       this.Refresh();
-      await Sleep(1.2);
+      await this.Wait(1.2);
     }
     // the first player does not draw on their very first turn
     const FirstTurn = Who === this.First && A.Turns === 1;
@@ -2723,7 +2805,7 @@ class card_match {
       if (C0 !== undefined) {
         this.Vfx(VfxDark, this.Hero(Who));
         this.Pop(this.Hero(Who), TlHeroEndSummonPop, true);
-        await Sleep(0.4);
+        await this.Wait(0.4);
         await this.Summon(Who, C0, this.CardOf(Id));
         await this.ResolveDeaths();
         this.CheckOver();
@@ -2814,7 +2896,7 @@ class card_match {
         // the last seconds tick for the player whose turn it is
         if (Left <= 10 && Left > 0) this.SndTo(this.Current, SfxTimer);
       }
-      await Sleep(0.25);
+      await this.Wait(0.25);
     }
   }
 
@@ -2851,7 +2933,7 @@ class card_match {
       (async () => {
         for (;;) {
           if (Stop || GetSimulationElapsedTime() >= this.Deadline) break;
-          await Sleep(0.25);
+          await this.Wait(0.25);
         }
         return NavTimeout;
       })());
@@ -3051,7 +3133,9 @@ class card_match {
 
   // ------------------------------------------------------------ AI
   UnitValue(U) {
-    let V = U.Atk * 1.0 + U.Hp * 0.8;
+    // (a monster without attack and without 挑発 only matters for its effects; one that destroys itself soon is worth little)
+    let V = (U.Atk <= 0 && !U.Taunt) ? U.Hp * 0.25 : U.Atk * 1.0 + U.Hp * 0.8;
+    if (this.AiLife(U) <= 2) V *= 0.5;
     if (U.Taunt) V += 1.0;
     if (U.Deadly) V += 1.5;
     if (U.Drain) V += 0.8;
@@ -3060,6 +3144,22 @@ class card_match {
     if (U.Hidden()) V += 1.0;
     if (U.Live(U.Def.TurnStart).K !== fx_kind.None || U.Live(U.Def.TurnEnd).K !== fx_kind.None) V += 1.5;
     return V;
+  }
+
+  // how many more turns of its owner a monster stays on the board by itself (99: it doesn't destroy itself)
+  // (プレゼント箱: 2 damage to itself at every turn start)
+  AiLife(U) {
+    const TS = U.Live(U.Def.TurnStart), TE = U.Live(U.Def.TurnEnd);
+    if (TS.K === fx_kind.KillSelf || TS.K === fx_kind.VanishSelf || TE.K === fx_kind.KillSelf || TE.K === fx_kind.VanishSelf) return 1;
+    if (TS.K === fx_kind.HitSelf && TS.N > 0 && !U.Invincible) return Ceil(Max(1, U.Hp) / TS.N) + (U.Barrier ? 1 : 0);
+    if (TE.K === fx_kind.HitSelf && TE.N > 0 && !U.Invincible) return Ceil(Max(1, U.Hp) / TE.N) + (U.Barrier ? 1 : 0);
+    return 99;
+  }
+
+  // attacking it is a waste: it can't hurt anybody, doesn't block and goes away by itself (its death effect only
+  // comes sooner)
+  AiDoomed(T) {
+    return T.Atk <= 0 && !T.Taunt && this.AiLife(T) <= 3;
   }
 
   // what 効果消滅 would take away from a monster
@@ -3110,6 +3210,11 @@ class card_match {
     const K = F.K;
     if (K === fx_kind.None) return 0.0;
     if (!this.CondOk(Who, F)) return -0.5;
+    // (no removal / damage wasted on an enemy monster that breaks by itself)
+    if (FxTarget(K) > 0 && T.Side !== Who && T.Col >= 0 && K !== fx_kind.DestroyAmulet) {
+      const Tu = this.MonAt(T.Side, T.Col);
+      if (Tu && this.AiDoomed(Tu)) return -2.0;
+    }
     if (K === fx_kind.HitTarget || K === fx_kind.FreezeHit) {
       const U = At(Op.Board, T.Col);
       if (U) {
@@ -3188,6 +3293,8 @@ class card_match {
       return N * 1.0 + (Mine.Hp <= 8 ? 3.0 : 0.0) + R;
     }
     if (K === fx_kind.Draw) {
+      // (an empty deck only hurts)
+      if (Mine.Deck.length === 0) return -3.0;
       return Mine.Hand.length + N <= 7 ? 3.5 * N + R : -3.0;
     }
     if (K === fx_kind.HeroAtk) {
@@ -3202,7 +3309,10 @@ class card_match {
       return Mine.MaxMana < CardMaxMana ? 4.5 + R : -5.0;
     }
     if (K === fx_kind.GainMana) {
-      return Mine.Hand.length > 1 ? 1.5 * N + R : -2.0;
+      // (only when the mana pays for a card that could not be played without it; the mana never goes over the max)
+      const Got = Min(Mine.MaxMana, Mine.Mana + N) - Mine.Mana;
+      const Opens = Mine.Hand.filter(H => H.Def.Spell.K !== fx_kind.GainMana && H.Cost > Mine.Mana && H.Cost <= Mine.Mana + Got);
+      return (Got > 0 && Opens.length > 0) ? 1.5 * N + R : -4.0;
     }
     if (K === fx_kind.EvoUp) {
       return 3.0 + R;
@@ -3234,7 +3344,9 @@ class card_match {
       return V + R;
     }
     if (K === fx_kind.HandDiscount) {
-      return Mine.Hand.length * 1.1 - 1.5 + R;
+      // (the cards it makes cheaper: M = 1 only monsters; never the discount card itself)
+      const Hit = Mine.Hand.filter(H => (F.M === 0 || H.Def.IsMonster()) && H.Def.Spell.K !== fx_kind.HandDiscount && H.Cost > 0);
+      return Hit.length > 0 ? Hit.length * 1.1 * Max(1, N) - 1.5 + R : -4.0;
     }
     if (K === fx_kind.DrawDiscard) {
       return Mine.Hand.length <= 3 ? 1.5 + R : -2.0;
@@ -3248,7 +3360,7 @@ class card_match {
     }
     if (K === fx_kind.EvolveAllies) {
       const Ev = Mine.Units().filter(U => !U.Evolved);
-      return 2.0 * Ev.length + R;
+      return Ev.length > 0 ? 2.0 * Ev.length + R : -3.0;
     }
     if (K === fx_kind.Tutor) {
       return (Mine.Deck.length > 0 && Mine.Hand.length <= 7) ? 3.5 + R : -3.0;
@@ -3324,7 +3436,7 @@ class card_match {
     }
     if (K === fx_kind.HandKw) {
       const Got = Mine.Hand.filter(H => H.Def.Id === F.C);
-      return 1.5 * Got.length + R;
+      return Got.length > 0 ? 1.5 * Got.length + R : -2.0;
     }
     if (K === fx_kind.HeroEndSummon) {
       return 10.0 + R;
@@ -3401,7 +3513,10 @@ class card_match {
       return this.EmptySlots(Who).length > 0 ? 4.0 + 1.5 * N + R : -2.0;
     }
     if (K === fx_kind.HitRandomAny) {
-      return 0.5 + R;
+      // (a random monster, own ones too)
+      const Foes = Op.Units().length, Allies = Mine.Units().length;
+      if (Foes === 0) return -3.0;
+      return (Foes >= Allies ? 0.5 + 0.6 * N * Max(1, F.M) * Foes / (Foes + Allies) : -1.0) + R;
     }
     if (K === fx_kind.SpellLock) {
       // (worth more when the enemy holds spells)
@@ -3410,6 +3525,27 @@ class card_match {
     if (K === fx_kind.Choose) {
       return Max(this.FxScore(Who, this.CardOf(F.C).Spell, this.Hero(Who), 0.0), this.FxScore(Who, this.CardOf(F.M).Spell, this.Hero(Who), 0.0)) + R;
     }
+    // effects on the own other monsters: nothing happens without them (a spell has no monster of its own)
+    const Allies = Mine.Units().length;
+    if (K === fx_kind.BuffAllies || K === fx_kind.BuffRandomAlly || K === fx_kind.AllyKw) {
+      if (Allies === 0) return -3.0;
+      const Many = K === fx_kind.BuffRandomAlly ? 1 : Allies;
+      return (K === fx_kind.AllyKw ? 1.5 : 1.0 + N * 1.0 + F.M * 0.7) * Many + R;
+    }
+    if (K === fx_kind.HealAllies || K === fx_kind.HealRandomAlly || K === fx_kind.HealTeam || K === fx_kind.HealRandomAny) {
+      let Missing = 0;
+      for (const U of Mine.Units()) Missing += Min(N, U.MaxHp - U.Hp);
+      if (K === fx_kind.HealTeam) Missing += Min(N, Mine.MaxHp - Mine.Hp);
+      return Missing > 0 ? Missing * 0.8 + R : -3.0;
+    }
+    // effects on enemy monsters at random: nothing happens without them
+    if (K === fx_kind.DebuffRandomFoe || K === fx_kind.FreezeHitRandom) {
+      return Op.Units().length > 0 ? 1.0 + N * 0.8 + F.M * 0.8 + R : -3.0;
+    }
+    if (K === fx_kind.Summon) {
+      return this.EmptySlots(Who).length > 0 ? 2.5 + this.CardOf(F.C).Cost * 1.0 + R : -3.0;
+    }
+    if (K === fx_kind.HitSelf || K === fx_kind.KillSelf || K === fx_kind.VanishSelf) return -1.0 + R;
     // effects of monsters on the board (front / allies / self...) are scored by the monster itself
     return 1.0 + R;
   }
@@ -3440,6 +3576,8 @@ class card_match {
         }
         const T = At(Op.Board, A.Dst.Col);
         if (T) {
+          // (プレゼント箱 breaks by itself: hitting it only hands its cards over sooner)
+          if (this.AiDoomed(T)) return -1.0;
           const Ta = this.EffAtk(O, A.Dst.Col, T);
           const Blocked = T.Invincible || T.Barrier;
           const Hits = Min(Ua - T.ArmorNow(), T.CapNow() > 0 ? T.CapNow() : Ua);
@@ -3464,6 +3602,7 @@ class card_match {
       }
       const T = At(Op.Board, A.Dst.Col);
       if (T) {
+        if (this.AiDoomed(T)) return -1.0;
         if (Me2.HeroAtk >= T.Hp && !T.Invincible && Me2.Hp > this.EffAtk(O, A.Dst.Col, T) + T.ThornsNow() + 4) return this.UnitValue(T) * 2.0 + R;
         return -1.0;
       }
@@ -3772,21 +3911,457 @@ class card_match {
     return [Chosen.filter(I => I >= 0), Chosen.includes(-1)];
   }
 
+  // ------------------------------------------------------------ AI with look-ahead (every level)
+  // A candidate action is played on a copy of the match (AiClone: no screens, no waiting, its own random numbers; the
+  // real match is never changed and its Rng is only read, never advanced) and the position after it is valued (AiEval).
+  // 0 初級: the classic scores above choose; the look-ahead only throws out plays that do nothing or blunder
+  // 1 中級: the action that leaves the best position (trades, removal on the biggest threat, the mana used well)
+  // 2 上級: + the best follow-up of the most promising actions (the order of plays and attacks), a search for a lethal
+  //   line (spells / burn included), the enemy's area damage in mind
+  // 3 最恐: 上級 that knows its next draws and the random results, sees the enemy hand and looks at more lines
+
+  // a look-ahead copy. Know: the real deck order and random numbers (最恐, or a copy of a copy); otherwise both decks
+  // are shuffled with the copy's own numbers (the AI doesn't know what comes)
+  // (Who >= 0 and not Know: the enemy hand is dealt again from its hand and deck, the AI doesn't see it)
+  AiClone(Know, Seed, Who = -1) {
+    const M = new card_match({ DB: this.DB, Me: AiCopySide(this.Me), Foe: AiCopySide(this.Foe), Views: [null, null], AutoPlay: true, Seed: Seed >>> 0 });
+    M.Sim = true;
+    M.First = this.First;
+    M.Current = this.Current;
+    M.Ended = this.Ended;
+    M.Winner = this.Winner;
+    M.Reason = this.Reason;
+    M.Pvp = this.Pvp;
+    M.FirstTurnDone = this.FirstTurnDone;
+    if (!Know) {
+      M.Me.Deck = M.Rng.Shuffle(M.Me.Deck);
+      M.Foe.Deck = M.Rng.Shuffle(M.Foe.Deck);
+      if (Who === 0 || Who === 1) {
+        const Op = M.S(1 - Who);
+        const Pool = M.Rng.Shuffle([...Op.Hand.map(H => H.Def), ...Op.Deck]);
+        Op.Hand = Pool.slice(0, Op.Hand.length).map(D => MakeHandCard(D));
+        Op.Deck = Pool.slice(Op.Hand.length);
+      }
+    }
+    M.AiRng0 = M.Rng.State();
+    return M;
+  }
+
+  // the copy after side Who did A (null: the copy failed)
+  async AiTry(Who, A, Know, Seed) {
+    AiSims += 1;
+    try {
+      const M = this.AiClone(Know, Seed, Who);
+      await M.Exec(Who, A);
+      return M;
+    } catch (e) {
+      console.error('AI look-ahead failed', e);
+      return null;
+    }
+  }
+
+  // did the action use random numbers? (上級 looks at such an action twice)
+  AiRandom() { return this.Rng.State() !== this.AiRng0; }
+
+  // what a monster on the board is worth to its owner
+  AiUnitVal(Side, Col, U) {
+    const D = U.Def;
+    const A = this.EffAtk(Side, Col, U);
+    const H = Max(0, U.Hp);
+    let V = (A <= 0 && !U.Taunt) ? 0.2 + 0.1 * H : 0.6 + 0.95 * A + 0.65 * H;
+    if (U.Taunt) V += 0.4 + 0.25 * H;
+    if (U.Deadly && A > 0) V += 1.5;
+    if (U.Drain) V += 0.3 * A;
+    if (U.Barrier) V += 0.8 + 0.3 * A;
+    if (U.Invincible) V += 3.0 + 0.5 * A;
+    if (U.Hidden()) V += 0.4 + 0.2 * A;
+    if (U.HasTwoActs()) V += 0.8 * A;
+    V += 0.7 * U.ArmorNow() + 0.4 * U.ThornsNow() + (U.CapNow() > 0 ? 1.5 : 0.0) + 0.6 * U.FrontDown();
+    if (U.IsBlocked() && this.MonAt(1 - Side, Col)) V -= 0.3 * A;
+    V += AiTurnFxVal(U.Live(D.TurnStart)) + AiTurnFxVal(U.Live(D.TurnEnd));
+    if (U.Live(D.OnAttack).K !== fx_kind.None || U.Live(D.OnKill).K !== fx_kind.None || U.Live(D.OnHeal).K !== fx_kind.None || U.Live(D.AllySum).K !== fx_kind.None) V += 1.0;
+    if (U.Count > 0 && U.Live(D.CdFx).K !== fx_kind.None) V += 1.5;
+    // (プレゼント箱: it breaks by itself soon)
+    const Life = this.AiLife(U);
+    if (Life <= 1) V *= 0.35; else if (Life === 2) V *= 0.7;
+    if (U.Frozen && !U.Thaw) V -= 0.5 * A;
+    // its death effect still comes (cards in the hand now are worth a little more than cards later)
+    V += 0.75 * (AiDeathFxVal(U.Live(D.Death)) + AiDeathFxVal(U.Live(D.Death2)));
+    return V;
+  }
+
+  // the damage a monster can deal to the enemy player in its owner's next turn
+  AiThreat(Side, Col, U) {
+    if (U.Frozen && !U.Thaw) return 0;
+    if (U.IsBlocked() && this.MonAt(1 - Side, Col)) return 0;
+    return this.EffAtk(Side, Col, U) * (U.HasTwoActs() ? 2 : 1);
+  }
+
+  // the own hand (a card made cheaper is worth more)
+  AiHandVal(Who) {
+    let V = 0.0;
+    const Hand = this.S(Who).Hand;
+    for (let I = 0; I < Min(Hand.length, CardMaxHand); I++) {
+      const H = Hand[I];
+      const D = H.Def;
+      V += 1.1 + 0.35 * D.Cost + 0.9 * Max(0, D.Cost - H.Cost) + (D.IsSpell ? 0.3 : 0.0);
+    }
+    return V;
+  }
+
+  // the damage side W's hand (and jewel) can deal to the enemy player with Mana mana (最恐 reads the enemy hand)
+  AiHandBurn(W, Mana) {
+    const Sd = this.S(W);
+    let Left = Mana;
+    let Dm = 0;
+    const H0 = Sd.Hero;
+    if (H0.Jewel.K === fx_kind.HeroAtk && this.JewelCost(W) <= Left) {
+      Dm += H0.Jewel.N;
+      Left -= this.JewelCost(W);
+    }
+    for (const H of Sd.Hand) {
+      const D = H.Def;
+      const B = D.IsSpell ? AiFxBurn(D.Spell) + AiFxBurn(D.Spell2) : (D.Haste ? D.Atk : 0) + AiFxBurn(D.Cry) + AiFxBurn(D.Cry2);
+      if (B > 0 && H.Cost <= Left) {
+        Dm += B;
+        Left -= H.Cost;
+      }
+    }
+    return Dm;
+  }
+
+  // 上級+: what the enemy's area damage next turn may cost (最恐 knows the enemy hand, 上級 guesses)
+  AiAoeRisk(Who, Lv) {
+    const Op = this.S(1 - Who);
+    let N = 0;
+    if (Lv >= 3) {
+      for (const H of Op.Hand) {
+        if (H.Cost > Op.MaxMana + 1) continue;
+        const D = H.Def;
+        for (const F of D.IsSpell ? [D.Spell, D.Spell2] : [D.Cry, D.Cry2]) {
+          const K = F.K;
+          if (K === fx_kind.HitAllFoes || K === fx_kind.HitAllEnemies || K === fx_kind.HitAllMonsters || K === fx_kind.HitAllOthers) N = Max(N, F.N);
+          else if (K === fx_kind.DebuffAllFoes) N = Max(N, F.M);
+        }
+      }
+    } else if (Op.Hand.length >= 3 && Op.MaxMana >= 3) {
+      N = 2;
+    }
+    if (N <= 0) return 0.0;
+    let Lost = 0.0, Count = 0;
+    for (let C = 0; C <= 2; C++) {
+      const U = this.MonAt(Who, C);
+      if (U && U.Hp <= N && !U.Barrier && !U.Invincible) {
+        Lost += this.AiUnitVal(Who, C, U);
+        Count += 1;
+      }
+    }
+    // (losing one monster is normal; it is about playing more into the same blow)
+    if (Count < 2) return 0.0;
+    return Lost * (Lv >= 3 ? 0.45 : 0.15);
+  }
+
+  // can a spell card do something useful now (some target with a positive score)?
+  AiSpellUseful(Who, D) {
+    for (const T of this.AllTargets()) {
+      if (!this.FxTargetOk(Who, D.Spell, T)) continue;
+      const S2 = D.Spell2.K !== fx_kind.None ? this.FxScore(Who, D.Spell2, FxTarget(D.Spell2.K) > 0 ? T : this.Hero(Who), 0.0) * 0.8 : 0.0;
+      if (this.FxScore(Who, D.Spell, T, 0.0) + S2 + this.HarmScore(Who, D) > 0.5) return true;
+    }
+    return false;
+  }
+
+  AiJewelUseful(Who) {
+    for (const T of this.AllTargets()) if (this.JewelOk(Who, T) && this.FxScore(Who, this.S(Who).Hero.Jewel, T, 0.0) > 0.5) return true;
+    return false;
+  }
+
+  // what the rest of this turn can still add: the cards that can still be played (the best set for the mana and the
+  // free slots) and the attacks left
+  AiPot(Who) {
+    const Me2 = this.S(Who);
+    const O = 1 - Who;
+    const Op = this.S(O);
+    const Free = this.EmptySlots(Who).length;
+    const Cost = [], Slot = [], Val = [];
+    for (const H of Me2.Hand) {
+      if (H.Cost > Me2.Mana) continue;
+      const D = H.Def;
+      if (D.IsSpell) {
+        if (Me2.SpellLock || !this.AiSpellUseful(Who, D)) continue;
+      } else if (Free === 0) continue;
+      Cost.push(H.Cost);
+      Slot.push(D.IsSpell ? 0 : 1);
+      Val.push(0.3 + 0.25 * D.Cost);
+    }
+    if (!Me2.JewelUsed && this.JewelCost(Who) <= Me2.Mana && this.AiJewelUseful(Who)) {
+      Cost.push(this.JewelCost(Who));
+      Slot.push(FxTarget(Me2.Hero.Jewel.K) === 4 ? 1 : 0);
+      Val.push(0.4);
+    }
+    let P = AiBestSet(Cost, Slot, Val, Me2.Mana, Free);
+    const Fr = AiFaceRate(Op.Hp + Op.Shield);
+    const Taunt = this.HasTaunt(O);
+    const Foes = Op.Units().length > 0;
+    for (let C = 0; C <= 2; C++) {
+      const U = this.MonAt(Who, C);
+      if (!U || !U.CanAct) continue;
+      const Hits = (U.HasTwoActs() && !U.ExtraUsed) ? 2 : 1;
+      const A = this.EffAtk(Who, C, U);
+      if (!Taunt && !U.Sleeping && !(U.IsBlocked() && this.MonAt(O, C))) P += 0.8 * A * Fr * Hits;
+      else if (Foes) P += 0.3 * A * Hits;
+    }
+    if (Me2.HeroAtk > 0 && !Me2.HeroDone) P += Taunt ? 0.3 * Me2.HeroAtk : 0.8 * Me2.HeroAtk * Fr;
+    return P;
+  }
+
+  // how good the position is for side Who (Pot: + what the rest of this turn can still add)
+  AiEval(Who, Lv, Pot) {
+    if (this.Ended) return this.Winner === Who ? 10000.0 : this.Winner < 0 ? -5000.0 : -10000.0;
+    const O = 1 - Who;
+    const Me2 = this.S(Who);
+    const Op = this.S(O);
+    let E = AiHpVal(Me2.Hp + Me2.Shield) - AiHpVal(Op.Hp + Op.Shield);
+    let MyAtk = 0, OpAtk = 0, MyWall = 0, OpWall = 0;
+    for (let C = 0; C <= 2; C++) {
+      const U = At(Me2.Board, C);
+      if (U && U.Def.Amulet) E += 0.8 + 0.6 * U.Def.Cost;
+      else if (U) {
+        E += this.AiUnitVal(Who, C, U);
+        MyAtk += this.AiThreat(Who, C, U);
+        if (U.Taunt && !U.Hidden()) MyWall += Max(1, U.Hp);
+      }
+      const X = At(Op.Board, C);
+      if (X && X.Def.Amulet) E -= 0.8 + 0.6 * X.Def.Cost;
+      else if (X) {
+        E -= this.AiUnitVal(O, C, X);
+        OpAtk += this.AiThreat(O, C, X);
+        if (X.Taunt && !X.Hidden()) OpWall += Max(1, X.Hp);
+      }
+    }
+    E += this.AiHandVal(Who) - 1.7 * Min(Op.Hand.length, CardMaxHand);
+    E += Me2.EvoLeft * (Me2.Turns >= 9 ? 1.0 : 2.6);
+    if (Me2.Deck.length === 0) E -= 0.8 * (Me2.Fatigue + 1);
+    // the enemy's next turn: can it kill this side? (最恐 reads the enemy hand)
+    const Burn = Lv >= 3 ? this.AiHandBurn(O, Min(CardMaxMana, Op.MaxMana + 1)) : Min(Op.Hand.length, 3) * 0.7;
+    const Reach = Max(0, OpAtk - MyWall) + Burn;
+    const MyHp = Me2.Hp + Me2.Shield;
+    if (Reach >= MyHp) E -= 15.0 + 2.0 * (Reach - MyHp);
+    else if (Reach + 3 >= MyHp) E -= 3.0;
+    // this side's threat for its next turn
+    if (MyAtk - OpWall >= Op.Hp + Op.Shield) E += 4.0;
+    if (Lv >= 2) E -= this.AiAoeRisk(Who, Lv);
+    if (Pot) E += this.AiPot(Who);
+    return E;
+  }
+
+  // the next action of an AI side (null: end the turn)
+  async AiNext(Who) {
+    const Lv = this.S(Who).AiLevel;
+    const Acts = this.Actions(Who);
+    if (Acts.length === 0) return null;
+    const Know = Lv >= 3;
+    // (the copies get their own numbers from the real Rng's state: reading it doesn't advance it)
+    const Seed = Know ? this.Rng.State() : ((this.Rng.State() ^ 0x5bd1e995) >>> 0);
+    const Now0 = this.AiEval(Who, Lv, false);
+    const NowP = this.AiEval(Who, Lv, true);
+    if (Lv <= 0) return await this.AiNextEasy(Who, Acts, Seed, Now0, NowP);
+    if (Lv >= 2) {
+      const L = await this.AiKillLine(Who, Lv, Know, Seed);
+      if (L) return L;
+    }
+    let Sc = [];
+    for (const A of Acts) {
+      const M = await this.AiTry(Who, A, Know, Seed);
+      if (!M) continue;
+      if (M.Ended && M.Winner === Who) return A;
+      let V = M.AiEval(Who, Lv, true);
+      // 上級: an action with a random result is looked at twice
+      if (Lv === 2 && M.AiRandom()) {
+        const M2 = await this.AiTry(Who, A, Know, (Seed + 7919) >>> 0);
+        if (M2) V = (V + M2.AiEval(Who, Lv, true)) * 0.5;
+      }
+      Sc.push({ V, V2: V, A, M });
+    }
+    if (Sc.length === 0) return null;
+    Sc.sort((X, Y) => Y.V - X.V);
+    // 上級+: the best follow-up of the most promising actions (the order of the plays and attacks)
+    if (Lv >= 2) {
+      // (the number of copies is bounded: a turn stays quick on a phone)
+      const K = Min(Sc.length, Lv >= 3 ? 8 : 5);
+      const St = { Left: Lv >= 3 ? 400 : 250 };
+      for (let I = 0; I < K && St.Left > 0; I++) {
+        const X = Sc[I];
+        if (X.M.Ended) continue;
+        let B2 = -1.0e9;
+        for (const B of X.M.Actions(Who)) {
+          if (St.Left <= 0) break;
+          St.Left -= 1;
+          const M2 = await X.M.AiTry(Who, B, true, X.M.Rng.State());
+          if (!M2) continue;
+          const V2 = M2.AiEval(Who, Lv, true);
+          if (V2 > B2) B2 = V2;
+        }
+        X.V2 = Max(X.V, B2 - 0.2);
+      }
+      Sc.sort((X, Y) => Y.V2 - X.V2);
+    }
+    // 上級+: among the best few (that are worth doing at all), the one that is still best after the rest of this turn
+    // and the enemy's whole reply are played out (上級: 3 of them, the enemy hand unknown = dealt again; 最恐: 8, the
+    // enemy's real hand, both real decks and the real random numbers)
+    if (Lv >= AiRollLv) {
+      let BestR = -1.0e9, Pick = null;
+      for (let I = 0; I < Min(Sc.length, Lv >= 3 ? AiRollK : 3); I++) {
+        const X = Sc[I];
+        if (!(X.V2 > Now0 + 0.3 && X.V2 >= NowP - 1.0)) continue;
+        const R = (await this.AiRollout(Who, X.M, Lv)) + AiRollW * X.V2;
+        if (R > BestR) {
+          BestR = R;
+          Pick = X;
+        }
+      }
+      return Pick ? Pick.A : null;
+    }
+    const Best = Sc[0];
+    // (only when it is better than ending the turn now, and doesn't throw away what the turn could still do)
+    if (Best.V2 > Now0 + 0.3 && Best.V2 >= NowP - 1.0) return Best.A;
+    return null;
+  }
+
+  // the classic choice of side W, whatever its level (the look-ahead plays the rest of a turn with it)
+  AiClassic(W) {
+    let Best = null;
+    let BestScore = 0.0;
+    for (const A of this.Actions(W)) {
+      const Sc = this.ScoreAct(W, A);
+      if (Sc > BestScore) {
+        BestScore = Sc;
+        Best = A;
+      }
+    }
+    return Best;
+  }
+
+  // 上級+: the value (for Who) after the rest of Who's turn and the enemy's next turn are played out on a copy of M0
+  // (both with the classic choice: cheap)
+  async AiRollout(Who, M0, Lv) {
+    const O = 1 - Who;
+    try {
+      const M = M0.AiClone(true, M0.Rng.State());
+      AiSims += 1;
+      for (let I = 0; I < 12 && !M.Ended; I++) {
+        const A = M.AiClassic(Who);
+        if (!A) break;
+        await M.Exec(Who, A);
+      }
+      if (!M.Ended) await M.EndTurn(Who);
+      if (!M.Ended) {
+        M.Current = O;
+        await M.StartTurn(O);
+      }
+      for (let I = 0; I < 12 && !M.Ended; I++) {
+        const A = M.AiClassic(O);
+        if (!A) break;
+        await M.Exec(O, A);
+      }
+      if (!M.Ended) await M.EndTurn(O);
+      return M.AiEval(Who, Lv, false);
+    } catch (e) {
+      console.error('AI look-ahead failed', e);
+      return -1.0e9;
+    }
+  }
+
+  // 初級: the classic choice, minus the plays that do nothing or blunder (a few next best ones are tried instead)
+  async AiNextEasy(Who, Acts, Seed, Now0, NowP) {
+    const Cands = [];
+    for (const A of Acts) {
+      const Sc = this.ScoreAct(Who, A);
+      if (Sc > 0.0) Cands.push([Sc, A]);
+    }
+    Cands.sort((X, Y) => Y[0] - X[0]);
+    for (let I = 0; I < Min(4, Cands.length); I++) {
+      const A = Cands[I][1];
+      const M = await this.AiTry(Who, A, false, Seed);
+      if (!M) continue;
+      if (M.Ended) {
+        if (M.Winner === Who) return A;
+        continue;
+      }
+      const V = M.AiEval(Who, 0, true);
+      if (V > Now0 - 0.5 && V >= NowP - 3.0) return A;
+    }
+    return null;
+  }
+
+  // 上級+: a line of actions that wins this turn (attacks, burn, removal of a 挑発, buffs...): its first action or null
+  async AiKillLine(Who, Lv, Know, Seed) {
+    const Me2 = this.S(Who);
+    const Op = this.S(1 - Who);
+    // (only searched when the damage that could reach the enemy player is near enough)
+    let Bound = this.AiFacePot(Who) + 4;
+    for (const H of Me2.Hand) if (!H.Def.IsSpell && H.Def.Haste && H.Cost <= Me2.Mana) Bound += H.Def.Atk;
+    if (Bound < Op.Hp + Op.Shield) return null;
+    const St = { Left: Lv >= 3 ? 300 : 200 };
+    return await this.AiKillDfs(Who, 5, St, Know, Seed);
+  }
+
+  async AiKillDfs(Who, Depth, St, Know, Seed) {
+    for (const A of this.AiAggro(Who)) {
+      if (St.Left <= 0) return null;
+      St.Left -= 1;
+      const M = await this.AiTry(Who, A, Know, Seed);
+      if (!M) continue;
+      if (M.Ended) {
+        if (M.Winner === Who) return A;
+        continue;
+      }
+      if (Depth > 1 && await M.AiKillDfs(Who, Depth - 1, St, true, M.Rng.State())) return A;
+    }
+    return null;
+  }
+
+  // the actions that can bring the enemy player down this turn (hits on the player first)
+  AiAggro(Who) {
+    const Face = [], Rest = [];
+    for (const A of this.Actions(Who)) {
+      if (A.Kind === 2 || A.Kind === 6) {
+        if (A.Dst.Col < 0) Face.push(A);
+        else {
+          const T = this.MonAt(1 - Who, A.Dst.Col);
+          if (T && T.Taunt) Rest.push(A);
+        }
+      } else if (A.Kind === 4 || A.Kind === 7) Rest.push(A);
+      else if (A.Kind === 1) {
+        const H = At(this.S(Who).Hand, A.Src);
+        if (H && (H.Def.IsSpell || H.Def.Haste || H.GotKw === KwHaste || H.Def.Cry.K !== fx_kind.None)) Rest.push(A);
+      }
+    }
+    return [...Face, ...Rest];
+  }
+
   async NpcTurn(Who) {
-    await Sleep(0.6);
+    await this.Wait(0.6);
     let Steps = 0;
     for (;;) {
       if (this.Ended || Steps > 30) break;
-      const A = this.BestAct(Who);
+      let A = null;
+      try {
+        A = await this.AiNext(Who);
+      } catch (e) {
+        // (the look-ahead must never stop a match: the classic choice instead)
+        console.error('AI failed', e);
+        A = this.BestAct(Who);
+      }
       if (A) {
         await this.Exec(Who, A);
         Steps += 1;
-        await Sleep(0.55);
+        await this.Wait(0.55);
       } else {
         break;
       }
     }
-    await Sleep(0.4);
+    await this.Wait(0.4);
   }
 
   // ------------------------------------------------------------ whole match
@@ -3797,7 +4372,7 @@ class card_match {
       const R = await this.Decide(Who, async () => await this.ViewOf(Who).Mulligan(Cards, this.MullSeconds), Cards.map(() => false));
       return Array.isArray(R) ? Cards.map((D, I) => !!R[I]) : Cards.map(() => false);
     }
-    if (this.S(Who).AiLevel >= 2) return this.AiMull(Cards);
+    if (this.S(Who).AiLevel >= 1) return this.AiMull(Cards);
     return Cards.map(D => D.Cost >= 5);
   }
 
@@ -3831,14 +4406,14 @@ class card_match {
     for (const [, V] of this.Vs()) V.ClearLog();
     this.Refresh();
     for (const [W, V] of this.Vs()) V.Banner(TxVs(this.S(W).HName(), this.S(1 - W).HName()));
-    await Sleep(1.3);
+    await this.Wait(1.3);
     // a coin toss shows who goes first (every player sees the same toss from their own side)
     if (!this.Tut && !this.AutoPlay) {
       for (const [W, V] of this.Vs()) {
         const MeFirst = W === this.First;
         spawn(() => V.CoinToss(MeFirst));
       }
-      await Sleep(4.6);
+      await this.Wait(4.6);
     }
     this.Log(TlStart);
     // opening hands are dealt from the decks
@@ -3850,7 +4425,7 @@ class card_match {
       V.Say(this.First === W ? TnFirst : TnSecond);
       V.Toast(this.First === W ? TxYouFirst : TxYouSecond, 2.0);
     }
-    await Sleep(1.2);
+    await this.Wait(1.2);
     // mulligan (both players at the same time; none in the tutorial)
     if (!this.Tut) {
       const Swaps = await Race(Promise.all([this.MullFor(0), this.MullFor(1)]), this.EndP.then(() => null));
@@ -3880,7 +4455,7 @@ class card_match {
     for (const [, V] of this.Vs()) V.TutShow(false);
     this.Finished = true;
     for (const [W, V] of this.Vs()) spawn(() => V.FxMatchEnd(this.Winner === W ? 1 : this.Winner < 0 ? 0 : -1, this.Reason === EndHp));
-    await Sleep(this.Reason === EndHp ? 2.0 : 1.4);
+    await this.Wait(this.Reason === EndHp ? 2.0 : 1.4);
     return this.Winner;
   }
 
@@ -3899,9 +4474,9 @@ class card_match {
     const N0 = A.Hand.length;
     for (const Idx of Back) {
       for (const [X, V] of this.Vs()) spawn(() => V.FxReturn(X === W ? 0 : 1, Idx, N0));
-      await Sleep(0.28);
+      await this.Wait(0.28);
     }
-    await Sleep(0.2);
+    await this.Wait(0.2);
     const Keep = A.Hand.filter((H, I) => !Back.includes(I));
     const Returned = Back.map(I => At(A.Hand, I)).filter(H => H !== undefined).map(H => H.Def);
     const Pool = this.Rng.Shuffle([...A.Deck, ...Returned]);
@@ -3919,7 +4494,7 @@ class card_match {
       A.Hand = [...A.Hand, MakeHandCard(D)];
       this.Refresh();
     }
-    await Sleep(0.3);
+    await this.Wait(0.3);
   }
 
   Mull(Sd, Swap) {
