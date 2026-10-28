@@ -16,6 +16,8 @@
 //   no such room skips JoinRoom).
 // - V-Bucks gem packs (ids 190-192): `await ComingSoon(B)` (shop.js) instead of the Epic purchase.
 // - TxAgent(P) → P.Name.
+// - (10/28) 遊び方 and the "get!" pop-up close with a tap anywhere (board.js MakeTapDim; ShowGain ends early on a tap);
+//   the collection's card help gets smaller / scrolls instead of running over the プレミア化 button (kit FitTextBox).
 'use strict';
 
 // a menu click area: dragging means nothing in the menus
@@ -224,6 +226,8 @@ const SetBackClose = 639;
 const MenuTitleIds = [100, 101, 106, 107, 108, 102, 103, 119, 109, 104, 105, 120, 124, 1750];
 const CollPer = 24;
 const CollCols = 8;
+// (web) the smallest text size of the collection's card help (kit FitTextBox; longer ones scroll)
+const CollHelpMin = 12.0;
 
 class card_menus {
   constructor(o) {
@@ -1521,6 +1525,8 @@ class card_menus {
       this.CollPrem.Face.SetTint(CGrey);
       Show(this.CollPrem.Glow, false);
     }
+    // (web) a long help (summoned cards' details ...) stays above the プレミア化 button: smaller text, then it scrolls
+    FitTextBox(this.CollHelp, CollHelpMin);
   }
 
   // プレミア化: the picked card uses its spare copies (the picked copy stays) and turns round in a show
@@ -2073,12 +2079,16 @@ class card_menus {
     B.Layer(this.GainSlot, true);
     try {
       B.Snd(SfxCoin);
+      // (web) a tap anywhere closes it at once
+      let Tapped = false;
+      const Tap = this.GainTap.Clicked.Await().then(() => { Tapped = true; });
       for (let K = 1; K <= 8; K++) {
+        if (Tapped) break;
         const Sz = K === 7 ? 190.0 : K === 8 ? 160.0 : 25.0 * (K * 1.0);
         this.GIcon.SetDesiredSize(V2(Sz, Sz));
         await Sleep(0.03);
       }
-      await Sleep(1.6);
+      if (!Tapped) await Race(Sleep(1.6), Tap);
     } finally {
       B.Layer(this.GainSlot, false);
     }
@@ -2817,7 +2827,8 @@ function MakeMenus(B, Lobby, Lib) {
   const RC = MBtn(B, 72, BtnGold, TbClose, 810.0, 940.0, 300.0, 76.0, 30.0);
   const RulesRoot = new canvas({
     Slots: [
-      MakeOverlayDim(0.7),
+      // (web) a tap anywhere = とじる
+      MakeTapDim(B.Hub, 72, 0.7),
       RBox(Tex(CardGui.T_PanelLog, 1240.0, 880.0), 340.0, 50.0, 1240.0, 880.0, 1),
       RPin(OText(TmRules, 40.0, CGold, CInk).Root, 960.0, 112.0, 2),
       RBox(TxtWrap(TmRulesText, 19.0, CBrown, 1120.0), 400.0, 152.0, 1120.0, 770.0, 2),
@@ -2869,9 +2880,11 @@ function MakeMenus(B, Lobby, Lib) {
   const GIcon = Tex(CardGui.T_Coin, 160.0, 160.0);
   const GAmt = OText(TxEmpty, 44.0, CWhite, CInk);
   const GSub = OText(TxEmpty, 26.0, CGreen, CInk);
+  // (web) a tap anywhere closes it at once (ShowGain awaits GainTap)
+  const GainDim = MakeTapDim(B.Hub, null, 0.6);
   const GainRoot = new canvas({
     Slots: [
-      MakeOverlayDim(0.6),
+      GainDim,
       RBox(Tex(CardGui.T_PanelMsg, 900.0, 560.0), 510.0, 330.0, 900.0, 560.0, 1),
       RBox(Tex(CardGui.T_Banner, 1000.0, 154.0), 460.0, 300.0, 1000.0, 154.0, 2),
       RPin(GTitle.Root, 960.0, 372.0, 3),
@@ -2983,6 +2996,7 @@ function MakeMenus(B, Lobby, Lib) {
     PPic, PName, PLv, PXp, PXpTxt, PCoins, PGems, PStats, PId,
     ResultCanvas, RWin, RLose, RDraw, RReason, RGain, RLevel, RAgainSlot,
     GTitle, GIcon, GAmt, GSub, RXpBar, RXpLv, RXpGain, RXpNum, RLvUp,
+    GainTap: GainDim.Widget,
     VsSlot, VsCanvas, VsMePic, VsFoePic, VsMark, VsRing, VsMe, VsFoe, VsMeTitle, VsFoeTitle, VsMeBadges, VsFoeBadges,
     PTitle, PBadges, TutAskSlot,
   });

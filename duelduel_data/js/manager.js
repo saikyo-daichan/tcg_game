@@ -69,6 +69,8 @@ class card_game_device {
     const M = Me.Menus;
     if (DebugAutoPlay) { await this.AutoLoop(Me); return; }
     // the tutorial is offered once; then the login bonus and the hour bonus open by themselves
+    // (web: a brand-new player doesn't need the アップデート情報)
+    const Fresh = !CardTutorialOffered(Me.P);
     if (!CardTutorialOffered(Me.P)) {
       M.ShowTitle();
       const Yes = await M.TutorialAsk();
@@ -83,6 +85,12 @@ class card_game_device {
     if (CardHourReady(Me.P)) {
       M.ShowTitle();
       await M.Login();
+    }
+    // (web) news.js: the notes of the update, once per version
+    if (Fresh) NewsMarkSeen();
+    else if (!NewsSeen()) {
+      M.ShowTitle();
+      await NewsMaybeShow();
     }
     while (true) {
       try {
@@ -264,7 +272,7 @@ class card_game_device {
         const Won = W === 0, Lost = W === 1;
         const Early = !Match.FirstTurnDone;
         const G = CardGiveMatch(Me.P, false, Won, Lost, Match.Reason, Early, Match.Rounds(), Match.Me.Summons, Match.Me.Jewels, Level);
-        CardMatchStats(Me.P, false, Mode, Mine.Id, Won, Lost, Early);
+        CardMatchStats(Me.P, false, Mode, Mine.Id, Won, Lost, Early, CardMatchFacts(Match, 0));
         // a win against 最恐 (the 「最恐討伐者」 achievement)
         if (Won && Level === CardAiNightmare) {
           const E = CardEdit(Me.P);
@@ -392,7 +400,7 @@ class card_game_device {
     AbortFlows();
     Print(`card pvp result won=${Res.Won} lost=${Res.Lost} reason=${Res.Reason}`);
     const G = CardGiveMatch(Me.P, true, Res.Won, Res.Lost, Res.Reason, Res.Early, Res.Rounds, Res.Summons, Res.Jewels);
-    CardMatchStats(Me.P, Res.IsRandom, Res.Mode, Res.Hero, Res.Won, Res.Lost, Res.Early);
+    CardMatchStats(Me.P, Res.IsRandom, Res.Mode, Res.Hero, Res.Won, Res.Lost, Res.Early, Res.Facts);
     Me.Menus.CloseAll();
     await Me.Menus.Result(Res.Won, Res.Lost, Res.Reason, Res.Early, true, G);
   }

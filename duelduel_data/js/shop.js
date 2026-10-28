@@ -3,7 +3,7 @@
 // offers, CardGemOffer) are not ported. CardBuyGemPack buys nothing (false) and CardRedeemGems adds nothing (0);
 // the menus call ComingSoon(B) where Verse opened Epic's purchase screen.
 // ComingSoon(B) (new, not a Verse name): a small pop-up on the board_ui Root 「Coming soon」 / 「V-Bucksでの購入は準備中です」
-// with an OK button (click id 1196, waited for with B.Pick like the other pop-ups; Esc = OK).
+// with an OK button (click id 1196, waited for with B.Pick like the other pop-ups; Esc = OK; a tap anywhere = OK).
 'use strict';
 
 const TsGem100 = "ジェム 100個";
@@ -43,7 +43,8 @@ function MakeComingSoonSlot(B) {
   const Ok = MBtn(B, ShopComingSoonId, BtnGold, TbOk, 810.0, 640.0, 300.0, 86.0, 34.0);
   const Cv = new canvas({
     Slots: [
-      MakeOverlayDim(0.75),
+      // (web) a tap anywhere = OK
+      MakeTapDim(B.Hub, ShopComingSoonId, 0.75),
       RBox(Tex(CardGui.T_PanelLog, 900.0, 520.0), 510.0, 280.0, 900.0, 520.0, 1),
       RBox(Tex(CardGui.T_Banner, 760.0, 130.0), 580.0, 320.0, 760.0, 130.0, 2),
       RPin(OText(TsComingSoon, 64.0, CGold, CRed).Root, 960.0, 385.0, 3),

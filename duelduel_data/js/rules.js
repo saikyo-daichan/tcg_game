@@ -44,6 +44,10 @@ function RuWith(Arr, I, V) {
 const RuDecAct = 1, RuDecEnd = 2, RuDecTimeout = 3, RuDecSurrender = 4;
 // the value of a Decide that gave up because the match is over
 const RuGaveUp = { GaveUp: true };
+// (web) one side's achievement counters of a match (card_match.Feats): HP lost, the lowest HP, HP healed (asked amounts),
+// the biggest single attack, the damage to the enemy player / enemy monsters destroyed in the own turn (now / best),
+// the card id of the monster whose attack beat the enemy player (-1: none)
+function RuFeatNew() { return { Taken: 0, LowHp: 999, Healed: 0, BigHit: 0, TurnFace: 0, BestTurnFace: 0, TurnKills: 0, BestTurnKills: 0, Finisher: -1 }; }
 
 class unit {
   constructor(o = {}) {
@@ -72,6 +76,7 @@ class unit {
     this.PlayedCost = o.PlayedCost ?? 0;    // the mana it was played for (shown on its details)
     this.Prem = o.Prem ?? 0;                // プレミア level of its owner's card (sparkles / animated art)
     this.Silenced = o.Silenced ?? false;    // 効果消滅: its card's effects and keywords are gone
+    this.AuraHp = o.AuraHp ?? 0;            // (web) the HP it has from おさるの和尚 next to it (card_match.ApplyAuras)
   }
 
   // the enemy can't pick it (attacks, spells, effects)
@@ -319,6 +324,7 @@ const FxShowTick = 8;
 const FxShowHeal = 9;
 const FxShowEvo = 10;
 const FxShowAlly = 11;
+const FxShowEnter = 12;
 
 // why a match ended: 0 a player's HP reached 0, 1 surrender, 2 a player left
 const EndHp = 0;
@@ -365,7 +371,36 @@ class card_match {
     this.FxBaseCost = -1;
     // the AI's look-ahead copy of a match (AiClone): no screens, no waiting
     this.Sim = false;
+    // (web) what each side did in this match, for the achievements (Feat* below, achieve.js CardMatchFacts)
+    this.Feats = [RuFeatNew(), RuFeatNew()];
   }
+
+  // ------------------------------------------------------------ (web) achievement counters; a look-ahead copy counts nothing
+  // side W's player lost Dealt HP (shield not counted); a loss in the enemy's turn is that turn's damage for the enemy
+  FeatHp(W, Dealt) {
+    if (this.Sim || Dealt <= 0) return;
+    const F = this.Feats[W], O = this.Feats[1 - W];
+    F.Taken += Dealt;
+    F.LowHp = Min(F.LowHp, this.S(W).Hp);
+    if (this.Current === 1 - W) { O.TurnFace += Dealt; O.BestTurnFace = Max(O.BestTurnFace, O.TurnFace); }
+  }
+  // one attack of side W dealt Dealt; Fin = the card id of the monster whose attack beat the enemy player (-1: none)
+  FeatHit(W, Dealt, Fin) {
+    if (this.Sim) return;
+    const F = this.Feats[W];
+    F.BigHit = Max(F.BigHit, Dealt);
+    if (Fin >= 0) F.Finisher = Fin;
+  }
+  // side W's player was healed N (the asked amount: a player at full HP counts too)
+  FeatHeal(W, N) { if (!this.Sim && N > 0) this.Feats[W].Healed += N; }
+  // a monster of side W was destroyed: one more for the side whose turn it is (when it is the enemy's)
+  FeatKill(W) {
+    if (this.Sim || this.Current !== 1 - W) return;
+    const F = this.Feats[1 - W];
+    F.TurnKills += 1;
+    F.BestTurnKills = Max(F.BestTurnKills, F.TurnKills);
+  }
+  FeatTurn(W) { if (!this.Sim) { this.Feats[W].TurnFace = 0; this.Feats[W].TurnKills = 0; } }
 
   // every pause of the match (a look-ahead copy never waits)
   Wait(S) { return this.Sim ? AiNoWait : Sleep(S); }
@@ -516,7 +551,37 @@ class card_match {
 
   // ------------------------------------------------------------ what every screen shows
   // Refresh only marks the screens; RefreshLoop redraws them once per frame (many changes in a row cost one redraw)
-  Refresh() { this.Dirty = true; }
+  // (web) every change of the board comes through here, so the auras (おさるの和尚) follow the board at once
+  Refresh() { this.ApplyAuras(); this.Dirty = true; }
+
+  // おさるの和尚: the ally monsters next to it have +AdjHp HP. Losing the aura lowers the max HP; the HP only goes down
+  // as far as the new max (a monster never dies from it)
+  ApplyAuras() {
+    for (let W = 0; W <= 1; W++) {
+      const Sd = this.S(W);
+      if (!Sd) continue;
+      const B = Sd.Board;
+      for (let C = 0; C <= 2; C++) {
+        const U = B[C];
+        if (!U || U.Def.Amulet) continue;
+        let Want = 0;
+        for (const C2 of [C - 1, C + 1]) {
+          const X = B[C2];
+          if (X && !X.Def.Amulet && !X.Silenced && X.Def.AdjHp > 0) Want += X.Def.AdjHp;
+        }
+        const Was = U.AuraHp ?? 0;
+        if (Want === Was || (Want > Was && U.Hp <= 0)) continue;
+        U.AuraHp = Want;
+        if (Want > Was) {
+          U.Hp += Want - Was;
+          U.MaxHp += Want - Was;
+        } else {
+          U.MaxHp = Max(1, U.MaxHp - (Was - Want));
+          U.Hp = Min(U.Hp, U.MaxHp);
+        }
+      }
+    }
+  }
 
   RefreshNow() {
     this.Dirty = false;
@@ -644,11 +709,17 @@ class card_match {
   }
 
   // can effect F of side Who be aimed at T? (effects without a target use the own player as their target)
-  FxTargetOk(Who, F, T) {
+  // Spell: F is a spell's effect (シロナガスクジラ can't be picked by spells)
+  FxTargetOk(Who, F, T, Spell = false) {
     const R = FxTarget(F.K);
     if (R === 0) return T.Side === Who && T.Col === -1;
     if (R === 4) return T.Side === Who && this.CellEmpty(Who, T.Col);
     if (R !== 8 && R !== 9 && T.Col < 0) return false;
+    if (Spell && T.Col >= 0) { const Us = this.MonAt(T.Side, T.Col); if (Us && !Us.Silenced && Us.Def.NoSpellTarget) return false; }
+    // 11 an own monster or amulet (the monster with the effect itself is not on the board yet / is skipped by DoFx)
+    if (R === 11) return T.Side === Who && !!At(this.S(Who).Board, T.Col);
+    // (web) a keyword that would fail (挑発 / 潜伏 / 無敵 / 威圧 already there) or that it already has: not a target
+    if (F.K === fx_kind.GiveKw) { const Uk = this.MonAt(T.Side, T.Col); if (Uk && (this.KwBlocked(Uk, F.N) || this.HasKw(Uk, F.N))) return false; }
     // amulets: 6 an own amulet whose countdown can still go down, 7 any amulet
     if (R === 6) { if (T.Side === Who) { const U = this.AmuletAt(Who, T.Col); if (U && U.Count > 0) return true; } return false; }
     if (R === 7) return !!this.AmuletAt(T.Side, T.Col);
@@ -690,7 +761,7 @@ class card_match {
   }
 
   // a spell is only played on a legal target (its own check is FxTargetOk, this also allows targetless spells)
-  AimOk2(Who, F, T) { return this.FxTargetOk(Who, F, T); }
+  AimOk2(Who, F, T) { return this.FxTargetOk(Who, F, T, true); }
 
   // a second target is fine when it is legal, or when nothing could be picked anyway
   AimOk(Who, A, B, T) {
@@ -728,7 +799,7 @@ class card_match {
       if (D.IsSpell) {
         // メデューサ: no spells this turn
         if (A.SpellLock) return false;
-        return this.FxTargetOk(Who, D.Spell, T);
+        return this.FxTargetOk(Who, D.Spell, T, true);
       }
       return T.Side === Who && this.CellEmpty(Who, T.Col);
     }
@@ -1018,7 +1089,8 @@ class card_match {
       const Absorb = Min(Sd.Shield, N);
       Sd.Shield -= Absorb;
       Sd.Hp -= N - Absorb;
-      return [N, Absorb >= N ? TlShielded : TxMinus(N - Absorb)];
+      this.FeatHp(T.Side, N - Absorb);
+      return [N,Absorb >= N ? TlShielded : TxMinus(N - Absorb)];
     }
     const U = At(Sd.Board, T.Col);
     if (U) {
@@ -1061,6 +1133,7 @@ class card_match {
     if (T.Col < 0) {
       Amount = Min(N, Sd.MaxHp - Sd.Hp);
       Sd.Hp += Amount;
+      this.FeatHeal(T.Side, N);
     } else {
       const U = At(Sd.Board, T.Col);
       if (U) {
@@ -1068,7 +1141,8 @@ class card_match {
         U.Hp += Amount;
       }
     }
-    if (Amount <= 0) return;
+    // (web) a player at full HP is still healed (shown +0), so 「回復するたび」 effects go off; a monster at full HP is not
+    if (N <= 0 || (Amount <= 0 && T.Col >= 0)) return;
     this.Refresh();
     this.Snd(SfxHeal);
     this.Vfx(VfxHeal, T);
@@ -1156,6 +1230,19 @@ class card_match {
       && !(Code === KwTaunt && U.Taunt) && !(Code === KwStealth && U.Stealth) && !(Code === KwIntimidate && U.Intimidate);
   }
 
+  // does the monster have the keyword already?
+  HasKw(U, Code) {
+    if (Code === KwTaunt) return U.Taunt;
+    else if (Code === KwHaste) return U.Haste;
+    else if (Code === KwRush) return U.Rush || U.Haste;
+    else if (Code === KwDeadly) return U.Deadly;
+    else if (Code === KwDrain) return U.Drain;
+    else if (Code === KwBarrier) return U.Barrier;
+    else if (Code === KwStealth) return U.Stealth;
+    else if (Code === KwIntimidate) return U.Intimidate;
+    return false;
+  }
+
   async GiveKw(T, Code) {
     const U = this.MonAt(T.Side, T.Col);
     if (U) {
@@ -1232,7 +1319,8 @@ class card_match {
       return;
     }
     await this.DrawFx(Who, A.Hand.length, A.Hand.length + 1);
-    A.Hand = [...A.Hand, MakeHandCard(D)];
+    A.Hand = [...A.Hand, MakeHandCard(this.RealDef(D))];
+    this.WildRoll(Who, A.Hand.length - 1);
     this.SndTo(Who, SfxDraw);
     this.Refresh();
   }
@@ -1251,6 +1339,7 @@ class card_match {
         this.SndTo(Who, SfxDraw);
         await this.DrawFx(Who, A.Hand.length, A.Hand.length + 1);
         A.Hand = [...A.Hand, MakeHandCard(D)];
+        this.WildRoll(Who, A.Hand.length - 1);
         this.Refresh();
       }
     } else {
@@ -1264,11 +1353,13 @@ class card_match {
   async Summon(Who, Col, D) { return await this.SummonCost(Who, Col, D, D.Cost); }
 
   // Cost: the mana it was played for (shown on its details when it was lowered)
-  async SummonCost(Who, Col, D, Cost) {
+  async SummonCost(Who, Col, D0, Cost) {
     const A = this.S(Who);
+    // ラッパうさぎ summoned straight from the grave / deck: its numbers are rolled now
+    const D = D0.Wild ? this.WildCard(D0) : D0;
     const U = MakeUnit(D);
     U.PlayedCost = Cost;
-    U.Prem = A.PremOf(D.Id);
+    U.Prem = A.PremOf(this.RealDef(D).Id);
     // an amulet never acts
     U.Sleeping = (D.Haste || D.Amulet) ? false : true;
     U.CanAct = D.Amulet ? false : (D.Haste || D.Rush) ? true : false;
@@ -1294,7 +1385,42 @@ class card_match {
         else if (F.K === fx_kind.BuffSelf) await this.Buff(New1, F.N, F.M);
       }
     }
+    // (web) みかん: 「場に出たとき」 goes off however it came (played or summoned)
+    if (U.Def.OnEnter.K !== fx_kind.None && !this.Ended && this.OnBoard(Who, Col, U)) {
+      await this.FxShow(Who, Col, U.Def, FxShowEnter);
+      await this.DoFx(Who, Col, U.Def.OnEnter, this.Hero(Who));
+      this.CheckOver();
+    }
     return U;
+  }
+
+  // ------------------------------------------------------------ (web) ラッパうさぎ
+  // the card that goes to the grave / hand / deck for D (a rolled ラッパうさぎ goes back to the ? card)
+  RealDef(D) { return D.WildOf >= 0 ? (this.CardOf(D.WildOf) ?? D) : D; }
+
+  // a rolled version of the Wild card D: cost = attack = HP = 1..9 (CardWildIds in cards_web.js)
+  WildCard(D) {
+    const N = this.Rng.Int(1, 9);
+    return this.CardOf(CardWildId(D.Id, N)) ?? D;
+  }
+
+  // the Wild cards of side Who's hand get new numbers (Only >= 0: just that hand slot)
+  WildRoll(Who, Only = -1) {
+    const A = this.S(Who);
+    let Any = false;
+    A.Hand.forEach((H, I) => {
+      if (Only >= 0 && I !== Only) return;
+      const Base = H.Def.Wild ? H.Def : H.Def.WildOf >= 0 ? this.CardOf(H.Def.WildOf) : null;
+      if (!Base) return;
+      const R = this.WildCard(Base);
+      // (a discount it got stays: the new cost minus what the old card had less)
+      const Off = H.Def.Wild ? 0 : Max(0, H.Def.Cost - H.Cost);
+      H.Def = R;
+      H.Cost = Max(0, R.Cost - Off);
+      Any = true;
+    });
+    if (Any) this.Refresh();
+    return Any;
   }
 
   // the countdown of the unit in slot C goes Steps further (turn start, or an effect): the tick effect each time,
@@ -1339,11 +1465,12 @@ class card_match {
       Sd.Board = RuWith(Sd.Board, T.Col, null);
       this.Refresh();
       await this.Wait(0.25);
-      if (U.Def.Token && !CardKeptToken(U.Def)) {
+      const Rd = this.RealDef(U.Def);
+      if (Rd.Token && !CardKeptToken(Rd)) {
         this.Log(TlVanished(U.Def.Name));
       } else {
         this.LogBoth(T.Side, TlBounced(U.Def.Name, TxYou), TlBounced(U.Def.Name, TxOpponent));
-        await this.AddToHand(T.Side, U.Def);
+        await this.AddToHand(T.Side, Rd);
       }
     }
   }
@@ -1411,6 +1538,7 @@ class card_match {
     } else if (K === fx_kind.HeroMaxUp) {
       A.MaxHp += N;
       A.Hp += N;
+      this.FeatHeal(Who, N);
       this.Refresh();
       this.Snd(SfxHeal);
       this.Vfx(VfxHeal, Hero(Who));
@@ -1486,11 +1614,12 @@ class card_match {
         if (!(N < CardMaxHand || A.Hand.length < CardMaxHand)) continue;
         const D = F.C <= CardRandomAny ? this.RandomCard(Who, F.C) : this.CardOf(F.C);
         // 首なし令嬢: the copy starts from the mana the destroyed one was played for
-        const Base = (this.FxBaseCost >= 0 && F.C === this.FxSrcId) ? this.FxBaseCost : D.Cost;
         const Before = A.Hand.length;
         await this.AddToHand(Who, D);
         const H = A.Hand.length > Before ? At(A.Hand, A.Hand.length - 1) : undefined;
         if (H) {
+          // (a ラッパうさぎ has its rolled cost already)
+          const Base = (this.FxBaseCost >= 0 && F.C === this.FxSrcId) ? this.FxBaseCost : H.Def.Cost;
           H.Cost = Max(0, Base - F.M);
           if (F.M > 0) this.HandPop(Who, A.Hand.length - 1, TlManaDown(F.M));
         }
@@ -1506,7 +1635,7 @@ class card_match {
       if (U) {
         this.Vfx(VfxSummonBig, Me1);
         A.Board = RuWith(A.Board, Col, null);
-        if (!U.Def.Token) A.Grave = [...A.Grave, U.Def];
+        if (!this.RealDef(U.Def).Token) A.Grave = [...A.Grave, this.RealDef(U.Def)];
         this.Refresh();
         await this.Wait(0.3);
         await this.Summon(Who, Col, this.CardOf(F.C));
@@ -1973,8 +2102,74 @@ class card_match {
       await this.KillMany(Ts);
       await this.ResolveDeaths();
     } else if (K === fx_kind.DestroyAlly) {
-      // リボンバット: an other own monster is destroyed
-      if (T.Side === Who && T.Col !== Col && this.MonAt(Who, T.Col)) await this.Kill(T);
+      // リボンバット: an other own monster or an own amulet is destroyed
+      const Ua = (T.Side === Who && T.Col !== Col) ? At(A.Board, T.Col) : undefined;
+      if (Ua && Ua.Def.Amulet) {
+        this.Vfx(VfxExplode, T);
+        Ua.Hp = 0;
+        this.Log(TlKilled(Ua.Def.Name));
+        await this.Wait(0.35);
+      } else if (Ua) await this.Kill(T);
+    } else if (K === fx_kind.BounceOwn) {
+      // 海坊主: an other own monster or an own amulet goes back to the hand
+      if (T.Side === Who && T.Col !== Col && At(A.Board, T.Col)) await this.Bounce(T);
+    } else if (K === fx_kind.FoeManaDown) {
+      // パンプキノコ: the enemy's next turn has N less mana
+      const Nm = Max(1, N);
+      this.S(O).NextMana -= Nm;
+      this.LogBoth(O, TlFoeManaDown(TxYou, Nm), TlFoeManaDown(TxOpponent, Nm));
+      this.Vfx(VfxCurse, Hero(O));
+      this.Pop(Hero(O), TlManaDownPop, false);
+      this.Snd(SfxDebuff);
+      this.Refresh();
+      await this.Wait(0.5);
+    } else if (K === fx_kind.DiscardBuff) {
+      // キャップゴースト: a card of the own hand may be thrown away; then this monster gets +N attack
+      if (Col >= 0 && this.MonAt(Who, Col) && A.Hand.length > 0) {
+        const Pick = this.Human(Who) ? await this.ChooseOf(Who, A.Hand.map(H => H.Def), TnPickDiscard, TbNoDiscard, true, true) : this.AiDiscardPick(Who);
+        if (Pick >= 0 && Pick < A.Hand.length && !this.Ended) {
+          await this.DiscardAt(Who, Pick);
+          if (this.MonAt(Who, Col)) await this.Buff(Me1, Max(1, N), 0);
+        }
+      }
+    } else if (K === fx_kind.StripIntimidate) {
+      // ローパー: every enemy monster loses 威圧
+      let Any = false;
+      for (let C0 = 0; C0 <= 2; C0++) {
+        const U0 = this.MonAt(O, C0);
+        if (!U0 || !U0.Intimidate) continue;
+        U0.Intimidate = false;
+        Any = true;
+        const T0 = MkTgt(O, C0);
+        this.Log(TlStripped(U0.Def.Name));
+        this.Vfx(VfxCurse, T0);
+        this.Pop(T0, TlStripPop, false);
+      }
+      if (Any) {
+        this.Refresh();
+        this.Snd(SfxDebuff);
+        await this.Wait(0.5);
+      }
+    } else if (K === fx_kind.SummonEvo) {
+      // 大桜もち: up to N are summoned and evolve at once
+      for (let I = 1; I <= Max(1, N); I++) {
+        if (this.Ended) continue;
+        const Free = this.EmptySlots(Who);
+        const C0 = At(Free, this.Rng.Int(0, Free.length - 1));
+        if (C0 === undefined) continue;
+        await this.Summon(Who, C0, this.CardOf(F.C));
+        if (this.MonAt(Who, C0) && !this.Ended) await this.EvolveFree(Who, C0);
+      }
+    } else if (K === fx_kind.FoeDiscardBuff) {
+      // 闇の書霊: a random card of the enemy hand is thrown away; this monster gets +X/+X (X = that card's mana)
+      const Od = this.S(O);
+      if (Od.Hand.length > 0) {
+        const Pick = this.Rng.Int(0, Od.Hand.length - 1);
+        const X = At(Od.Hand, Pick).Def.Cost;
+        this.Vfx(VfxDark, Hero(O));
+        await this.DiscardAt(O, Pick);
+        if (X > 0 && Col >= 0 && this.MonAt(Who, Col)) await this.Buff(Me1, X, X);
+      }
     } else if (K === fx_kind.BounceAny) {
       // ワルル: a monster or an amulet goes back to its owner's hand
       await this.Bounce(T);
@@ -2023,10 +2218,24 @@ class card_match {
     }
   }
 
+  // what the AI thinks of option D of どちらかを選ぶ (both of its effects)
+  ChooseScore(Who, D) {
+    return this.FxScore(Who, D.Spell, this.Hero(Who), 0.0) + (D.Spell2.K !== fx_kind.None ? this.FxScore(Who, D.Spell2, this.Hero(Who), 0.0) : 0.0);
+  }
+
+  // キャップゴースト (AI): throws away its cheapest card when the hand is big (-1: keeps the hand)
+  AiDiscardPick(Who) {
+    const H = this.S(Who).Hand;
+    if (H.length < 4) return -1;
+    let Best = -1, BestC = 99;
+    H.forEach((X, I) => { if (X.Def.Cost < BestC && !X.Def.Recur) { BestC = X.Def.Cost; Best = I; } });
+    return BestC <= 3 ? Best : -1;
+  }
+
   // どちらかを選んで発動: the player picks one of two spell cards (the AI takes the better one); the other players see the pick
   async ChooseFx(Who, Col, A, B) {
     const Opts = [A, B];
-    let Pick = this.FxScore(Who, B.Spell, this.Hero(Who), 0.0) > this.FxScore(Who, A.Spell, this.Hero(Who), 0.0) ? 1 : 0;
+    let Pick = this.ChooseScore(Who, B) > this.ChooseScore(Who, A) ? 1 : 0;
     if (this.Human(Who)) Pick = await this.ChooseOf(Who, Opts, TnChooseFx, TbAuto, false);
     const D = At(Opts, Pick);
     if (D) {
@@ -2064,7 +2273,7 @@ class card_match {
       for (const [X, V] of this.Vs()) spawn(() => V.FxDiscard(X === Who ? 0 : 1, Pick, N0));
       await this.Wait(0.3);
       A.Hand = RemoveElement(A.Hand, Pick);
-      A.Grave = [...A.Grave, H.Def];
+      A.Grave = [...A.Grave, this.RealDef(H.Def)];
       this.LogBoth(Who, TlDiscard(TxYou, H.Def.Name), TlDiscard(TxOpponent, H.Def.Name));
       this.Refresh();
       await this.Wait(0.3);
@@ -2082,7 +2291,7 @@ class card_match {
       for (const [X, V] of this.Vs()) spawn(() => V.FxReturn(X === Who ? 0 : 1, Pick, N0));
       await this.Wait(0.3);
       A.Hand = RemoveElement(A.Hand, Pick);
-      A.Deck = this.Rng.Shuffle([...A.Deck, H.Def]);
+      A.Deck = this.Rng.Shuffle([...A.Deck, this.RealDef(H.Def)]);
       this.LogBoth(Who, TlToDeck(TxYou, H.Def.Name), TlToDeck(TxOpponent, TxEmpty));
       this.Snd(SfxShuffle);
       this.Refresh();
@@ -2092,7 +2301,8 @@ class card_match {
 
   // the card of Cands the side's player picks (the AI takes the most expensive one): an index of Cands, -1 = none
   // (Decide: the pick of a player, made in their browser and shared)
-  async ChooseOf(Who, Cands, Title, Stop, CanStop) {
+  // (Quiet: the time running out means "none" too, not a random pick)
+  async ChooseOf(Who, Cands, Title, Stop, CanStop, Quiet = false) {
     if (Cands.length === 0) return -1;
     let Best = 0;
     let BestCost = -1;
@@ -2111,7 +2321,7 @@ class card_match {
         this.Busy = Busy0;
         this.Refresh();
         if (Id >= 0 && Id < Cands.length) return Id;
-        if (Id === -1 && CanStop) return -1;
+        if ((Id === -1 || Quiet) && CanStop) return -1;
         // (time up, or おまかせ): a random one (only in this browser: the result is shared)
         return GetRandomInt(0, Cands.length - 1);
       }, -1);
@@ -2399,7 +2609,8 @@ class card_match {
       for (const X of Dead) {
         const Sd = this.S(X[0]);
         Sd.Board = RuWith(Sd.Board, X[1], null);
-        const D = X[2].Def;
+        if (!X[2].Def.Amulet) this.FeatKill(X[0]);
+        const D = this.RealDef(X[2].Def);
         if (!D.Token || CardKeptToken(D)) Sd.Grave = [...Sd.Grave, D];
         this.Log(TlDestroyed(D.Name));
       }
@@ -2589,7 +2800,9 @@ class card_match {
     const A1 = this.EffAtk(Who, Col, U);
     if (T.Col < 0) {
       this.LogBoth(1 - Who, TlAttackHero(U.Def.Name, TxYou), TlAttackHero(U.Def.Name, TxOpponent));
+      const Hp0 = O.Hp;
       const R = this.Hurt(T, A1);
+      this.FeatHit(Who, Hp0 - O.Hp, Hp0 > 0 && O.Hp <= 0 ? U.Def.Id : -1);
       this.Refresh();
       this.Snd(A1 >= 4 ? SfxHitBig : SfxHit);
       this.Pop(T, R[1], false);
@@ -2602,6 +2815,7 @@ class card_match {
       // サボテン: its thorns hurt the attacker too
       const A2 = this.EffAtk(1 - Who, T.Col, Tg) + Tg.ThornsNow();
       const R1 = this.Hurt(T, A1);
+      this.FeatHit(Who, R1[0], -1);
       const R2 = this.Hurt(Me1, A2);
       this.Snd((A1 >= 4 || A2 >= 4) ? SfxHitBig : SfxHit);
       // 必殺: a monster hurt by a 必殺 monster is destroyed
@@ -2611,8 +2825,8 @@ class card_match {
       if (A1 > 0) this.Pop(T, R1[1], false);
       if (A2 > 0) this.Pop(Me1, R2[1], false);
       await this.Wait(0.5);
+      // (web) 吸血 only heals when the monster attacks, not when it is attacked
       await this.DrainHeal(Who, U, R1[0]);
-      await this.DrainHeal(1 - Who, Tg, R2[0]);
       if (Tg.Hp <= 0 && U.Hp > 0 && U.Live(U.Def.OnKill).K !== fx_kind.None && !this.Ended) {
         // (the beaten monster leaves first, so the board shows what really happened)
         await this.ResolveDeaths();
@@ -2636,20 +2850,22 @@ class card_match {
     this.Vfx(VfxSlash, T);
     if (T.Col < 0) {
       this.LogBoth(Who, TlHeroHits(TxYou), TlHeroHits(TxOpponent));
+      const Hp0 = O.Hp;
       await this.Damage(T, Atk);
+      this.FeatHit(Who, Hp0 - O.Hp, -1);
     } else {
       const Tg = At(O.Board, T.Col);
       if (!Tg) return;
       this.Log(TlAttackUnit(A.HName(), Tg.Def.Name));
       const A2 = this.EffAtk(1 - Who, T.Col, Tg) + Tg.ThornsNow();
       const R1 = this.Hurt(T, Atk);
+      this.FeatHit(Who, R1[0], -1);
       const R2 = this.Hurt(this.Hero(Who), A2);
       this.Snd(SfxHit);
       this.Refresh();
       this.Pop(T, R1[1], false);
       if (A2 > 0) this.Pop(this.Hero(Who), R2[1], false);
       await this.Wait(0.5);
-      await this.DrainHeal(1 - Who, Tg, R2[0]);
     }
   }
 
@@ -2742,10 +2958,16 @@ class card_match {
     this.Current = Who;
     this.ForceTgt = null;
     A.Turns += 1;
+    this.FeatTurn(Who);
     A.MaxMana = Min(CardMaxMana, A.MaxMana + 1);
-    A.Mana = A.MaxMana + A.NextMana;
+    A.Mana = Max(0, A.MaxMana + A.NextMana);
     const V0 = this.ViewOf(Who);
     if (A.NextMana > 0 && V0) V0.Toast(TlManaBonus(A.NextMana), 1.5);
+    // (web) パンプキノコ: this turn has less mana
+    if (A.NextMana < 0) {
+      this.Pop(this.Hero(Who), TlManaMinus(-A.NextMana), false);
+      if (V0) V0.Toast(TlManaMinus(-A.NextMana), 1.5);
+    }
     A.NextMana = 0;
     A.JewelUsed = false;
     A.HeroDone = false;
@@ -2787,8 +3009,16 @@ class card_match {
     const Draws = this.Tut ? TutDraws(Who, A.Turns) : FirstTurn ? 0 : 1;
     for (let I = 1; I <= Draws; I++) await this.Draw(Who);
     this.CheckOver();
+    // (web) ラッパうさぎ: new numbers every own turn start
+    if (this.WildRoll(Who)) { this.HandPopWild(Who); await this.Wait(0.4); }
     if (!this.Ended) await this.TurnFx(Who, true);
     this.Refresh();
+  }
+
+  // the rolled ラッパうさぎ of the hand show their new cost
+  HandPopWild(Who) {
+    this.S(Who).Hand.forEach((H, I) => { if (H.Def.WildOf >= 0) this.HandPop(Who, I, TxSlash(H.Def.Atk, H.Def.Hp)); });
+    this.SndTo(Who, SfxShuffle);
   }
 
   async EndTurn(Who) {
@@ -3286,7 +3516,9 @@ class card_match {
     }
     if (K === fx_kind.HealHero) {
       const Missing = Mine.MaxHp - Mine.Hp;
-      if (Missing < 2) return -3.0;
+      // (web) healing at full HP still sets off 「回復するたび」
+      const Ons = Mine.Units().filter(U => U.Live(U.Def.OnHeal).K !== fx_kind.None).length;
+      if (Missing < 2) return Ons > 0 ? 1.5 * Ons + R : -3.0;
       return Min(Missing, N) * 1.3 + (Mine.Hp <= 6 ? 5.0 : 0.0) + R;
     }
     if (K === fx_kind.ShieldUp || K === fx_kind.HeroMaxUp) {
@@ -3312,7 +3544,7 @@ class card_match {
       // (only when the mana pays for a card that could not be played without it; the mana never goes over the max)
       const Got = Min(Mine.MaxMana, Mine.Mana + N) - Mine.Mana;
       const Opens = Mine.Hand.filter(H => H.Def.Spell.K !== fx_kind.GainMana && H.Cost > Mine.Mana && H.Cost <= Mine.Mana + Got);
-      return (Got > 0 && Opens.length > 0) ? 1.5 * N + R : -4.0;
+      return (Got > 0 && Opens.length > 0) ? 2.5 * N + R : -4.0;
     }
     if (K === fx_kind.EvoUp) {
       return 3.0 + R;
@@ -3424,9 +3656,32 @@ class card_match {
     }
     if (K === fx_kind.DestroyAlly) {
       // a loss, unless the monster was nearly dead anyway (the AI only does it when it must)
-      const U = T.Side === Who ? this.MonAt(Who, T.Col) : undefined;
+      const U = T.Side === Who ? At(Mine.Board, T.Col) : undefined;
+      if (U && U.Def.Amulet) return -1.5 - U.Def.Cost * 0.5 + R;
       if (U) return (U.Invincible ? -0.5 : -this.UnitValue(U) * 1.5 - 1.0) + R;
       return -10.0;
+    }
+    if (K === fx_kind.BounceOwn) {
+      // (a hurt monster with a battlecry comes back fresh; a token is lost)
+      const U = T.Side === Who ? At(Mine.Board, T.Col) : undefined;
+      if (!U) return -10.0;
+      const Rd = this.RealDef(U.Def);
+      if (U.Def.Amulet) return -1.0 + R;
+      if (Rd.Token && !CardKeptToken(Rd)) return -this.UnitValue(U) * 1.5 - 1.0 + R;
+      return (Rd.Cry.K !== fx_kind.None ? 1.5 : 0.0) + (U.MaxHp - U.Hp) * 0.4 - this.UnitValue(U) * 0.6 + R;
+    }
+    if (K === fx_kind.FoeManaDown) return 2.0 * Max(1, N) + R;
+    if (K === fx_kind.DiscardBuff) return (Mine.Hand.length >= 4 ? 1.0 : 0.2) + R;
+    if (K === fx_kind.StripIntimidate) return 2.0 * Op.Units().filter(U => U.Intimidate).length + R;
+    if (K === fx_kind.SummonEvo) {
+      const Fr = this.EmptySlots(Who).length;
+      return Fr > 0 ? 3.0 + 2.5 * Min(Max(1, N), Fr) + R : -1.0;
+    }
+    if (K === fx_kind.FoeDiscardBuff) {
+      if (Op.Hand.length === 0) return -1.0;
+      let Sum = 0;
+      for (const H of Op.Hand) Sum += H.Def.Cost;
+      return 2.5 + 1.2 * Sum / Op.Hand.length + R;
     }
     if (K === fx_kind.BounceAny) {
       if (T.Side === Who) return -6.0;
@@ -3491,7 +3746,7 @@ class card_match {
       return Op.Hand.length > 0 ? 2.5 + R : -1.0;
     }
     if (K === fx_kind.HitOwnHero) {
-      return N >= Mine.Hp + Mine.Shield ? -2000.0 : -0.8 * N;
+      return N >= Mine.Hp + Mine.Shield ? -2000.0 : Mine.Hp <= 8 ? -2.0 * N : -0.8 * N;
     }
     if (K === fx_kind.HitAllMonsters) {
       let V = -3.0;
@@ -3523,7 +3778,7 @@ class card_match {
       return Op.Hand.length >= 3 ? 2.0 + R : 1.0 + R;
     }
     if (K === fx_kind.Choose) {
-      return Max(this.FxScore(Who, this.CardOf(F.C).Spell, this.Hero(Who), 0.0), this.FxScore(Who, this.CardOf(F.M).Spell, this.Hero(Who), 0.0)) + R;
+      return Max(this.ChooseScore(Who, this.CardOf(F.C)), this.ChooseScore(Who, this.CardOf(F.M))) + R;
     }
     // effects on the own other monsters: nothing happens without them (a spell has no monster of its own)
     const Allies = Mine.Units().length;
@@ -4549,9 +4804,18 @@ function FxShowName(Kind) {
   if (Kind === FxShowCry) return TlShowCry; else if (Kind === FxShowDeath) return TlShowDeath; else if (Kind === FxShowStart) return TlShowStart;
   else if (Kind === FxShowEnd) return TlShowEnd; else if (Kind === FxShowAttack) return TlShowAttack; else if (Kind === FxShowKill) return TlShowKill;
   else if (Kind === FxShowCount) return TlShowCount; else if (Kind === FxShowTick) return TlShowTick; else if (Kind === FxShowHeal) return TlShowHeal;
-  else if (Kind === FxShowEvo) return TlShowEvo;
+  else if (Kind === FxShowEvo) return TlShowEvo; else if (Kind === FxShowEnter) return TlShowEnter;
   return TlShowAlly;
 }
+// (web) the new effects of cards_web.js
+const TlShowEnter = "登場時！";
+function TlManaMinus(N) { return `マナ-${N}…`; }
+function TlFoeManaDown(W, N) { return `${W}は次のターン、マナが${N}減る`; }
+const TlManaDownPop = "マナ封じ";
+function TlStripped(C) { return `${C}の「威圧」が消えた！`; }
+const TlStripPop = "威圧消滅";
+const TnPickDiscard = "捨てるカードを手札から選んでね（捨てると攻撃力+1）";
+const TbNoDiscard = "捨てない";
 // メデューサ / 効果消滅 / どちらかを選ぶ
 function TlSpellLock(W) { return `${W}は次のターン、スペルを使えない！`; }
 const TlSpellLockPop = "スペル封印";

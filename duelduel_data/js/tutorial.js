@@ -66,7 +66,7 @@ class card_tutorial {
 function TutDraws(Who, Turn) { return Turn <= 1 ? 0 : 1; }
 
 // the decks in drawing order
-function TutMyDeck() { return [CardTutMochi, CardTutRat, CardTutThunder, CardTutLadybug, CardTutSnowman, CardTutCurse]; }
+function TutMyDeck() { return [CardTutMochi, CardWebTutRat, CardTutThunder, CardTutLadybug, CardTutSnowman, CardTutCurse]; }
 function TutFoeDeck() { return [CardTutChoco, CardTutHoodRat, CardTutGhost, CardTutLancer]; }
 const TutFoeHp = 5;
 
@@ -81,8 +81,8 @@ function TutPlayerSteps(Turn) {
     ];
   } else if (Turn === 2) {
     return [
-      new tut_step({ Kind: 1, CardId: CardTutRat, Pages: [TuTurn2], Say: TuSayRat }),
-      new tut_step({ Kind: 2, CardId: CardTutRat, Dst: 21, Pages: [TuHaste], Say: TuSayRatAtk }),
+      new tut_step({ Kind: 1, CardId: CardWebTutRat, Pages: [TuTurn2], Say: TuSayRat }),
+      new tut_step({ Kind: 2, CardId: CardWebTutRat, Dst: 21, Pages: [TuHaste], Say: TuSayRatAtk }),
       new tut_step({ Kind: 2, CardId: CardTutMochi, Dst: 31, Pages: [TuChocoDown], Say: TuSayMochiHero }),
       new tut_step({ Kind: 5, Pages: [TuHp4], Say: TuSayEnd }),
     ];

@@ -461,7 +461,7 @@ async function TowerPlayFloor(Game, Me) {
   Print(`tower floor ${N} over, winner ${W}, hp ${Match.Me.Hp}`);
   const Won = W === 0, Lost = W === 1;
   const Early = !Match.FirstTurnDone;
-  CardMatchStats(P, false, ModeTower, Mine.Id, Won, Lost, Early);
+  CardMatchStats(P, false, ModeTower, Mine.Id, Won, Lost, Early, CardMatchFacts(Match, 0));
   if (Won) return TowerFloorWon(P, Lib.DB, Match.Me.Hp, Match.Me.Summons, Match.Me.Jewels);
   return TowerRunLost(P, Match.Reason === EndHp, Early, Match.Rounds(), Match.Me.Summons, Match.Me.Jewels, Lost);
 }

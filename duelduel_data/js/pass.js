@@ -10,6 +10,8 @@
 //   ({Stop: false}) that is set when the race is over (an extra parameter that Verse did not have).
 // - Edges(): the [int]logic map is a JS Map whose keys are ALSO set as plain properties (M.get(K) and M[K] both work).
 // - Tuples are arrays (MBtn(...)[0] / [1], MakePassCell(...)[0] / [1]).
+// - (10/28) The reward pop-up (OK 1190) and the login bonus (受け取る 1010; any tile too) close / receive with a tap
+//   anywhere (board.js MakeTapDim).
 'use strict';
 
 // ---------------------------------------------------------------- rewards
@@ -807,7 +809,8 @@ class pass_ui {
       B.CurId = 1010;
       // (no cancel: the window stays until the bonus is received)
       const Ctl = { Stop: false };
-      await Race(B.Pick([1010, 1000 + Today], 1010, -1), this.LoginTick(Today, Ctl));
+      // (web) any tile too: a tap anywhere receives it (MakeTapDim)
+      await Race(B.Pick([1010, ...IRange(0, 6).map(I => 1000 + I)], 1010, -1), this.LoginTick(Today, Ctl));
       Ctl.Stop = true;
       const R = CardClaimLoginBonus(this.P());
       if (R != null) {
@@ -977,7 +980,8 @@ function MakePassUI(B, Lib) {
   const PopOk = MBtn(B, 1190, BtnGold, TbOk, 810.0, 900.0, 300.0, 86.0, 34.0);
   const PopCanvas = new canvas({
     Slots: [
-      MakeOverlayDim(0.8),
+      // (web) a tap anywhere = OK
+      MakeTapDim(B.Hub, 1190, 0.8),
       RPin(PopRaysB, 960.0, 480.0, 1),
       RPin(PopRays, 960.0, 480.0, 2),
       RBox(Tex(CardGui.T_Banner, 1100.0, 170.0), 410.0, 60.0, 1100.0, 170.0, 3),
@@ -989,7 +993,8 @@ function MakePassUI(B, Lib) {
   // ---- the login bonus
   const LoginInfo = OText(TxEmpty, 26.0, CBrown, CCream);
   const LoginBtnTxt = OText(PsLoginBtn, 44.0, CGold, CInk);
-  const LS = [MakeOverlayDim(0.75), RBox(Tex(CardGui.T_LoginPanel, 1400.0, 860.0), 260.0, 110.0, 1400.0, 860.0, 1)];
+  // (web) a tap anywhere = 受け取る (the bonus is received anyway: the window has nothing else to choose)
+  const LS = [MakeTapDim(B.Hub, 1010, 0.75), RBox(Tex(CardGui.T_LoginPanel, 1400.0, 860.0), 260.0, 110.0, 1400.0, 860.0, 1)];
   LS.push(
     RPin(OText(PsLoginTitle, 52.0, CWhite, CRed).Root, 960.0, 175.0, 3),
     RPin(LoginInfo.Root, 960.0, 250.0, 3));

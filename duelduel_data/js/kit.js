@@ -467,6 +467,40 @@ function TxtWrap(S, Size, C, Width) {
 function TxtLine(S, Size, C) { return new text_block({ DefaultText: S, DefaultTextColor: C, DefaultTextSize: Size, DefaultJustification: text_justification.Left }); }
 function TxtDark(S, Size) { return new text_block({ DefaultText: S, DefaultTextColor: CBrown, DefaultTextSize: Size, DefaultJustification: text_justification.Center }); }
 
+// (web) a wrapped text in a fixed Box slot that must never run out of its box (e.g. a long card help over the buttons
+// under it): the text gets smaller step by step down to MinSize, and whatever still doesn't fit scrolls inside the box
+// (mouse wheel / finger; a thin scroll bar and the faded bottom edge show there is more). Call it after every SetText;
+// works for any length.
+function FitTextBox(T, MinSize) {
+  const el = T.el, st = el.style;
+  // the bottom edge fades out while there is more text below
+  const Hint = () => {
+    const More = el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+    st.webkitMaskImage = st.maskImage = More ? 'linear-gradient(to bottom, #000 80%, transparent)' : 'none';
+  };
+  if (!T.FitBox) {
+    T.FitBox = true;
+    st.overflowY = 'auto'; st.overflowX = 'hidden';
+    st.pointerEvents = 'auto'; st.touchAction = 'pan-y'; st.overscrollBehavior = 'contain';
+    st.scrollbarWidth = 'thin'; st.scrollbarColor = 'rgba(90,50,15,0.55) transparent';
+    el.addEventListener('scroll', Hint, { passive: true });
+  }
+  const Apply = S => { st.fontSize = (S * FONT_K).toFixed(1) + 'px'; };
+  const Fit = Tries => {
+    // (not on the screen yet: measured as soon as it is)
+    if (!el.isConnected || el.clientHeight === 0) { if (Tries > 0) requestAnimationFrame(() => Fit(Tries - 1)); return; }
+    let S = T.Size;
+    Apply(S);
+    while (S > MinSize && el.scrollHeight > el.clientHeight + 1) { S = Math.max(MinSize, S - 0.5); Apply(S); }
+    el.scrollTop = 0;
+    Hint();
+  };
+  Apply(T.Size);
+  el.scrollTop = 0;
+  st.webkitMaskImage = st.maskImage = 'none';
+  Fit(30);
+}
+
 // overlay: every child in the same cell, aligned by its overlay_slot {Widget, HorizontalAlignment, VerticalAlignment, Padding}
 class overlay extends widget {
   constructor(opts = {}) {

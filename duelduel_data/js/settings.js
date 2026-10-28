@@ -13,6 +13,8 @@ const OptGearId = 1750;
 const OptRows = [['bgm', 1760], ['se', 1770]];
 const OptSkipId = 1780;
 const OptCloseId = 1789;
+const OptNewsId = 1781;
+const TvNews = 'アップデート情報';
 
 const TvGear = '設定';
 const TvTitle = '設定';
@@ -63,6 +65,9 @@ function MakeOptUI(B) {
   S.push(RPin(TxtDark(TvHelp, 18.0), 960.0, 800.0, 3));
   const Close = MBtn(B, OptCloseId, BtnBlue, TbClose, 810.0, 836.0, 300.0, 80.0, 30.0);
   S.push(Close[0]);
+  // (news.js) the notes of the last update
+  const News = MBtn(B, OptNewsId, BtnPurple, TvNews, 1150.0, 842.0, 280.0, 68.0, 22.0);
+  S.push(News[0]);
   return { Slot: RFull(new canvas({ Slots: S }), 98), Rows, Now };
 }
 
@@ -86,12 +91,17 @@ async function OptScreen(M) {
   B.Layer(U.Slot, true);
   const Ids = [];
   for (const [, Id0] of OptRows) for (let I = 0; I <= 5; I++) Ids.push(Id0 + I);
-  Ids.push(OptSkipId, OptCloseId);
+  Ids.push(OptSkipId, OptCloseId, OptNewsId);
   try {
     B.CurId = OptRows[0][1] + Math.max(0, SndLevel('bgm'));
     while (true) {
       const Id = await B.Pick(Ids, B.CurId, OptCloseId);
       if (Id === OptCloseId) { B.Snd(SfxCancel); return; }
+      if (Id === OptNewsId) {
+        B.Snd(SfxOpen);
+        await OpenNews();
+        continue;
+      }
       if (Id === OptSkipId) {
         if (SndLevel('bgm') > 0) { BgmSkip(); B.Snd(SfxSelect); } else B.Snd(SfxCancel);
       } else {

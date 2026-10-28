@@ -31,7 +31,9 @@ for (const K of [
   // --- v19
   'HandKw', 'VanishSelf', 'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon',
   // --- web version (cards_web.js; with a target)
-  'DestroyAlly', 'BounceAny',
+  'DestroyAlly', 'BounceAny', 'BounceOwn',
+  // --- web version (no target)
+  'FoeManaDown', 'DiscardBuff', 'StripIntimidate', 'SummonEvo', 'FoeDiscardBuff',
 ]) fx_kind[K] = K;
 Object.freeze(fx_kind);
 
@@ -39,7 +41,8 @@ Object.freeze(fx_kind);
 const NewFxKinds = new Set(['BuffOther', 'KillSelf', 'ReturnSelf', 'DrawBoth', 'DrawCheap', 'GravePick', 'FoeHandToDeck', 'HitOwnHero',
   'HitFrontSplash', 'SummonRushBuff', 'HitAllMonsters', 'HitSelf', 'HitRandomAny', 'SummonFoe', 'IfAllyBuff', 'IfAllyKw', 'FoeDiscard',
   'DeckSummon', 'GravePickSummon', 'SummonTrump', 'KillAttackTarget', 'SilenceFront', 'SpellLock', 'Choose', 'HandKw', 'VanishSelf',
-  'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon', 'DestroyAlly', 'BounceAny']);
+  'KillOwnOthers', 'ArtifactDeck', 'HeroEndSummon', 'DestroyAlly', 'BounceAny', 'BounceOwn', 'FoeManaDown', 'DiscardBuff',
+  'StripIntimidate', 'SummonEvo', 'FoeDiscardBuff']);
 function IsNewFx(K) { return NewFxKinds.has(K); }
 
 // Cond: 0 always, 1 覚醒 (max mana 7 or more), 2 復讐 (own HP 10 or less), 3 own hand 2 cards or less,
@@ -61,12 +64,13 @@ function Fx0(K) { return new fx({ K }); }
 
 // what an effect is aimed at: 0 nothing, 1 an enemy monster, 2 an ally monster, 3 any monster, 4 an empty own slot,
 // 5 an other ally monster, 6 an own amulet with a countdown, 7 any amulet, 8 any monster or player, 9 an enemy monster or the enemy player,
-// 10 any monster or amulet
+// 10 any monster or amulet, 11 an other own monster or an own amulet
 function FxTarget(K) {
   if (K === fx_kind.HitTarget || K === fx_kind.FreezeHit || K === fx_kind.DebuffTarget || K === fx_kind.DestroyTarget || K === fx_kind.DevourFoe) return 1;
   else if (K === fx_kind.HealTarget || K === fx_kind.BuffTarget || K === fx_kind.GiveKw) return 2;
-  else if (K === fx_kind.Devour || K === fx_kind.BuffOther || K === fx_kind.DestroyAlly) return 5;
+  else if (K === fx_kind.Devour || K === fx_kind.BuffOther) return 5;
   else if (K === fx_kind.BounceAny) return 10;
+  else if (K === fx_kind.DestroyAlly || K === fx_kind.BounceOwn) return 11;
   else if (K === fx_kind.AdvanceTarget) return 6;
   else if (K === fx_kind.DestroyAmulet) return 7;
   else if (K === fx_kind.HitAny) return 8;
@@ -151,6 +155,12 @@ class card_def {
     this.Thorns = o.Thorns ?? 0;          // サボテン: a monster / player attacking it takes this much more damage
     this.DmgCap = o.DmgCap ?? 0;          // モアイ: the damage it takes at once is at most this much (0 = no cap)
     this.FrontAtkDown = o.FrontAtkDown ?? 0; // the enemy monster in front of it has this much less attack
+    // --- web version (cards_web.js)
+    this.OnEnter = o.OnEnter ?? new fx();  // みかん: every time it comes onto the board (played or summoned by an effect)
+    this.AdjHp = o.AdjHp ?? 0;            // おさるの和尚: the ally monsters next to it have this much more HP (while it stands there)
+    this.NoSpellTarget = o.NoSpellTarget ?? false; // シロナガスクジラ: no spell can pick it (own spells neither)
+    this.Wild = o.Wild ?? false;          // ラッパうさぎ: in the hand it turns into a random WildOf card (cost = attack = HP = 1..9)
+    this.WildOf = o.WildOf ?? -1;         // the Wild card this one stands for (it goes back to that card in the grave / hand)
     this.TurnStart = o.TurnStart ?? new fx();
     this.TurnEnd = o.TurnEnd ?? new fx();
     this.OnAttack = o.OnAttack ?? new fx();

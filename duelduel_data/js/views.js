@@ -82,7 +82,8 @@ class card_face {
       this.FgSw.Set(false);
       this.ApplySplit();
       this.Name.SetText(D.Name);
-      this.Cost.SetNum(D.Cost);
+      // (ラッパうさぎ: ? until it is rolled in the hand)
+      this.Cost.SetNum(D.Wild ? '?' : D.Cost);
       this.Cost.SetColor(CWhite);
       this.Rar.SetTint(RarityColor(D.Rarity));
       this.RarSw.Set(!D.Token);
@@ -101,9 +102,9 @@ class card_face {
     this.LastA = A;
     this.LastH = CurHp;
     this.LastM = MaxHp;
-    this.Atk.SetNum(A);
+    this.Atk.SetNum(D.Wild ? '?' : A);
     this.Atk.SetColor(A > D.Atk ? CGreen : A < D.Atk ? CRed : CWhite);
-    this.Hp.SetNum(CurHp);
+    this.Hp.SetNum(D.Wild ? '?' : CurHp);
     this.Hp.SetColor(CurHp < MaxHp ? CRed : CurHp > D.Hp ? CGreen : CWhite);
   }
 
@@ -129,7 +130,7 @@ class card_face {
   SetCost(N) {
     if (N === this.LastCost) return;
     this.LastCost = N;
-    this.Cost.SetNum(N);
+    this.Cost.SetNum(this.Shown && this.Shown.Wild ? '?' : N);
     const D = this.Shown;
     if (D) this.Cost.SetColor(N < D.Cost ? CGreen : N > D.Cost ? CRed : CWhite);
   }

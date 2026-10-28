@@ -14,6 +14,7 @@ class pvp_result {
     this.Won = o.Won ?? false; this.Lost = o.Lost ?? false; this.Reason = o.Reason ?? 0; this.Early = o.Early ?? false;
     this.Rounds = o.Rounds ?? 0; this.Summons = o.Summons ?? 0; this.Jewels = o.Jewels ?? 0; this.Mode = o.Mode ?? 0;
     this.IsRandom = o.IsRandom ?? false; this.Hero = o.Hero ?? -1;
+    this.Facts = o.Facts ?? null;   // achieve.js CardMatchFacts of the own side (the match feat achievements)
   }
 }
 class card_player {
@@ -81,7 +82,7 @@ function DraftAutoDeck(Pool, Sched) {
 }
 
 // ---------------------------------------------------------------- network
-const NET_VER = 'dd3';               // both browsers must run the same rules (bump when the rules change)
+const NET_VER = 'dd4';               // both browsers must run the same rules (bump when the rules change)
 const NET_PREFIX = 'duelduel-' + NET_VER + '-';
 const NET_SLOTS = 4;                   // queue slots per mode
 
@@ -514,7 +515,7 @@ class pvp_session {
     const M = this.Match;
     if (M) {
       const Sd = M.S(Seat);
-      Res = new pvp_result({ Won: Res.Won, Lost: Res.Lost, Reason, Early: !M.FirstTurnDone, Rounds: M.Rounds(), Summons: Sd.Summons, Jewels: Sd.Jewels, Mode: this.Mode, IsRandom: this.IsRandom, Hero: Sd.Hero.Id });
+      Res = new pvp_result({ Won: Res.Won, Lost: Res.Lost, Reason, Early: !M.FirstTurnDone, Rounds: M.Rounds(), Summons: Sd.Summons, Jewels: Sd.Jewels, Mode: this.Mode, IsRandom: this.IsRandom, Hero: Sd.Hero.Id, Facts: CardMatchFacts(M, Seat) });
     }
     this.Me.Done.Signal(Res);
   }

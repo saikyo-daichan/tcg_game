@@ -10,12 +10,8 @@ const CardWebPatches = {
   188: { Cost: 8, Atk: 6, Hp: 6, Evo: new fx(), EvoAtk: 2, EvoHp: 2 },
   // がしゃどくろ マナ8 6/6 挑発 叫び:他のモンスターすべてに2ダメージ
   148: { Cost: 8, Atk: 6, Hp: 6, Taunt: true },
-  // ジンジャーガール マナ2 1/2 叫び:自分のプレイヤーのHPを1回復
-  214: { Cost: 2, Atk: 1, Hp: 2 },
   // ひつじ マナ4 2/4 叫び:自分のプレイヤーのHPを2回復 / 進化時:自分のプレイヤーのHPを2回復
   54: { Cost: 4, Atk: 2, Hp: 4, TurnEnd: new fx(), Cry: FxN(fx_kind.HealHero, 2), Evo: FxN(fx_kind.HealHero, 2) },
-  // リボンバット マナ3 3/5 吸血 叫び:自分の味方モンスター1体を破壊する
-  302: { Cost: 3, Atk: 3, Hp: 5, Rush: false, Drain: true, Cry: Fx0(fx_kind.DestroyAlly) },
   // ワルル マナ3 2/2 叫び:場にあるモンスターまたはアミュレットを持ち主の手札に戻す
   304: { Cost: 3, Atk: 2, Hp: 2, Deadly: false, SelfDmg: 0, Cry: Fx0(fx_kind.BounceAny) },
   // ミツメヨクチ マナ6 4/4 ターン終了時:復讐状態なら+4/+4を得る
@@ -28,6 +24,94 @@ const CardWebPatches = {
   42: { Cost: 4 },
   // (10/27) シャドウ マナ6 4/4 叫び:敵モンスター1体を破壊する
   26: { Cost: 6, Atk: 4, Hp: 4, Cry: Fx0(fx_kind.DestroyTarget) },
+  // ---- (10/28)
+  // チョウ / おほしさま マナ3 2/2 破壊時:自分のプレイヤーのHPを1回復
+  121: { Cost: 3, Atk: 2, Hp: 2 },
+  228: { Cost: 3, Atk: 2, Hp: 2 },
+  // うさぎの兵士 マナ2 3/1 正面にモンスターがいるとプレイヤーを攻撃できない
+  325: { Cost: 2, Atk: 3, Hp: 1 },
+  // グリーンゼリー マナ2 2/1 潜伏
+  135: { Cost: 2, Atk: 2, Hp: 1, Stealth: true, Death: new fx() },
+  // ジンジャーガール マナ2 1/1 特攻 叫び:「ジンジャーボーイ」を召喚 / ジンジャーボーイ マナ2 1/1 速攻 叫び:「ジンジャーガール」を召喚
+  214: { Cost: 2, Atk: 1, Hp: 1, Rush: true, Cry: FxC(fx_kind.Summon, 213, 1) },
+  213: { Cost: 2, Atk: 1, Hp: 1, Haste: true, Cry: FxC(fx_kind.Summon, 214, 1) },
+  // トランプ兵・ハート マナ2 1/2 攻撃時:自分のプレイヤーのHPを1回復
+  207: { Cost: 2, Atk: 1, Hp: 2, Cry: new fx(), OnAttack: FxN(fx_kind.HealHero, 1) },
+  // ネズミ マナ2 1/2 速攻
+  305: { Cost: 2, Atk: 1, Hp: 2 },
+  // ヘンゼル マナ2 2/2 (進化 5/5)
+  211: { Cost: 2, Atk: 2, Hp: 2, EvoAtk: 3, EvoHp: 3 },
+  // ペンギン マナ2 2/2
+  3: { Cost: 2, Atk: 2, Hp: 2 },
+  // マイタケ マナ2 1/3 破壊時:自分のプレイヤーのHPを1回復
+  338: { Cost: 2, Atk: 1, Hp: 3 },
+  // みかん マナ1 1/1 場に出たとき:自分のプレイヤーのHPを1回復 (召喚されても)
+  244: { Cost: 1, Atk: 1, Hp: 1, Cry: new fx(), OnEnter: FxN(fx_kind.HealHero, 1) },
+  // ラブバード マナ2 1/1 叫び:敵モンスター1体に1ダメージ
+  298: { Cost: 2, Atk: 1, Hp: 1, Death: new fx(), Cry: FxN(fx_kind.HitTarget, 1) },
+  // キャップゴースト マナ3 3/1 潜伏 叫び:手札を1枚捨ててもよい、捨てたら攻撃力+1
+  133: { Cost: 3, Atk: 3, Hp: 1, Cry: FxN(fx_kind.DiscardBuff, 1) },
+  // ゼンマイロボ・白 マナ3 3/1 特攻
+  272: { Cost: 3, Atk: 3, Hp: 1 },
+  // トランプ兵・ダイヤ マナ3 2/3 自傷1 叫び:カードを1枚引く
+  206: { Cost: 3, Atk: 2, Hp: 3 },
+  // バニー マナ3 3/2 叫び:自分のプレイヤーに2ダメージを与えてもよい、そうしたらマナを1回復 (CardWebNew 515 / 516)
+  322: { Cost: 3, Atk: 3, Hp: 2, SelfDmg: 0, Cry: new fx({ K: fx_kind.Choose, C: 515, M: 516 }) },
+  // パンプキノコ マナ3 2/1 破壊時:次の相手のターン、相手のマナ-1
+  334: { Cost: 3, Atk: 2, Hp: 1, Death: FxN(fx_kind.FoeManaDown, 1) },
+  // マシュマロ マナ3 1/2 受けるダメージ-1
+  239: { Cost: 3, Atk: 1, Hp: 2 },
+  // ワーウルフ マナ3 3/3 (効果なし)
+  59: { Cost: 3, Atk: 3, Hp: 3, Rush: false, Flavor: "満月の夜、ひとたび吠えれば森が静まる獣人。" },
+  // リザードマン マナ3 3/1 叫び:正面の敵モンスターに1ダメージ
+  281: { Cost: 3, Atk: 3, Hp: 1, Cry: FxN(fx_kind.HitFront, 1) },
+  // おさるの和尚 マナ3 1/3 隣の味方モンスターの体力+1 (常に)
+  195: { Cost: 3, Atk: 1, Hp: 3, TurnStart: new fx(), AdjHp: 1 },
+  // ピクセルソード マナ3 1/1 特攻・必殺・自傷3
+  260: { Cost: 3, Atk: 1, Hp: 1, SelfDmg: 3 },
+  // やまぶき妖精 マナ3 1/3
+  467: { Cost: 3, Atk: 1, Hp: 3 },
+  // ラッパうさぎ マナ? ?/? 手札にある間、ターン開始時にマナ・攻撃力・体力が同じランダムな数(1~9)になる (CardWebNew 506..514)
+  199: { Cost: 5, Atk: 5, Hp: 5, Cry: new fx(), Cry2: new fx(), Wild: true },
+  // リボンバット マナ3 3/5 叫び:自分の他のモンスター1体かアミュレット1つを破壊する
+  302: { Cost: 3, Atk: 3, Hp: 5, Rush: false, Drain: false, Cry: Fx0(fx_kind.DestroyAlly) },
+  // メジェド マナ3 1/1 威圧 ターン終了時:ランダムな敵モンスター1体に1ダメージを2回
+  117: { Cost: 3, Atk: 1, Hp: 1, OnAttack: new fx(), TurnEnd: FxNM(fx_kind.HitRandomFoe, 1, 2) },
+  // タコ マナ4 3/3 叫び:正面の敵モンスターの攻撃力-1
+  65: { Cost: 4, Atk: 3, Hp: 3, Cry: FxN(fx_kind.DebuffFront, 1) },
+  // レッサーデーモン マナ4 3/2 特攻 攻撃時:ランダムな敵モンスター1体に1ダメージ
+  418: { Cost: 4, Atk: 3, Hp: 2 },
+  // キングペンギン マナ5 3/4 叫び:「ペンギン」を2体まで召喚
+  75: { Cost: 5, Atk: 3, Hp: 4, Cry: FxC(fx_kind.Summon, 3, 2) },
+  // サラマンダー マナ4 3/3 叫び:敵モンスター1体に1ダメージ 進化時:敵モンスター1体に2ダメージ
+  284: { Cost: 4, Atk: 3, Hp: 3, OnAttack: new fx(), Cry: FxN(fx_kind.HitTarget, 1) },
+  // タカ マナ4 2/3 / 濡れ女 マナ4 2/2
+  68: { Cost: 4, Atk: 2, Hp: 3 },
+  151: { Cost: 4, Atk: 2, Hp: 2 },
+  // エンジェル マナ4 2/3 ターン終了時:ランダムな他の味方モンスター1体に+1/+1
+  22: { Cost: 4, Atk: 2, Hp: 3, TurnEnd: FxNM(fx_kind.BuffRandomAlly, 1, 1) },
+  // リザードナイト マナ5 4/5
+  282: { Cost: 5, Atk: 4, Hp: 5 },
+  // ローパー マナ5 3/5 叫び:敵モンスターすべての「威圧」を消す
+  347: { Cost: 5, Atk: 3, Hp: 5, Cry: Fx0(fx_kind.StripIntimidate) },
+  // ゴートメイジ マナ5 3/3 叫び:敵モンスター1体に3ダメージ 進化時:手札に「ファイアボール」を加え、それのマナ-1
+  308: { Cost: 5, Atk: 3, Hp: 3, Evo: new fx({ K: fx_kind.AddCard, N: 1, M: 1, C: 28 }) },
+  // 大パンダ マナ5 4/4 挑発
+  313: { Cost: 5, Atk: 4, Hp: 4 },
+  // 黄鬼 マナ5 4/4 叫び:「赤鬼」がいるなら+2/+2と「特攻」
+  178: { Cost: 5, Atk: 4, Hp: 4, Cry2: FxC(fx_kind.IfAllyKw, 179, KwRush) },
+  // クラウドデーモン マナ5 3/3 潜伏 叫び:手札に「いかずち」を2枚まで加え、それらのマナ-1
+  358: { Cost: 5, Atk: 3, Hp: 3, TurnEnd: new fx(), Cry: new fx({ K: fx_kind.AddCard, N: 2, M: 1, C: 386 }) },
+  // 大桜もち マナ6 4/4 叫び:「ちび桜もち」を2体まで召喚し、進化させる
+  185: { Cost: 6, Atk: 4, Hp: 4, Cry: FxC(fx_kind.SummonEvo, 101, 2) },
+  // 闇の書霊 マナ5 2/3 叫び:相手の手札をランダムに1枚捨て、そのマナの数だけ+X/+X
+  130: { Cost: 5, Atk: 2, Hp: 3, SelfDmg: 0, Cry: Fx0(fx_kind.FoeDiscardBuff) },
+  // 海坊主 マナ6 5/5 叫び:自分の他のモンスター1体かアミュレット1つを手札に戻す
+  152: { Cost: 6, Atk: 5, Hp: 5, Barrier: false, Cry: Fx0(fx_kind.BounceOwn) },
+  // スフィンクス マナ6 4/5 挑発 ターン終了時:カードを1枚引く
+  96: { Cost: 6, Atk: 4, Hp: 5, Taunt: true },
+  // シロナガスクジラ マナ9 6/8 スペルの対象にならない 叫び:進化ポイント+1
+  373: { Cost: 9, Atk: 6, Hp: 8, NoSpellTarget: true },
 };
 
 // shorter texts printed on the card face where the generated text runs out of the text box (measured with the real
@@ -37,7 +121,9 @@ const CardWebTexts = {
   109: { T: "必殺\n叫び：自分のHPが相手より少ないなら「特攻」を得る", R: 3 },
   114: { T: "挑発\nこのモンスターを攻撃した相手に追加で1ダメージ", R: 3 },
   160: { T: "挑発\nターン終了時：手札が2枚以下なら「バリア」を得る", R: 3 },
-  178: { T: "叫び：「赤鬼」がいるなら+2/+2。「オニ」がいるなら「特攻」を得る", R: 3 },
+  178: { T: "叫び：自分の場に「赤鬼」がいるなら+2/+2と「特攻」を得る", R: 3 },
+  322: { T: "叫び：自分のプレイヤーに2ダメージを与えてもよい。そうしたらマナを1回復", R: 3 },
+  516: { T: "何もしない", R: 0 },
   223: { T: "叫び：ランダムなカード2枚を手札に加え、マナ-1\nターン開始時：ランダムなカード1枚を手札に加え、マナ-1", R: 4 },
   405: { T: "墓地から合計マナ6以下のモンスターを好きなだけ選んで召喚", R: 3 },
   413: { T: "アミュレット\nターン終了時：味方モンスター全員と自分のHPを1回復", R: 3 },
@@ -57,6 +143,15 @@ const CNmWeb503 = "ライトニング";
 // 最恐 CPU only (Token: never in packs / the collection / player decks; boss.js CardBossWebIds)
 const CNmWeb504 = "冥府の魔導書";
 const CNmWeb505 = "魔狼の遠吠え";
+// ラッパうさぎ (199) in the hand / on the board: one card per number 1..9 (Token, WildOf = 199)
+const CardWildBase = 199;
+const CardWildFirst = 506;
+function CardWildId(Base, N) { return CardWildFirst + Min(9, Max(1, N)) - 1; }
+// バニー's choice (どちらかを選ぶ)
+const CNmWeb515 = "マナの代償";
+const CNmWeb516 = "やめておく";
+// the tutorial's ネズミ keeps the old 1/1 (the tutorial's fight with チョコのかけら must end in a trade)
+const CardWebTutRat = 517;
 function CardWebNew() {
   return [
     // ライトニング マナ2 相手プレイヤーに1ダメージ、墓地に行かず手札に戻る
@@ -65,6 +160,13 @@ function CardWebNew() {
     new card_def({ Id: 504, Name: CNmWeb504, IsSpell: true, Token: true, Rarity: 2, Cost: 1, Spell: FxN(fx_kind.Draw, 2), Art: CardGui.T_Sp_book, ArtW: 264.0, ArtH: 200.0, ArtTint: color(0.6, 0.45, 1.0) }),
     // 魔狼の遠吠え マナ3 「冥府の魔狼」を手札に2枚加える (最恐)
     new card_def({ Id: 505, Name: CNmWeb505, IsSpell: true, Token: true, Rarity: 2, Cost: 3, Spell: FxC(fx_kind.AddCard, 471, 2), Art: CardGui.T_Sp_treasure, ArtW: 264.0, ArtH: 200.0, ArtTint: color(0.75, 0.5, 1.0) }),
+    // ラッパうさぎ 1..9 (506..514)
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(N => new card_def({ Id: CardWildId(CardWildBase, N), Name: CNm199, Token: true, Rarity: 1, Cost: N, Atk: N, Hp: N, WildOf: CardWildBase,
+      Art: CardMon.f_white_rabbit4, ArtW: 193.0, ArtH: 177.0 })),
+    // バニー: 自分のプレイヤーに2ダメージ、マナを1回復 / 何もしない
+    new card_def({ Id: 515, Name: CNmWeb515, IsSpell: true, Token: true, Rarity: 0, Cost: 0, Spell: FxN(fx_kind.HitOwnHero, 2), Spell2: FxN(fx_kind.GainMana, 1), Art: CardGui.T_Sp_mana, ArtW: 264.0, ArtH: 200.0 }),
+    new card_def({ Id: CardWebTutRat, Name: CNm305, Token: true, Rarity: 0, Cost: 2, Atk: 1, Hp: 1, Haste: true, Art: CardMon.f_rat, ArtW: 150.0, ArtH: 160.0 }),
+    new card_def({ Id: 516, Name: CNmWeb516, IsSpell: true, Token: true, Rarity: 0, Cost: 0, Art: CardGui.T_Sp_shield, ArtW: 264.0, ArtH: 200.0, ArtTint: color(0.8, 0.8, 0.85) }),
   ];
 }
 

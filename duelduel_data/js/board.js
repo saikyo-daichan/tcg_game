@@ -18,6 +18,9 @@
 //   cancelled (= clicking empty space, id 99). Things that can't be a drag source have Draggable = false.
 // - Moving animations (Shake, lunge, drop-in, flying cards, pop-ups, coin) move the widget's slot in place
 //   (BdReBox / BdRePin) instead of taking it off and putting it on again every frame.
+// - (10/28) Information pop-ups also close with a tap anywhere: MakeTapDim (the dimmed backdrop is a click area that
+//   clicks the pop-up's OK; hit_hub.MakeAlias). Here: the プレミア化 show's OK (780) and the stamp menu (a tap outside
+//   its panel = とじる 704). The grave list's card help shrinks / scrolls (kit FitTextBox). 進化 moved up (EvolveBtnY).
 'use strict';
 
 // ---------------------------------------------------------------- layout (matches T_Bg)
@@ -27,6 +30,8 @@ const LGap = 18.0;
 const LRowFoe = 232.0;
 const LRowMe = 450.0;
 function CellX(C) { return LBoardX0 + (LCell + LGap) * C; }
+// (web) the top of the 進化 button (Verse 314; ターン終了 stays at 400): moved up so the two are clearly apart
+const EvolveBtnY = 220.0;
 
 // The click areas of the board (z 60, hand 70+) sit above every effect (pop-ups 51, effects 52, toast 53, cast 54, banner 55,
 // stamps 56, flying card 50) but below the overlays (85+): a widget that covers a click area and then goes away
@@ -144,6 +149,20 @@ class hit_hub {
     H._hubId = Id;
     this.Ws.set(Id, H);
     spawn(() => this.Watch(H, Id));
+    return H;
+  }
+
+  // (web) a second click area that clicks Id (MakeTapDim: the backdrop of a pop-up = its OK). Only its clicks count
+  // (no hover, not the one the cursor uses), and only while it is on the screen.
+  MakeAlias(Id) {
+    const H = new WBP_CardHit();
+    H.Draggable = false;
+    spawn(async () => {
+      let Done = false;
+      const Q = this.Quit.Await().then(() => { Done = true; });
+      const Clicks = async () => { for (;;) { await H.Clicked.Await(); if (Done) return; if (H.el.isConnected) this.OnClicked(H, Id); } };
+      await Race(Clicks(), Q);
+    });
     return H;
   }
 
@@ -740,6 +759,8 @@ class board_ui {
         this.GraveBig.SetCard(this.Lib, D, D.Atk, D.Hp, D.Hp);
         this.GraveBig.SetShown(true);
         this.GraveHelp.SetText(Join([this.Lib.TextOf(D), this.Lib.HelpOf(D)], TxNewline));
+        // (web) a long help stays above the とじる button (kit FitTextBox: smaller text, then it scrolls)
+        FitTextBox(this.GraveHelp, 12);
         return;
       }
     }
@@ -1885,6 +1906,7 @@ class board_ui {
     Show(this.GraveEmpty.Root, this.GraveCards.length === 0);
     this.GraveBig.SetShown(false);
     this.GraveHelp.SetText(TxEmpty);
+    FitTextBox(this.GraveHelp, 12);
   }
 
   // the coin toss before the opening hands, like a real coin: it lies on the table, is flicked up spinning over and
@@ -2101,6 +2123,26 @@ function MakeOverlayDim(Opacity) {
   return RFull(new color_block({ DefaultColor: color(0.0, 0.0, 0.0), DefaultOpacity: Opacity }), 0);
 }
 
+// (web) MakeOverlayDim for an information pop-up that also closes when the player taps anywhere: the dimmed backdrop
+// is a click area that clicks Id (the pop-up's OK / とじる; Id null = a plain click area, the caller awaits its
+// .Clicked). It sits where the dim sat (z 0 of the pop-up's canvas): under the pop-up's own buttons and above
+// everything behind the pop-up, so the closing tap never reaches the screen under it. Hub = the board's hit_hub.
+function MakeTapDim(Hub, Id, Opacity) {
+  const H = Id == null ? new WBP_CardHit() : Hub.MakeAlias(Id);
+  H.Draggable = false;
+  H.el.style.background = LinToCss(color(0.0, 0.0, 0.0), Opacity);
+  H.el.style.cursor = 'default';
+  return RFull(H, 0);
+}
+// (web) a click area that only swallows taps (put over a panel whose outside closes it: a tap beside a button on the
+// panel does nothing)
+function MakeTapBlock() {
+  const H = new WBP_CardHit();
+  H.Draggable = false;
+  H.el.style.cursor = 'default';
+  return H;
+}
+
 function MakeBoardUI(P, Lib, Sfx, Keys) {
   const Hub = new hit_hub();
   // a click area that can't start a drag (buttons, enemy things, dialogs)
@@ -2225,14 +2267,15 @@ function MakeBoardUI(P, Lib, Sfx, Keys) {
   // buttons
   // (the buttons' click areas are separate widgets above every effect)
   const Evolve = MakePicButtonG(BtnPurple, TbEvolve(0), 160, 64, 20, NoHit(), true);
-  Add(RBox(Evolve.Root, 1280, 314, 160, 70, 12));
+  // (web) 進化 sits well above ターン終了 (it was right on top of it, y 314: a tap meant for 進化 ended the turn)
+  Add(RBox(Evolve.Root, 1280, EvolveBtnY, 160, 70, 12));
   const EndTurn = MakePicButtonG(BtnEnd, TbEndTurn, 160, 64, 22, NoHit(), true);
   Add(RBox(EndTurn.Root, 1280, 400, 160, 70, 12));
   const Surrender = MakePicButton(BtnEnd, TbSurrender, 110, 40, 16, NoHit());
   Add(RBox(Surrender.Root, 1780, 1000, 110, 44, 12));
-  Add(RBox(Fixed(47), 1280, 314, 160, 64, 60), RBox(Fixed(50), 1280, 400, 160, 64, 60), RBox(Fixed(55), 1780, 1000, 110, 40, 60));
+  Add(RBox(Fixed(47), 1280, EvolveBtnY, 160, 64, 60), RBox(Fixed(50), 1280, 400, 160, 64, 60), RBox(Fixed(55), 1780, 1000, 110, 40, 60));
   Add(RPin(OText(IslandCodeText(Lib), 22, CGold, CInk).Root, 1600, 1021, 4));
-  SetBM(47, 1280, 314, 160, 64);
+  SetBM(47, 1280, EvolveBtnY, 160, 64);
   SetBM(50, 1280, 400, 160, 64);
   SetBM(55, 1780, 1000, 110, 40);
   const TimerTxt = OText(TxEmpty, 22, CGold, CInk);
@@ -2355,7 +2398,8 @@ function MakeBoardUI(P, Lib, Sfx, Keys) {
   SetBM(780, 810, 960, 300, 80);
   const SpinCanvas = new canvas({
     Slots: [
-      MakeOverlayDim(0.8),
+      // (web) a tap anywhere = OK
+      MakeTapDim(Hub, 780, 0.8),
       RBox(TexTint(CardGui.T_Rays, 1000, 1000, CGold), 460, -30, 1000, 1000, 1),
       RBox(SpinFace.Root, 810, 256, 300, 428, 5),
       RPin(SpinLabel.Root, 960, 120, 6),
@@ -2378,7 +2422,8 @@ function MakeBoardUI(P, Lib, Sfx, Keys) {
   });
   const CoinSlot = RFull(CoinCanvas, 117);
   // 喜怒哀楽 stamps: the menu (over the own side of the board) and one picture per side
-  const SS = [RBox(Tex(CardGui.T_PanelMsg, 640, 200), 640, 440, 640, 200, 0)];
+  // (web) a tap outside the menu closes it (= とじる 704); a tap on the panel beside a stamp does nothing
+  const SS = [MakeTapDim(Hub, 704, 0.0), RBox(Tex(CardGui.T_PanelMsg, 640, 200), 640, 440, 640, 200, 0), RBox(MakeTapBlock(), 640, 440, 640, 200, 0)];
   for (let I = 0; I <= 3; I++) {
     const X = 668 + I * 124;
     const SH = Fixed(700 + I);

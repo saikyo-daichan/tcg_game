@@ -147,7 +147,7 @@ const TfDevourFoe = "敵モンスター1体を破壊し、その攻撃力と体�
 function TfAddCardDear(C, N, M) { return `手札に「${C}」を${N}枚加え、それらのマナ+${M}`; }
 function TsAtkUpHpDown(A, H) { return `攻撃力+${A}・体力-${H}`; }
 function TfHitEnemy(N) { return `敵モンスター1体か相手プレイヤーに${N}ダメージ`; }
-function TfAddCardCheap(C, N, M) { return `手札に「${C}」を${N}枚加え、それらのマナ-${M}`; }
+function TfAddCardCheap(C, N, M) { return N > 1 ? `手札に「${C}」を${N}枚加え、それらのマナ-${M}` : `手札に「${C}」を1枚加え、それのマナ-${M}`; }
 function TfHealOthers(N) { return `他の味方モンスター全員のHPを${N}回復`; }
 const TfBounceTwo = "モンスターを2体選び、持ち主の手札に戻す";
 function TfFuse(P, C) { return `「${P}」がいるなら合体して「${C}」になる`; }
@@ -192,8 +192,19 @@ function TfAddArtifact(N) { return `手札にランダムなアーティファ�
 function TfHandKw(C, K) { return `手札の「${C}」すべてに「${K}」を付与`; }
 const TfVanishSelf = "このモンスターは消滅する";
 const TfKillOwnOthers = "自分の他のモンスターとアミュレットをすべて破壊";
-const TfDestroyAlly = "自分の味方モンスター1体を破壊する";
+const TfDestroyAlly = "自分の他のモンスター1体かアミュレット1つを破壊する";
 const TfBounceAny = "場にあるモンスターまたはアミュレットを持ち主の手札に戻す";
+const TfNothing = "何もしない";
+const TfBounceOwn = "自分の他のモンスター1体かアミュレット1つを手札に戻す";
+function TfFoeManaDown(N) { return `次の相手のターン、相手のマナ-${N}`; }
+function TfDiscardBuff(N) { return `自分の手札を1枚捨ててもよい。捨てたら攻撃力+${N}`; }
+const TfStripIntimidate = "敵モンスターすべての「威圧」を消す";
+function TfSummonEvo(C, N) { return N > 1 ? `「${C}」を${N}体まで召喚し、進化させる` : `「${C}」を召喚し、進化させる`; }
+const TfFoeDiscardBuff = "相手の手札をランダムに1枚捨て、そのカードのマナの数だけ+X/+X";
+function TtEnter(E) { return `場に出たとき：${E}`; }
+function TkAdjHp(N) { return `隣の味方モンスターの体力+${N}`; }
+const TkNoSpell = "スペルの対象にならない";
+const TkWild = "手札にある間、自分のターン開始時にマナ・攻撃力・体力が同じランダムな数（1～9）になる";
 function TfArtifactDeck(N) { return `自分の山札を、ランダムなアーティファクト${N}枚にする`; }
 function TfHeroEndSummon(C) { return `自分のリーダーは「ターン終了時：「${C}」を召喚する」を得る`; }
 // a keyword the card got in the hand, above its own text
@@ -342,7 +353,9 @@ function FxTextNew(DB, F, IsSpell) {
   else if (K === fx_kind.SpellLock) return TfSpellLock;
   else if (K === fx_kind.Choose) {
     const A = At(DB, F.C), B = At(DB, M);
-    return TfChoose(A ? FxText(DB, A.Spell, true) : TxEmpty, B ? FxText(DB, B.Spell, true) : TxEmpty);
+    // (both effects of an option; an option without effect = 何もしない)
+    const Opt = C => !C ? TxEmpty : C.Spell.K === fx_kind.None ? TfNothing : FxText2(DB, C.Spell, C.Spell2, true);
+    return TfChoose(Opt(A), Opt(B));
   }
   else if (K === fx_kind.HandKw) return TfHandKw(CardName, KwName(N));
   else if (K === fx_kind.VanishSelf) return TfVanishSelf;
@@ -351,6 +364,12 @@ function FxTextNew(DB, F, IsSpell) {
   else if (K === fx_kind.HeroEndSummon) return TfHeroEndSummon(CardName);
   else if (K === fx_kind.DestroyAlly) return TfDestroyAlly;
   else if (K === fx_kind.BounceAny) return TfBounceAny;
+  else if (K === fx_kind.BounceOwn) return TfBounceOwn;
+  else if (K === fx_kind.FoeManaDown) return TfFoeManaDown(Max(1, N));
+  else if (K === fx_kind.DiscardBuff) return TfDiscardBuff(Max(1, N));
+  else if (K === fx_kind.StripIntimidate) return TfStripIntimidate;
+  else if (K === fx_kind.SummonEvo) return TfSummonEvo(CardName, Max(1, N));
+  else if (K === fx_kind.FoeDiscardBuff) return TfFoeDiscardBuff;
   return TxEmpty;
 }
 
@@ -385,6 +404,10 @@ function CardText(DB, D) {
   if (D.Thorns > 0) Lines = [...Lines, TkThorns(D.Thorns)];
   if (D.FrontAtkDown > 0) Lines = [...Lines, TkFrontDown(D.FrontAtkDown)];
   if (D.SpellCheaper) Lines = [...Lines, TkSpellCheap];
+  if (D.NoSpellTarget) Lines = [...Lines, TkNoSpell];
+  if (D.AdjHp > 0) Lines = [...Lines, TkAdjHp(D.AdjHp)];
+  if (D.Wild || D.WildOf >= 0) Lines = [...Lines, TkWild];
+  if (D.OnEnter.K !== fx_kind.None) Lines = [...Lines, TtEnter(FxText(DB, D.OnEnter, false))];
   if (D.IsSpell) {
     Lines = [...Lines, FxText2(DB, D.Spell, D.Spell2, true)];
     if (D.Recur) Lines = [...Lines, TkRecur];
@@ -433,6 +456,10 @@ function CardTextRows(D) {
     if (D.TwoActs) R += 1;
   }
   if (D.SpellCheaper) R += 2;
+  if (D.NoSpellTarget) R += 1;
+  if (D.AdjHp > 0) R += 1;
+  if (D.Wild || D.WildOf >= 0) R += 4;
+  if (D.OnEnter.K !== fx_kind.None) R += 2;
   return R;
 }
 
@@ -448,7 +475,12 @@ const ThTaunt = "【挑発】敵はこのモンスターを優先して攻撃し
 const ThHaste = "【速攻】召喚したターンから行動できる。";
 const ThRush = "【特攻】召喚したターンでもモンスターには攻撃できる（プレイヤーには攻撃できない）。";
 const ThDeadly = "【必殺】戦闘したモンスターを必ず破壊する（プレイヤーには効かない）。";
-const ThDrain = "【吸血】与えたダメージの分だけ自分のプレイヤーを回復する。";
+const ThDrain = "【吸血】自分から攻撃して与えたダメージの分だけ自分のプレイヤーを回復する（攻撃されたときは回復しない）。";
+const ThEnter = "【場に出たとき】手札から出したときも、効果で召喚されたときも発動する。";
+const ThAdjHp = "【隣の味方の体力+】このモンスターの左右にいる味方モンスターの体力が増える（このモンスターがいなくなると元に戻る）。";
+const ThNoSpell = "【スペルの対象にならない】敵味方どちらのスペルでも選べない（全体やランダムの効果は受ける）。";
+const ThWild = "【？カード】手札に来たときと自分のターン開始時に、マナ・攻撃力・体力が同じ数（1～9のランダム）に変わる。";
+const ThChoose = "【選べる効果】発動するときに、どうするかを自分で選ぶ。";
 const ThBarrier = "【バリア】次に受けるダメージを1度だけ無効にする。";
 const ThStealth = "【潜伏】自分から攻撃するまで、相手の攻撃・スペル・効果の対象にならない。";
 const ThIntimidate = "【威圧】相手の攻撃・スペル・効果の対象にならない。全体やランダムの効果は受ける。";
@@ -485,7 +517,7 @@ function KeywordHelp(D) {
   if (D.HeroOnly >= 0) L = [...L, ThHeroOnly(HeroNameOf(D.HeroOnly))];
   if (D.IsSpell) L = [...L, ThSpell];
   if (D.Amulet) L = [...L, ThAmulet];
-  if (CardIsBoss(D)) L = [...L, ThBoss]; else if (CardIsArtifact(D)) L = [...L, ThArtifact]; else if (D.Token) L = [...L, ThToken];
+  if (CardIsBoss(D)) L = [...L, ThBoss]; else if (CardIsArtifact(D)) L = [...L, ThArtifact]; else if (D.Token && D.WildOf < 0) L = [...L, ThToken];
   if (D.Taunt) L = [...L, ThTaunt];
   if (D.Haste) L = [...L, ThHaste];
   if (D.Rush) L = [...L, ThRush];
@@ -500,6 +532,11 @@ function KeywordHelp(D) {
   if (D.CdTick.K !== fx_kind.None) L = [...L, ThTick];
   if (D.Taunt || D.Stealth || D.Intimidate || D.Invincible) L = [...L, ThKwOne];
   if (D.Cry.K !== fx_kind.None) L = [...L, ThCry];
+  if (D.OnEnter.K !== fx_kind.None) L = [...L, ThEnter];
+  if (D.AdjHp > 0) L = [...L, ThAdjHp];
+  if (D.NoSpellTarget) L = [...L, ThNoSpell];
+  if (D.Wild || D.WildOf >= 0) L = [...L, ThWild];
+  if (D.Cry.K === fx_kind.DiscardBuff) L = [...L, ThChoose];
   if (D.Death.K !== fx_kind.None) L = [...L, ThDeath];
   if (D.TurnStart.K !== fx_kind.None || D.TurnEnd.K !== fx_kind.None) L = [...L, ThTurn];
   if (D.OnAttack.K !== fx_kind.None) L = [...L, ThAttack];
@@ -541,7 +578,8 @@ function SummonedCards(DB, D, Hand) {
   for (const F of [D.Cry, D.Cry2, D.Death, D.Death2, D.TurnStart, D.TurnEnd, D.OnAttack, D.OnKill, D.Evo, D.Evo2, D.Spell, D.Spell2, D.CdFx, D.CdTick]) {
     const K = F.K;
     const IsAdd = K === fx_kind.AddCard;
-    const IsSummon = K === fx_kind.Summon || K === fx_kind.SummonAt || K === fx_kind.SummonKw || K === fx_kind.Transform || K === fx_kind.Fuse || K === fx_kind.SummonRushBuff || K === fx_kind.SummonFoe;
+    const IsSummon = K === fx_kind.Summon || K === fx_kind.SummonAt || K === fx_kind.SummonKw || K === fx_kind.Transform || K === fx_kind.Fuse || K === fx_kind.SummonRushBuff || K === fx_kind.SummonFoe
+      || K === fx_kind.SummonEvo;
     if ((Hand ? IsAdd : IsSummon) && F.C >= 0 && F.C !== D.Id && !Ids.includes(F.C)) Ids = [...Ids, F.C];
     if (K === fx_kind.SummonTrump && !Hand) {
       for (const T of CardTrumpIds) if (!Ids.includes(T)) Ids = [...Ids, T];

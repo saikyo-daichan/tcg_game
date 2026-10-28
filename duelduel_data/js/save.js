@@ -78,6 +78,8 @@ const SvFields = [
   ['TowerOldBest', 0],        // TowerBest when the run started (the end screen's 「新記録！」)
   // 構築済みデッキ (prebuilt.js)
   ['PreBought', []],          // how many times each prebuilt deck was got (index in PreDecks; all 0 = the first one is free)
+  // 実績 (achieve.js)
+  ['Feats', []],              // the match feats (index = achieve.js Feat*: a count of wins or the best of one match / turn)
 ];
 
 // one deck of the deck builder: the character and the card ids (40)

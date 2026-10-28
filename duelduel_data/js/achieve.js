@@ -4,6 +4,9 @@
 // screen shows them to the opponent. Saved indexes: never remove or reorder CardTitles / CardBadges / CardAchs entries.
 // Changed: race{} losers keep running in JS, so ClaimFx gets a stop flag `Ctl` ({Stop: false}) (extra parameter);
 // options are value-or-null (CardBadgeIn returns a texture or null); tuples are arrays (MBtn(...)[0] / [1]).
+// Web additions (not in Verse): match feat achievements (Stat AchFeat + Feat*: counted from rules.js card_match.Feats by
+// CardMatchFacts / CardCountFeats into save Feats) and 無限の塔 floors (AchTowerBest); every achievement has a
+// difficulty (Diff) and the 実績 screen lists one difficulty tab at a time; a tap anywhere closes the claim show.
 'use strict';
 
 // ---------------------------------------------------------------- titles
@@ -52,6 +55,16 @@ function CardBadges() {
     new badge_def({ Name: AbMaster, Pic: T.T_Bdg29 }),
     new badge_def({ Name: AbBlueFlame, Pic: T.T_Bdg30 }),
     new badge_def({ Name: AbCollector, Pic: T.T_Bdg31 }),
+    // (web) the match feat achievements
+    new badge_def({ Name: AbGoldSlime, Pic: T.T_Bdg32 }),
+    new badge_def({ Name: AbSafeHeart, Pic: T.T_Bdg33 }),
+    new badge_def({ Name: AbCritical, Pic: T.T_Bdg34 }),
+    new badge_def({ Name: AbBolt, Pic: T.T_Bdg35 }),
+    new badge_def({ Name: AbTower, Pic: T.T_Bdg36 }),
+    new badge_def({ Name: AbDarkCrown, Pic: T.T_Bdg37 }),
+    new badge_def({ Name: AbHealCross, Pic: T.T_Bdg38 }),
+    new badge_def({ Name: AbCrackHeart, Pic: T.T_Bdg39 }),
+    new badge_def({ Name: AbSkyTower, Pic: T.T_Bdg40 }),
   ];
 }
 
@@ -59,10 +72,18 @@ function CardBadgeName(I) { const Bd = At(CardBadges(), I); return Bd ? Bd.Name 
 function CardTitleName(I) { return At(CardTitles, I) ?? TxEmpty; }
 
 // ---------------------------------------------------------------- achievements
-// Stat: what is counted (CardAchValue); the reward is title Title and badge Badge (-1: none)
+// Stat: what is counted (CardAchValue); the reward is title Title and badge Badge (-1: none);
+// Diff: (web) the difficulty = the tab of the 実績 screen it is listed on (AchEasy .. AchExtreme)
 class card_ach {
-  constructor(o = {}) { this.Stat = o.Stat; this.Need = o.Need; this.Title = o.Title ?? -1; this.Badge = o.Badge ?? -1; }
+  constructor(o = {}) { this.Stat = o.Stat; this.Need = o.Need; this.Title = o.Title ?? -1; this.Badge = o.Badge ?? -1; this.Diff = o.Diff ?? 0; }
 }
+
+// (web) the difficulty tabs
+const AchEasy = 0;
+const AchNormal = 1;
+const AchHard = 2;
+const AchExtreme = 3;
+const AchDiffs = 4;
 
 const AchTutorial = 0;
 const AchStreak = 1;
@@ -83,76 +104,119 @@ const AchSummons = 15;
 const AchHeroWins = 16;      // + the hero id (16..23)
 // (stats from 100 on are counted by CardAchValue3)
 const AchBossWins = 100;
+const AchTowerBest = 101;    // (web) the highest floor of 無限の塔 reached (save TowerBest)
+const AchFeat = 200;         // (web) + a Feat* index: save Feats[K] (CardMatchStats counts them after every match)
+
+// (web) the match feats: save Feats[K] is a count of wins (W) or the best of one match / turn (B)
+const FeatFullWins = 0;      // W: won with the own HP full
+const FeatPerfect = 1;       // W: won without losing any HP
+const FeatBigHit = 2;        // B: the most damage of one attack (a monster's or the player's)
+const FeatHeal = 3;          // B: HP healed in one match (the asked amounts: a heal at full HP counts too)
+const FeatSlime = 4;         // W: the enemy player was beaten by an attack of スライム (card id 0)
+const FeatFast6 = 5;         // W: won by the own 6th turn
+const FeatFast5 = 6;         // W: won by the own 5th turn
+const FeatComeback = 7;      // W: won after being at 3 HP or less
+const FeatOneHp = 8;         // W: won with exactly 1 HP left
+const FeatTurnKills = 9;     // B: enemy monsters destroyed in one own turn
+const FeatTurnFace = 10;     // B: damage to the enemy player in one own turn
+const FeatBossPerfect = 11;  // W: won against the 最恐 CPU (CPU戦, not 無限の塔) without losing any HP
+const FeatCount = 12;
+// (a "win" here = the enemy's HP reached 0 after the first turn; surrender wins don't count)
 
 const CardAchs = [
-  new card_ach({ Stat: AchTutorial, Need: 1, Title: 0, Badge: 0 }),
-  new card_ach({ Stat: AchStreak, Need: 3, Title: 1 }),
-  new card_ach({ Stat: AchStreak, Need: 5, Title: 2, Badge: 4 }),
-  new card_ach({ Stat: AchStreak, Need: 10, Title: 3, Badge: 3 }),
-  new card_ach({ Stat: AchLevel, Need: 5, Title: 4 }),
-  new card_ach({ Stat: AchLevel, Need: 10, Title: 5 }),
-  new card_ach({ Stat: AchLevel, Need: 20, Title: 6, Badge: 5 }),
-  new card_ach({ Stat: AchLevel, Need: 30, Title: 7 }),
-  new card_ach({ Stat: AchLevel, Need: 50, Title: 8, Badge: 6 }),
-  new card_ach({ Stat: AchLegend2, Need: 1, Title: 9, Badge: 7 }),
-  new card_ach({ Stat: AchLegend2, Need: 3, Title: 10 }),
-  new card_ach({ Stat: AchLegend2, Need: 10, Title: 11, Badge: 8 }),
-  new card_ach({ Stat: AchGems, Need: 100, Title: 12, Badge: 9 }),
-  new card_ach({ Stat: AchGems, Need: 1000, Title: 13 }),
-  new card_ach({ Stat: AchGems, Need: 10000, Title: 14, Badge: 2 }),
-  new card_ach({ Stat: AchPvpWins, Need: 1, Title: 15 }),
-  new card_ach({ Stat: AchPvpWins, Need: 10, Title: 16 }),
-  new card_ach({ Stat: AchPvpWins, Need: 50, Title: 17, Badge: 10 }),
-  new card_ach({ Stat: AchPvpWins, Need: 100, Title: 18, Badge: 11 }),
-  new card_ach({ Stat: AchCpuWins, Need: 1, Title: 19 }),
-  new card_ach({ Stat: AchCpuWins, Need: 10, Title: 20 }),
-  new card_ach({ Stat: AchCpuWins, Need: 50, Title: 21, Badge: 12 }),
-  new card_ach({ Stat: AchMatches, Need: 10, Title: 22 }),
-  new card_ach({ Stat: AchMatches, Need: 100, Title: 23 }),
-  new card_ach({ Stat: AchMatches, Need: 500, Title: 24, Badge: 18 }),
-  new card_ach({ Stat: AchPickWins, Need: 1, Title: 25 }),
-  new card_ach({ Stat: AchPickWins, Need: 10, Title: 26 }),
-  new card_ach({ Stat: AchPickWins, Need: 30, Title: 27, Badge: 13 }),
-  new card_ach({ Stat: AchPacks, Need: 10, Title: 28 }),
-  new card_ach({ Stat: AchPacks, Need: 50, Title: 29 }),
-  new card_ach({ Stat: AchPacks, Need: 200, Title: 30, Badge: 14 }),
-  new card_ach({ Stat: AchKinds, Need: 100, Title: 31 }),
-  new card_ach({ Stat: AchKinds, Need: 250, Title: 32 }),
-  new card_ach({ Stat: AchKinds, Need: 380, Title: 33, Badge: 15 }),
-  new card_ach({ Stat: AchPrem, Need: 1, Title: 34 }),
-  new card_ach({ Stat: AchPrem, Need: 10, Title: 35, Badge: 16 }),
-  new card_ach({ Stat: AchLogin, Need: 7, Title: 36 }),
-  new card_ach({ Stat: AchLogin, Need: 30, Title: 37, Badge: 17 }),
-  new card_ach({ Stat: AchHour, Need: 10, Title: 38 }),
-  new card_ach({ Stat: AchBacks, Need: 5, Title: 39 }),
-  new card_ach({ Stat: AchSummons, Need: 500, Title: 40 }),
-  new card_ach({ Stat: AchHeroWins + 0, Need: 10, Title: 41, Badge: 19 }),
-  new card_ach({ Stat: AchHeroWins + 1, Need: 10, Title: 42, Badge: 20 }),
-  new card_ach({ Stat: AchHeroWins + 2, Need: 10, Title: 43, Badge: 21 }),
-  new card_ach({ Stat: AchHeroWins + 3, Need: 10, Title: 44, Badge: 22 }),
-  new card_ach({ Stat: AchHeroWins + 4, Need: 10, Title: 45, Badge: 23 }),
-  new card_ach({ Stat: AchHeroWins + 5, Need: 10, Title: 46, Badge: 24 }),
-  new card_ach({ Stat: AchHeroWins + 6, Need: 10, Title: 47, Badge: 25 }),
-  new card_ach({ Stat: AchHeroWins + 7, Need: 10, Title: 48, Badge: 26 }),
+  new card_ach({ Stat: AchTutorial, Need: 1, Title: 0, Badge: 0, Diff: AchEasy }),
+  new card_ach({ Stat: AchStreak, Need: 3, Title: 1, Diff: AchNormal }),
+  new card_ach({ Stat: AchStreak, Need: 5, Title: 2, Badge: 4, Diff: AchHard }),
+  new card_ach({ Stat: AchStreak, Need: 10, Title: 3, Badge: 3, Diff: AchExtreme }),
+  new card_ach({ Stat: AchLevel, Need: 5, Title: 4, Diff: AchEasy }),
+  new card_ach({ Stat: AchLevel, Need: 10, Title: 5, Diff: AchEasy }),
+  new card_ach({ Stat: AchLevel, Need: 20, Title: 6, Badge: 5, Diff: AchNormal }),
+  new card_ach({ Stat: AchLevel, Need: 30, Title: 7, Diff: AchNormal }),
+  new card_ach({ Stat: AchLevel, Need: 50, Title: 8, Badge: 6, Diff: AchHard }),
+  new card_ach({ Stat: AchLegend2, Need: 1, Title: 9, Badge: 7, Diff: AchNormal }),
+  new card_ach({ Stat: AchLegend2, Need: 3, Title: 10, Diff: AchHard }),
+  new card_ach({ Stat: AchLegend2, Need: 10, Title: 11, Badge: 8, Diff: AchExtreme }),
+  new card_ach({ Stat: AchGems, Need: 100, Title: 12, Badge: 9, Diff: AchEasy }),
+  new card_ach({ Stat: AchGems, Need: 1000, Title: 13, Diff: AchNormal }),
+  new card_ach({ Stat: AchGems, Need: 10000, Title: 14, Badge: 2, Diff: AchHard }),
+  new card_ach({ Stat: AchPvpWins, Need: 1, Title: 15, Diff: AchEasy }),
+  new card_ach({ Stat: AchPvpWins, Need: 10, Title: 16, Diff: AchNormal }),
+  new card_ach({ Stat: AchPvpWins, Need: 50, Title: 17, Badge: 10, Diff: AchHard }),
+  new card_ach({ Stat: AchPvpWins, Need: 100, Title: 18, Badge: 11, Diff: AchHard }),
+  new card_ach({ Stat: AchCpuWins, Need: 1, Title: 19, Diff: AchEasy }),
+  new card_ach({ Stat: AchCpuWins, Need: 10, Title: 20, Diff: AchEasy }),
+  new card_ach({ Stat: AchCpuWins, Need: 50, Title: 21, Badge: 12, Diff: AchNormal }),
+  new card_ach({ Stat: AchMatches, Need: 10, Title: 22, Diff: AchEasy }),
+  new card_ach({ Stat: AchMatches, Need: 100, Title: 23, Diff: AchNormal }),
+  new card_ach({ Stat: AchMatches, Need: 500, Title: 24, Badge: 18, Diff: AchHard }),
+  new card_ach({ Stat: AchPickWins, Need: 1, Title: 25, Diff: AchEasy }),
+  new card_ach({ Stat: AchPickWins, Need: 10, Title: 26, Diff: AchNormal }),
+  new card_ach({ Stat: AchPickWins, Need: 30, Title: 27, Badge: 13, Diff: AchHard }),
+  new card_ach({ Stat: AchPacks, Need: 10, Title: 28, Diff: AchEasy }),
+  new card_ach({ Stat: AchPacks, Need: 50, Title: 29, Diff: AchNormal }),
+  new card_ach({ Stat: AchPacks, Need: 200, Title: 30, Badge: 14, Diff: AchHard }),
+  new card_ach({ Stat: AchKinds, Need: 100, Title: 31, Diff: AchNormal }),
+  new card_ach({ Stat: AchKinds, Need: 250, Title: 32, Diff: AchHard }),
+  new card_ach({ Stat: AchKinds, Need: 380, Title: 33, Badge: 15, Diff: AchHard }),
+  new card_ach({ Stat: AchPrem, Need: 1, Title: 34, Diff: AchEasy }),
+  new card_ach({ Stat: AchPrem, Need: 10, Title: 35, Badge: 16, Diff: AchNormal }),
+  new card_ach({ Stat: AchLogin, Need: 7, Title: 36, Diff: AchEasy }),
+  new card_ach({ Stat: AchLogin, Need: 30, Title: 37, Badge: 17, Diff: AchNormal }),
+  new card_ach({ Stat: AchHour, Need: 10, Title: 38, Diff: AchEasy }),
+  new card_ach({ Stat: AchBacks, Need: 5, Title: 39, Diff: AchNormal }),
+  new card_ach({ Stat: AchSummons, Need: 500, Title: 40, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 0, Need: 10, Title: 41, Badge: 19, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 1, Need: 10, Title: 42, Badge: 20, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 2, Need: 10, Title: 43, Badge: 21, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 3, Need: 10, Title: 44, Badge: 22, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 4, Need: 10, Title: 45, Badge: 23, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 5, Need: 10, Title: 46, Badge: 24, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 6, Need: 10, Title: 47, Badge: 25, Diff: AchNormal }),
+  new card_ach({ Stat: AchHeroWins + 7, Need: 10, Title: 48, Badge: 26, Diff: AchNormal }),
   // v18: harder ones (titles 51.., badges 28..31; title 50 / badge 27 come from the quest reward pass)
-  new card_ach({ Stat: AchBossWins, Need: 1, Title: 51, Badge: 28 }),
-  new card_ach({ Stat: AchBossWins, Need: 10, Title: 52 }),
-  new card_ach({ Stat: AchStreak, Need: 20, Title: 53, Badge: 29 }),
-  new card_ach({ Stat: AchLevel, Need: 100, Title: 54, Badge: 30 }),
-  new card_ach({ Stat: AchPvpWins, Need: 300, Title: 55 }),
-  new card_ach({ Stat: AchPickWins, Need: 100, Title: 56 }),
-  new card_ach({ Stat: AchKinds, Need: 440, Title: 57, Badge: 31 }),
-  new card_ach({ Stat: AchLegend2, Need: 30, Title: 58 }),
-  new card_ach({ Stat: AchMatches, Need: 1000, Title: 59 }),
-  new card_ach({ Stat: AchLogin, Need: 100, Title: 60 }),
-  new card_ach({ Stat: AchSummons, Need: 5000, Title: 61 }),
-  new card_ach({ Stat: AchHour, Need: 100, Title: 62 }),
-  new card_ach({ Stat: AchPacks, Need: 1000, Title: 63 }),
-  new card_ach({ Stat: AchCpuWins, Need: 300, Title: 64 }),
+  new card_ach({ Stat: AchBossWins, Need: 1, Title: 51, Badge: 28, Diff: AchHard }),
+  new card_ach({ Stat: AchBossWins, Need: 10, Title: 52, Diff: AchExtreme }),
+  new card_ach({ Stat: AchStreak, Need: 20, Title: 53, Badge: 29, Diff: AchExtreme }),
+  new card_ach({ Stat: AchLevel, Need: 100, Title: 54, Badge: 30, Diff: AchExtreme }),
+  new card_ach({ Stat: AchPvpWins, Need: 300, Title: 55, Diff: AchExtreme }),
+  new card_ach({ Stat: AchPickWins, Need: 100, Title: 56, Diff: AchExtreme }),
+  new card_ach({ Stat: AchKinds, Need: 440, Title: 57, Badge: 31, Diff: AchExtreme }),
+  new card_ach({ Stat: AchLegend2, Need: 30, Title: 58, Diff: AchExtreme }),
+  new card_ach({ Stat: AchMatches, Need: 1000, Title: 59, Diff: AchExtreme }),
+  new card_ach({ Stat: AchLogin, Need: 100, Title: 60, Diff: AchExtreme }),
+  new card_ach({ Stat: AchSummons, Need: 5000, Title: 61, Diff: AchExtreme }),
+  new card_ach({ Stat: AchHour, Need: 100, Title: 62, Diff: AchHard }),
+  new card_ach({ Stat: AchPacks, Need: 1000, Title: 63, Diff: AchExtreme }),
+  new card_ach({ Stat: AchCpuWins, Need: 300, Title: 64, Diff: AchHard }),
+  // (web) match feats and 無限の塔 (titles 65.., badges 32..40)
+  new card_ach({ Stat: AchFeat + FeatFullWins, Need: 1, Title: 65, Diff: AchNormal }),
+  new card_ach({ Stat: AchFeat + FeatFullWins, Need: 10, Title: 66, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatPerfect, Need: 1, Title: 67, Badge: 33, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatPerfect, Need: 10, Title: 68, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatBigHit, Need: 10, Title: 69, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatBigHit, Need: 20, Title: 70, Badge: 34, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatHeal, Need: 10, Title: 71, Diff: AchNormal }),
+  new card_ach({ Stat: AchFeat + FeatHeal, Need: 20, Title: 72, Badge: 38, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatSlime, Need: 1, Title: 73, Badge: 32, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatSlime, Need: 10, Title: 74, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatFast6, Need: 1, Title: 75, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatFast5, Need: 1, Title: 76, Badge: 35, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatComeback, Need: 1, Title: 77, Diff: AchNormal }),
+  new card_ach({ Stat: AchFeat + FeatOneHp, Need: 1, Title: 78, Badge: 39, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatTurnKills, Need: 3, Title: 79, Diff: AchNormal }),
+  new card_ach({ Stat: AchFeat + FeatTurnKills, Need: 4, Title: 80, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatTurnFace, Need: 15, Title: 81, Diff: AchHard }),
+  new card_ach({ Stat: AchFeat + FeatTurnFace, Need: 20, Title: 82, Diff: AchExtreme }),
+  new card_ach({ Stat: AchFeat + FeatBossPerfect, Need: 1, Title: 83, Badge: 37, Diff: AchExtreme }),
+  new card_ach({ Stat: AchTowerBest, Need: 10, Title: 84, Diff: AchNormal }),
+  new card_ach({ Stat: AchTowerBest, Need: 30, Title: 85, Badge: 36, Diff: AchHard }),
+  new card_ach({ Stat: AchTowerBest, Need: 50, Title: 86, Badge: 40, Diff: AchExtreme }),
 ];
 
 // the text of an achievement (「野良対戦-通常で3連勝する」)
 function CardAchName(A, Lib) {
+  if (A.Stat >= AchFeat) return AcFeat(A.Stat - AchFeat, A.Need);
+  if (A.Stat === AchTowerBest) return AcTower(A.Need);
   if (A.Stat === AchBossWins) return AcBossWins(A.Need);
   if (A.Stat >= AchHeroWins) {
     const Hd = At(Lib.Heroes, A.Stat - AchHeroWins);
@@ -187,6 +251,8 @@ function CardAchNameOf2(St, N) {
 
 // the counted value of a stat
 function CardAchValue(S, DB, St) {
+  if (St >= AchFeat) return At(S.Feats, St - AchFeat) ?? 0;
+  if (St === AchTowerBest) return S.TowerBest;
   if (St === AchBossWins) return S.BossWins;
   if (St >= AchHeroWins) return At(S.HeroWins, St - AchHeroWins) ?? 0;
   if (St === AchTutorial) return S.Tutorial >= 2 ? 1 : 0;
@@ -243,8 +309,47 @@ function CardClaimAch(P, DB, I) {
   return true;
 }
 
+// (web) what side W did in match M (rules.js card_match.Feats), for CardMatchStats; null without a match.
+// Plain numbers only (lobby.js keeps it in the pvp_result).
+function CardMatchFacts(M, W) {
+  if (!M || !M.Feats) return null;
+  const F = M.Feats[W], Sd = M.S(W), O = M.S(1 - W);
+  if (!F || !Sd || !O) return null;
+  return {
+    ByHp: M.Reason === EndHp && M.Winner === W,     // won because the enemy's HP reached 0
+    Hp: Sd.Hp, MaxHp: Sd.MaxHp, Turns: Sd.Turns,
+    Taken: F.Taken, LowHp: F.LowHp, Healed: F.Healed, BigHit: F.BigHit,
+    TurnFace: F.BestTurnFace, TurnKills: F.BestTurnKills, Finisher: F.Finisher,
+    Cpu: !M.Net && !M.Pvp, FoeLevel: O.AiLevel,
+  };
+}
+
+// (web) the match feats (save Feats) after a match; Won = a win after the first turn
+function CardCountFeats(E, Mode, Won, F) {
+  const X = E.Feats.slice();
+  while (X.length < FeatCount) X.push(0);
+  const Add = K => { X[K] += 1; };
+  const Best = (K, V) => { if (V > X[K]) X[K] = V; };
+  if (Won && F.ByHp) {
+    if (F.Hp >= F.MaxHp) Add(FeatFullWins);
+    if (F.Taken <= 0) Add(FeatPerfect);
+    if (F.Finisher === 0) Add(FeatSlime);
+    if (F.Turns <= 6) Add(FeatFast6);
+    if (F.Turns <= 5) Add(FeatFast5);
+    if (F.LowHp <= 3) Add(FeatComeback);
+    if (F.Hp === 1) Add(FeatOneHp);
+    if (F.Taken <= 0 && F.Cpu && F.FoeLevel === CardAiNightmare && Mode !== ModeTower) Add(FeatBossPerfect);
+  }
+  Best(FeatBigHit, F.BigHit);
+  Best(FeatHeal, F.Healed);
+  Best(FeatTurnKills, F.TurnKills);
+  Best(FeatTurnFace, F.TurnFace);
+  E.Feats = X;
+}
+
 // the counters of the achievements after a match (CardGiveMatch counts the rest)
-function CardMatchStats(P, IsRandom, Mode, Hero, Won, Lost, Early) {
+// (web) Facts: CardMatchFacts of the player's side (null: no match feats, e.g. the match never started)
+function CardMatchStats(P, IsRandom, Mode, Hero, Won, Lost, Early, Facts = null) {
   const E = CardEdit(P);
   // 野良対戦-通常: wins in a row (a win before the first turn was over doesn't count, a loss / draw ends the streak)
   if (IsRandom && Mode === ModeDeck) {
@@ -264,6 +369,7 @@ function CardMatchStats(P, IsRandom, Mode, Hero, Won, Lost, Early) {
       E.HeroWins[Hero] = E.HeroWins[Hero] + 1;
     }
   }
+  if (Facts) CardCountFeats(E, Mode, Won && !Early, Facts);
   CardCommit(P, E);
 }
 
@@ -321,16 +427,27 @@ class eq_cell {
   constructor(o = {}) { this.Bg = o.Bg; this.Pic = o.Pic; this.Name = o.Name; }
 }
 
+// (web) one difficulty tab of the 実績 screen
+class ach_tab {
+  constructor(o = {}) { this.Face = o.Face; this.Name = o.Name; this.Count = o.Count; this.Dot = o.Dot; }
+}
+
 const AchPer = 7;
 const EqTitlePer = 24;
 const EqBadgePer = 24;
-function AchRowY(I) { return 170.0 + I * 106.0; }
+// (web) the rows start below the difficulty tabs
+function AchRowY(I) { return 266.0 + I * 94.0; }
+function AchTabX(K) { return 140.0 + K * 412.0; }
+const AchTabY = 180.0;
+const AchTabW = 400.0;
+const AchTabH = 74.0;
 function EqTitleX(I) { return 140.0 + Mod(I, 4) * 414.0; }
 function EqTitleY(I) { return 470.0 + Quotient(I, 4) * 70.0; }
 function EqBadgeX(I) { return 140.0 + Mod(I, 8) * 207.0; }
 function EqBadgeY(I) { return 466.0 + Quotient(I, 8) * 146.0; }
 
-// ids: list rows 900..906, 前へ 910, 次へ 911, 称号・バッチ設定 912, とじる 913 / the claim show's OK 915 /
+// ids: list rows 900..906, 前へ 910, 次へ 911, 称号・バッチ設定 912, とじる 913, (web) difficulty tabs 994..997 /
+// the claim show's OK 915 (also the whole screen: a tap anywhere closes it) /
 // equip: the title 920, badge slots 921..923, titles 930..953, badges 960..983, 前へ 990, 次へ 991, はずす 992, 戻る 993
 class ach_ui {
   constructor(o = {}) {
@@ -342,6 +459,8 @@ class ach_ui {
     this.PageTxt = o.PageTxt;
     this.CountTxt = o.CountTxt;
     this.ListMsg = o.ListMsg;
+    this.Tabs = o.Tabs ?? [];
+    this.Cat = o.Cat ?? 0;     // (web) the difficulty tab shown
     // the claim show
     this.PopSlot = o.PopSlot;
     this.PopCanvas = o.PopCanvas;
@@ -383,10 +502,12 @@ class ach_ui {
 
   // ------------------------------------------------------------ the achievement list
   // reached ones first, then the ones not reached yet, the received ones at the very end
+  // (web) only the ones of the difficulty tab shown
   MakeOrder() {
     const S = GetCardSave(this.P());
     const Ready = [], Todo = [], Done = [];
     for (let I = 0; I < CardAchs.length; I++) {
+      if (CardAchs[I].Diff !== this.Cat) continue;
       const St = CardAchState(S, this.Lib.DB, I);
       if (St === 1) Ready.push(I);
       else if (St === 0) Todo.push(I);
@@ -405,6 +526,7 @@ class ach_ui {
     let Reached = 0;
     for (let I = 0; I < CardAchs.length; I++) if (CardAchState(S, DB, I) >= 1) Reached += 1;
     this.CountTxt.Set(AhCount(Reached, CardAchs.length, S.AchClaimed.length));
+    this.FillTabs(S);
     this.Rows.forEach((R, K) => {
       const Sw = At(this.RowSws, K);
       if (!Sw) return;
@@ -433,6 +555,41 @@ class ach_ui {
     });
   }
 
+  // (web) the difficulty tabs: the one shown is gold; a red dot = something to receive there
+  FillTabs(S) {
+    const DB = this.Lib.DB;
+    this.Tabs.forEach((T, K) => {
+      let All = 0, Got = 0, Ready = false;
+      CardAchs.forEach((A, I) => {
+        if (A.Diff !== K) return;
+        const St = CardAchState(S, DB, I);
+        All += 1;
+        if (St === 2) Got += 1;
+        if (St === 1) Ready = true;
+      });
+      const On = K === this.Cat;
+      T.Face.SetImage(BtnTex(On ? BtnGold : BtnBlue, AchTabW, AchTabH));
+      T.Name.SetColor(On ? CWhite : CCream);
+      T.Count.Set(AhTabCount(Got, All));
+      Show(T.Dot, Ready);
+    });
+  }
+
+  // (web) the tab to open with: the first with something to receive, else the first not finished
+  FirstCat() {
+    const S = GetCardSave(this.P());
+    let Open = -1;
+    for (let K = 0; K < AchDiffs; K++) {
+      for (let I = 0; I < CardAchs.length; I++) {
+        if (CardAchs[I].Diff !== K) continue;
+        const St = CardAchState(S, this.Lib.DB, I);
+        if (St === 1) return K;
+        if (St === 0 && Open < 0) Open = K;
+      }
+    }
+    return Max(0, Open);
+  }
+
   RewardText(A) {
     if (A.Title >= 0 && A.Badge >= 0) return AhRewardBoth(CardTitleName(A.Title), CardBadgeName(A.Badge));
     if (A.Badge >= 0) return AhRewardBadge(CardBadgeName(A.Badge));
@@ -441,7 +598,7 @@ class ach_ui {
 
   ListIds() {
     const N = Max(0, Min(AchPer, this.Order.length - this.PageNo * AchPer));
-    const R = [];
+    const R = [994, 995, 996, 997];
     for (let K = 0; K <= N - 1; K++) R.push(900 + K);
     R.push(910, 911, 912, 913);
     return R;
@@ -450,6 +607,7 @@ class ach_ui {
   // the 実績 screen (returns when とじる is chosen)
   async AchScreen() {
     const B = this.B;
+    this.Cat = this.FirstCat();
     this.MakeOrder();
     this.PageNo = 0;
     this.ListMsg.Set(AhHelp);
@@ -474,6 +632,16 @@ class ach_ui {
           B.Snd(SfxFlip);
           this.FillList();
           if (Id === NavEdgePrev) B.CurId = 913;
+        } else if (Id >= 994 && Id < 994 + AchDiffs) {
+          // (web) another difficulty tab
+          if (this.Cat !== Id - 994) {
+            this.Cat = Id - 994;
+            this.MakeOrder();
+            this.PageNo = 0;
+            this.ListMsg.Set(AhHelp);
+            B.Snd(SfxFlip);
+            this.FillList();
+          }
         } else if (Id === 912) {
           B.Snd(SfxClick);
           B.Layer(this.ListSlot, false);
@@ -535,7 +703,8 @@ class ach_ui {
       B.Fx.PlayZ(VfxSummonBig, V2(960.0, 470.0), 130);
       // the title plate comes up (lower when there is a badge too)
       const PlateY = HasBadge ? 750.0 : 560.0;
-      if (A.Title >= 0) this.PopCanvas.AddWidget(RPin(this.PopPlate, 960.0, PlateY, 6));
+      // (web) a canvas has no size of its own: it is placed by its box (RPin put its corner on the centre)
+      if (A.Title >= 0) this.PopCanvas.AddWidget(RBox(this.PopPlate, 960.0 - 380.0, PlateY - 55.0, 760.0, 110.0, 6));
       // the badge pops out of nothing, a little too big, then settles
       if (HasBadge) {
         this.PopCanvas.AddWidget(RPin(this.PopBadge, 960.0, 440.0, 7));
@@ -547,6 +716,8 @@ class ach_ui {
         B.Snd(SfxPremium);
       }
       B.CurId = 915;
+      // (web) a tap anywhere closes the show too; a tap made while it was opening doesn't count
+      B.Hub.ClickFresh = false;
       const Ctl = { Stop: false };
       await Race(B.Pick([915], 915, 915), this.ClaimFx(HasBadge, Ctl));
       Ctl.Stop = true;
@@ -720,33 +891,51 @@ function MakeAchUI(B, Lib) {
     RPinL(CountTxt.Root, 120.0, 140.0, 3),
     RPin(PageTxt.Root, 960.0, 978.0, 3),
     RPin(ListMsg.Root, 1640.0, 140.0, 3));
+  // (web) the difficulty tabs
+  const Tabs = [];
+  for (let K = 0; K <= AchDiffs - 1; K++) {
+    const X = AchTabX(K);
+    const Face = Tex(BtnTex(BtnBlue, AchTabW, AchTabH), AchTabW, AchTabH);
+    const Nm = OText(AhDiffName(K), 28.0, CWhite, CInk);
+    const Ct = OText(TxEmpty, 18.0, CCream, CInk);
+    const Dot = Tex(CardGui.T_Badge2, 40.0, 40.0);
+    Show(Dot, false);
+    Tabs.push(new ach_tab({ Face: Face, Name: Nm, Count: Ct, Dot: Dot }));
+    LS.push(
+      RBox(Face, X, AchTabY, AchTabW, AchTabH, 3),
+      RPin(Nm.Root, X + AchTabW / 2.0, AchTabY + 28.0, 4),
+      RPin(Ct.Root, X + AchTabW / 2.0, AchTabY + 56.0, 4),
+      RBox(Dot, X + AchTabW - 34.0, AchTabY - 10.0, 40.0, 40.0, 5),
+      RBox(MenuHit(B, 994 + K), X, AchTabY, AchTabW, AchTabH, 6));
+    B.AddBounds(994 + K, { X: X, Y: AchTabY, W: AchTabW, H: AchTabH });
+  }
   const Rows = [];
   const RowSws = [];
   for (let K = 0; K <= AchPer - 1; K++) {
     const Y = AchRowY(K);
     const Bg = new color_block({ DefaultColor: color(0.05, 0.04, 0.08), DefaultOpacity: 0.75 });
-    const Icon = Tex(CardGui.T_Bdg07, 86.0, 86.0);
+    const Icon = Tex(CardGui.T_Bdg07, 80.0, 80.0);
     const Nm = OText(TxEmpty, 28.0, CWhite, CInk);
     const Rw = OText(TxEmpty, 21.0, CGold, CInk);
     const Bar = MakeBar(330.0, 22.0, color(0.1, 0.06, 0.03), color(0.35, 0.85, 1.0), false);
     const Pr = OText(TxEmpty, 22.0, CWhite, CInk);
-    const Btn = MakePicButton(BtnGold, TmNotYet, 230.0, 74.0, 26.0, NoHit());
+    const Btn = MakePicButton(BtnGold, TmNotYet, 230.0, 70.0, 26.0, NoHit());
     const Rt = new canvas({
       Slots: [
-        Box(Bg, 0.0, 0.0, 1640.0, 96.0, 0),
-        Box(Icon, 10.0, 5.0, 86.0, 86.0, 1),
-        PinL(Nm.Root, 116.0, 30.0, 2),
-        PinL(Rw.Root, 116.0, 70.0, 2),
-        Box(Bar.Root, 1000.0, 26.0, 330.0, 22.0, 2),
-        Pin(Pr.Root, 1165.0, 70.0, 2),
-        Box(Btn.Root, 1380.0, 10.0, 230.0, 80.0, 2),
-        Box(B.Hub.Make(900 + K), 0.0, 0.0, 1640.0, 96.0, 5),
+        Box(Bg, 0.0, 0.0, 1640.0, 86.0, 0),
+        Box(Icon, 10.0, 3.0, 80.0, 80.0, 1),
+        PinL(Nm.Root, 110.0, 26.0, 2),
+        PinL(Rw.Root, 110.0, 62.0, 2),
+        Box(Bar.Root, 1000.0, 20.0, 330.0, 22.0, 2),
+        Pin(Pr.Root, 1165.0, 62.0, 2),
+        Box(Btn.Root, 1380.0, 6.0, 230.0, 76.0, 2),
+        Box(B.Hub.Make(900 + K), 0.0, 0.0, 1640.0, 86.0, 5),
       ],
     });
     Rows.push(new ach_row({ Bg: Bg, Icon: Icon, Name: Nm, Reward: Rw, Bar: Bar, Prog: Pr, Btn: Btn }));
     RowSws.push(MakeSw(Rt, false));
-    LS.push(RBox(Rt, 140.0, Y, 1640.0, 96.0, 4));
-    B.AddBounds(900 + K, { X: 140.0, Y: Y, W: 1640.0, H: 96.0 });
+    LS.push(RBox(Rt, 140.0, Y, 1640.0, 86.0, 4));
+    B.AddBounds(900 + K, { X: 140.0, Y: Y, W: 1640.0, H: 86.0 });
   }
   const LP = MBtn(B, 910, BtnBlue, TbPrev, 140.0, 944.0, 220.0, 70.0, 26.0);
   const LN = MBtn(B, 911, BtnBlue, TbNext, 1100.0, 944.0, 220.0, 70.0, 26.0);
@@ -769,10 +958,13 @@ function MakeAchUI(B, Lib) {
       Pin(PopTitle.Root, 380.0, 55.0, 2),
     ],
   });
+  // (web) the whole screen is OK too (made before the OK button: the button stays the hub's widget for 915)
+  const PopAll = RFull(MenuHit(B, 915), 50);
   const PopOk = MBtn(B, 915, BtnGold, TbOk, 810.0, 930.0, 300.0, 86.0, 34.0);
   const PopCanvas = new canvas({
     Slots: [
       MakeOverlayDim(0.8),
+      PopAll,
       RPin(PopRaysB, 960.0, 500.0, 1),
       RPin(PopRays, 960.0, 500.0, 2),
       RBox(Tex(CardGui.T_Banner, 1100.0, 170.0), 410.0, 40.0, 1100.0, 170.0, 3),
@@ -850,6 +1042,7 @@ function MakeAchUI(B, Lib) {
     PageTxt: PageTxt,
     CountTxt: CountTxt,
     ListMsg: ListMsg,
+    Tabs: Tabs,
     PopSlot: PopSlot,
     PopCanvas: PopCanvas,
     PopRays: PopRays,
@@ -901,6 +1094,13 @@ function AhBadgeSet(N) { return `バッチ「${N}」を付けたよ`; }
 const AhTitleOff = "称号をはずしたよ";
 const AhBadgeOff = "バッチをはずしたよ";
 const AhTakeOff = "はずす";
+// (web) the difficulty tabs
+const AhEasy = "かんたん";
+const AhNormal = "ふつう";
+const AhHard = "むずかしい";
+const AhExtreme = "激ムズ";
+function AhDiffName(K) { return K === AchEasy ? AhEasy : K === AchNormal ? AhNormal : K === AchHard ? AhHard : AhExtreme; }
+function AhTabCount(A, N) { return `受け取り済み ${A} / ${N}`; }
 
 const AcTutorial = "チュートリアルをクリアする";
 function AcStreak(N) { return `野良対戦-通常で${N}連勝する`; }
@@ -920,6 +1120,36 @@ function AcBacks(N) { return `カードの裏面を${N}種類持つ`; }
 function AcSummons(N) { return `モンスターを通算${N}体召喚する`; }
 function AcHeroWins(H, N) { return `${H}で${N}回勝利する`; }
 function AcBossWins(N) { return `CPU戦（最恐）で${N}回勝利する`; }
+// (web) the match feats (K = Feat*) and 無限の塔
+function AcFeat(K, N) {
+  if (K === FeatFullWins) return N <= 1 ? AcFull1 : AcFullN(N);
+  if (K === FeatPerfect) return N <= 1 ? AcPerfect1 : AcPerfectN(N);
+  if (K === FeatBigHit) return AcBigHit(N);
+  if (K === FeatHeal) return AcHeal(N);
+  if (K === FeatSlime) return N <= 1 ? AcSlime1 : AcSlimeN(N);
+  if (K === FeatFast6) return AcFast(6);
+  if (K === FeatFast5) return AcFast(5);
+  if (K === FeatComeback) return AcComeback;
+  if (K === FeatOneHp) return AcOneHp;
+  if (K === FeatTurnKills) return AcTurnKills(N);
+  if (K === FeatTurnFace) return AcTurnFace(N);
+  return AcBossPerfect;
+}
+const AcFull1 = "自分の体力が満タンのままバトルに勝利する";
+function AcFullN(N) { return `自分の体力が満タンのままバトルに${N}回勝利する`; }
+const AcPerfect1 = "1度もダメージを受けずにバトルに勝利する";
+function AcPerfectN(N) { return `1度もダメージを受けずにバトルに${N}回勝利する`; }
+function AcBigHit(N) { return `1回の攻撃で${N}ダメージ以上与える`; }
+function AcHeal(N) { return `1回のバトル中にHPを${N}以上回復する（満タン時も可）`; }
+const AcSlime1 = "「スライム」の攻撃で相手にとどめをさす";
+function AcSlimeN(N) { return `「スライム」の攻撃で相手に${N}回とどめをさす`; }
+function AcFast(N) { return `自分の${N}ターン目までにバトルに勝利する`; }
+const AcComeback = "自分の体力が3以下になってから逆転勝利する";
+const AcOneHp = "残り体力ちょうど1でバトルに勝利する";
+function AcTurnKills(N) { return `1ターンで相手のモンスターを${N}体破壊する`; }
+function AcTurnFace(N) { return `1ターンで相手プレイヤーに${N}ダメージ以上与える`; }
+const AcBossPerfect = "CPU戦（最恐）に1度もダメージを受けずに勝利する";
+function AcTower(N) { return `無限の塔で${N}階に到達する`; }
 
 const AtBeginner = "駆け出し";
 const AtStreak3 = "連勝街道";
@@ -986,6 +1216,29 @@ const AtSummon5000 = "大召喚士";
 const AtHour100 = "ルーレットマスター";
 const AtPack1000 = "開封王";
 const AtCpu300 = "CPUの支配者";
+// (web) match feats and 無限の塔
+const AtFull1 = "余裕の勝利";
+const AtFull10 = "鉄壁の決闘者";
+const AtPerfect1 = "無傷の勝者";
+const AtPerfect10 = "完全無欠";
+const AtHit10 = "剛腕";
+const AtHit20 = "一撃必殺";
+const AtHeal10 = "ヒーラー";
+const AtHeal20 = "癒しの達人";
+const AtSlime1 = "スライム使い";
+const AtSlime10 = "スライムの王";
+const AtFast6 = "電光石火";
+const AtFast5 = "神速の決闘者";
+const AtComeback = "逆転の決闘者";
+const AtOneHp = "紙一重";
+const AtKill3 = "殲滅者";
+const AtKill4 = "破壊神";
+const AtFace15 = "猛攻";
+const AtFace20 = "ワンターンキル";
+const AtBossPerfect = "最恐を超えし者";
+const AtTower10 = "塔の挑戦者";
+const AtTower30 = "塔の覇者";
+const AtTower50 = "天空の支配者";
 
 const AbDuel = "DUEL";
 const AbCandy = "キャンディマン";
@@ -1019,6 +1272,16 @@ const AbBoss = "最恐討伐者";
 const AbMaster = "虹の王冠";
 const AbBlueFlame = "蒼炎";
 const AbCollector = "カードマスター";
+// (web)
+const AbGoldSlime = "金のスライム";
+const AbSafeHeart = "無傷のハート";
+const AbCritical = "会心の一撃";
+const AbBolt = "稲妻";
+const AbTower = "無限の塔";
+const AbDarkCrown = "漆黒の王冠";
+const AbHealCross = "癒しの十字";
+const AbCrackHeart = "ひび割れハート";
+const AbSkyTower = "天空の塔";
 
 // (after the messages it uses)
 const CardTitles = [
@@ -1087,4 +1350,27 @@ const CardTitles = [
   AtHour100,
   AtPack1000,
   AtCpu300,
+  // (web) 65..
+  AtFull1,
+  AtFull10,
+  AtPerfect1,
+  AtPerfect10,
+  AtHit10,
+  AtHit20,
+  AtHeal10,
+  AtHeal20,
+  AtSlime1,
+  AtSlime10,
+  AtFast6,
+  AtFast5,
+  AtComeback,
+  AtOneHp,
+  AtKill3,
+  AtKill4,
+  AtFace15,
+  AtFace20,
+  AtBossPerfect,
+  AtTower10,
+  AtTower30,
+  AtTower50,
 ];
