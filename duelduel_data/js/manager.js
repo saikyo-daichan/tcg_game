@@ -119,6 +119,11 @@ class card_game_device {
         else if (Id === 109) await M.CodeScreen();
         else if (Id === 120) await M.Profile();
         else if (Id === OptGearId) await OptScreen(M);
+        else if (Id === BdBtnId) {
+          // (web) ボムドク (bomb.js): the coins it gives show on the title when back
+          await OpenBombGame(Me.P);
+          M.UpdateTitle();
+        }
         else if (Id === 124) {
           // (browser) フレンド: an invitation starts a private match
           M.ShowTitle();
@@ -349,6 +354,7 @@ class card_game_device {
   JoinInvite(No, Mode) {
     this.PendingJoin = { No, Mode };
     FrCloseUI();
+    BdClose();
     AbortFlows();
     if (this.Me) spawn(() => this.Me.UI.CancelWait());
   }

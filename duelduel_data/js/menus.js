@@ -222,8 +222,8 @@ const ShopBackId = 600;
 const SetBackId = 620;
 const SetBackClose = 639;
 
-// (124 = フレンド, 1750 = 設定 (settings.js), browser only)
-const MenuTitleIds = [100, 101, 106, 107, 108, 102, 103, 119, 109, 104, 105, 120, 124, 1750];
+// (124 = フレンド, 1750 = 設定 (settings.js), 1790 = ボムドク (bomb.js), browser only)
+const MenuTitleIds = [100, 101, 106, 107, 108, 102, 103, 119, 109, 104, 105, 120, 124, 1790, 1750];
 const CollPer = 24;
 const CollCols = 8;
 // (web) the smallest text size of the collection's card help (kit FitTextBox; longer ones scroll)
@@ -2311,6 +2311,11 @@ function MakeMenus(B, Lobby, Lib) {
   TS.push(RPin(OText(TvGear, 22.0, CWhite, CInk).Root, 1848.0, 1036.0, 4));
   TS.push(RBox(MenuHit(B, OptGearId), 1784.0, 904.0, 128.0, 160.0, 9));
   B.AddBounds(OptGearId, { X: 1800.0, Y: 916.0, W: 96.0, H: 96.0 });
+  // (10/29) the 💣 ボムドク button left of ⚙: the puzzle game (bomb.js)
+  TS.push(RBox(Tex(CardGui.T_BtnBomb, 96.0, 96.0), 1680.0, 916.0, 96.0, 96.0, 4));
+  TS.push(RPin(OText(TvBomb, 22.0, CWhite, CInk).Root, 1728.0, 1036.0, 4));
+  TS.push(RBox(MenuHit(B, BdBtnId), 1664.0, 904.0, 120.0, 160.0, 9));
+  B.AddBounds(BdBtnId, { X: 1680.0, Y: 916.0, W: 96.0, H: 96.0 });
   TS.push(RPin(Txt(TmHint, 20.0, CCream), 960.0, 1032.0, 4));
   TS.push(RPin(OText(IslandCodeText(Lib), 30.0, CGold, CInk).Root, 960.0, 972.0, 4));
   const TitleSlot = RFull(new canvas({ Slots: TS }), 90);

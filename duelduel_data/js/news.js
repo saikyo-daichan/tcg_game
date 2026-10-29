@@ -4,23 +4,19 @@
 'use strict';
 
 // bump with every update that has notes (the player sees the pop-up once per version)
-const NewsVer = '1028';
-const NewsDate = '10/28';
+const NewsVer = '1029';
+const NewsDate = '10/29';
 
 // the notes of the update (plain text, one line each)
 const NewsNotes = [
-  '実績を追加！難易度ごとのタブで見やすくなったよ',
-  'ローストチキンなど「自分のプレイヤーのHPを回復」は、HPが満タンでも使える（+0回復でも「回復するたび」の効果が発動）',
-  '「威圧オーラ」などで付与できない・もう持っているキーワードは、対象として選べなくなったよ',
-  '吸血は自分から攻撃したときだけ回復するようになったよ（攻撃されたときは回復しない）',
-  'OKだけのお知らせ画面は、画面のどこをタッチしても閉じられるよ',
-  'コレクションで長い効果のカードもプレミア化ボタンに重ならないようにしたよ',
-  '対戦画面の「進化」ボタンを「ターン終了」から離したよ',
+  '新しいミニゲーム「ボムドク」が登場！タイトル画面の右下の 💣 ボタンからあそべるよ',
+  'ボムドク：色分けされた盤面にかくれた爆弾を、ルールをヒントに見つけ出すパズル。各行・各列・各色に爆弾は1つ、爆弾どうしはとなり合わない',
+  'ボムドク：ステージをクリアするとデュエルデュエルのコインがもらえるよ（ステージが進むほどむずかしく、報酬もアップ）',
+  'ボムドク：進んだステージは保存されるから、いつでも続きからあそべるよ',
 ];
 
-// the cards whose numbers / effects changed (cards_web.js "(10/28)")
-const NewsCards = [121, 228, 325, 135, 214, 213, 207, 305, 211, 3, 338, 244, 298, 133, 272, 206, 322, 334, 239, 59, 281, 195, 260, 467, 199,
-  302, 117, 65, 418, 75, 284, 68, 151, 22, 282, 347, 308, 313, 178, 358, 185, 130, 152, 96, 373];
+// the cards whose numbers / effects changed (cards_web.js "(10/28)"; none this time)
+const NewsCards = [];
 
 function NewsSeen() { try { return localStorage.getItem('dd_news') === NewsVer; } catch (e) { return true; } }
 function NewsMarkSeen() { try { localStorage.setItem('dd_news', NewsVer); } catch (e) { } }
@@ -48,7 +44,7 @@ function OpenNews() {
       <div class="frlist nwlist">
         <div class="nwsub">ゲームの変更</div>
         ${NewsNotes.map(T => `<div class="nwnote">・${FrEsc(T)}</div>`).join('')}
-        <div class="nwsub">カードの調整（${Cards.length}枚）</div>
+        ${Cards.length ? `<div class="nwsub">カードの調整（${Cards.length}枚）</div>` : ''}
         ${Cards.map(D => `<div class="frrow nwcard"><div class="nwname">${FrEsc(D.Name)}<small>${Stat(D)}</small></div><div class="nwtext">${Text(D)}</div></div>`).join('')}
       </div>
       <div class="frfoot nwfoot">画面のどこかをタッチすると閉じます</div>
