@@ -307,6 +307,7 @@ class card_menus {
     Show(this.QBadge, this.InTitle && CardQuestClaimable(this.P()));
     Show(this.LBadge, this.InTitle && CardHourReady(this.P()));
     Show(this.ABadge, this.InTitle && CardAchClaimable(this.P(), this.Lib.DB));
+    if (BdTitleBadge) Show(BdTitleBadge, this.InTitle && BdDailyWaiting(this.P()));
     this.LastBadges = -1;
     this.LastPeople = this.Lobby.PlayerCount();
     this.TPlayers.Set(TmPeople(this.LastPeople));
@@ -326,12 +327,14 @@ class card_menus {
         this.TPlayers.Set(TmPeople(N));
         Show(this.TPlayers.FBadge, N > 0);
       }
-      const K = (this.InTitle && CardQuestClaimable(this.P()) ? 1 : 0) + (this.InTitle && CardHourReady(this.P()) ? 2 : 0) + (this.InTitle && CardAchClaimable(this.P(), this.Lib.DB) ? 4 : 0);
+      const K = (this.InTitle && CardQuestClaimable(this.P()) ? 1 : 0) + (this.InTitle && CardHourReady(this.P()) ? 2 : 0) + (this.InTitle && CardAchClaimable(this.P(), this.Lib.DB) ? 4 : 0)
+        + (this.InTitle && BdDailyWaiting(this.P()) ? 8 : 0);
       if (K !== this.LastBadges) {
         this.LastBadges = K;
         Show(this.QBadge, Mod(K, 2) === 1);
         Show(this.LBadge, Mod(Quotient(K, 2), 2) === 1);
-        Show(this.ABadge, K >= 4);
+        Show(this.ABadge, Mod(Quotient(K, 4), 2) === 1);
+        if (BdTitleBadge) Show(BdTitleBadge, K >= 8);
       }
     }
     return -1;
@@ -364,6 +367,7 @@ class card_menus {
     Show(this.QBadge, false);
     Show(this.LBadge, false);
     Show(this.ABadge, false);
+    if (BdTitleBadge) Show(BdTitleBadge, false);
     return Id;
   }
 
@@ -2316,6 +2320,10 @@ function MakeMenus(B, Lobby, Lib) {
   TS.push(RPin(OText(TvBomb, 22.0, CWhite, CInk).Root, 1728.0, 1036.0, 4));
   TS.push(RBox(MenuHit(B, BdBtnId), 1664.0, 904.0, 120.0, 160.0, 9));
   B.AddBounds(BdBtnId, { X: 1680.0, Y: 916.0, W: 96.0, H: 96.0 });
+  // 「!」 while 今日の1問 is waiting (bomb.js BdDailyWaiting)
+  BdTitleBadge = Tex(CardGui.T_Badge2, 42.0, 42.0);
+  Show(BdTitleBadge, false);
+  TS.push(RBox(BdTitleBadge, 1744.0, 906.0, 42.0, 42.0, 8));
   TS.push(RPin(Txt(TmHint, 20.0, CCream), 960.0, 1032.0, 4));
   TS.push(RPin(OText(IslandCodeText(Lib), 30.0, CGold, CInk).Root, 960.0, 972.0, 4));
   const TitleSlot = RFull(new canvas({ Slots: TS }), 90);

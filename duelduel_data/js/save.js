@@ -80,6 +80,11 @@ const SvFields = [
   ['PreBought', []],          // how many times each prebuilt deck was got (index in PreDecks; all 0 = the first one is free)
   // 実績 (achieve.js)
   ['Feats', []],              // the match feats (index = achieve.js Feat*: a count of wins or the best of one match / turn)
+  // ボムドク (bomb.js; its stages / marks are in its own localStorage entry)
+  ['QBomb', 0],               // stages cleared today (the daily quests; 今日の1問 and replays count too)
+  ['BombBest', 0],            // the highest stage cleared (the achievements)
+  ['BombClears', 0],          // clears of all time
+  ['BombPerfect', 0],         // clears without a miss
 ];
 
 // one deck of the deck builder: the character and the card ids (40)
@@ -307,7 +312,8 @@ function CardAddXp(E, Xp) {
 
 // ---------------------------------------------------------------- daily quests
 // Chain: the quest line it belongs to (one row on the screen); a line shows its first tier that was not claimed yet.
-// Stat: what is counted (0 CPU wins, 1 PvP wins, 2 matches, 3 summons, 4 jewels, 5 minutes played, 6 packs, 7 gems spent)
+// Stat: what is counted (0 CPU wins, 1 PvP wins, 2 matches, 3 summons, 4 jewels, 5 minutes played, 6 packs, 7 gems spent,
+// 8 最恐 wins, 9 ボムドク clears)
 class card_quest {
   constructor(o = {}) {
     this.Name = o.Name;
@@ -347,8 +353,12 @@ const TqPack10 = "カードパックを10パック開封する";
 const TqGem100 = "ジェムを100個使う";
 const TqGem500 = "ジェムを500個使う";
 const TqGem1000 = "ジェムを1000個使う";
+const TqBomb1 = "ボムドクを1ステージクリアする";
+const TqBomb5 = "ボムドクを5ステージクリアする";
+const TqBomb10 = "ボムドクを10ステージクリアする";
+const TqBomb30 = "ボムドクを30ステージクリアする";
 
-const CardQuestChains = 7;
+const CardQuestChains = 8;
 
 const CardQuests = [
   new card_quest({ Name: TqPlay1, Chain: 0, Stat: 2, Need: 1, Coins: 50, Xp: 20 }),
@@ -371,6 +381,11 @@ const CardQuests = [
   new card_quest({ Name: TqGem500, Chain: 5, Stat: 7, Need: 500, Coins: 300, Xp: 40 }),
   new card_quest({ Name: TqGem1000, Chain: 5, Stat: 7, Need: 1000, Coins: 500, Xp: 60 }),
   new card_quest({ Name: TqBoss1, Chain: 6, Stat: 8, Need: 1, Coins: 300, Xp: 100, Pts: 25 }),
+  // (web) ボムドク (Stat 9 = QBomb)
+  new card_quest({ Name: TqBomb1, Chain: 7, Stat: 9, Need: 1, Coins: 50, Xp: 20 }),
+  new card_quest({ Name: TqBomb5, Chain: 7, Stat: 9, Need: 5, Coins: 150, Xp: 40 }),
+  new card_quest({ Name: TqBomb10, Chain: 7, Stat: 9, Need: 10, Coins: 300, Xp: 60 }),
+  new card_quest({ Name: TqBomb30, Chain: 7, Stat: 9, Need: 30, Gems: 10, Xp: 100 }),
 ];
 
 // the quest a line shows now: its first tier that was not claimed (the last one when all were)
@@ -423,6 +438,7 @@ function CardQuestRefresh(E) {
     E.QPacks = 0;
     E.QGemsUsed = 0;
     E.QBossWin = 0;
+    E.QBomb = 0;
     E.QuestClaimed = [];
   }
 }
@@ -438,6 +454,7 @@ function CardQuestValue(E, I) {
     : St === 5 ? E.QPlayMin
     : St === 6 ? E.QPacks
     : St === 8 ? E.QBossWin
+    : St === 9 ? E.QBomb
     : E.QGemsUsed;
 }
 

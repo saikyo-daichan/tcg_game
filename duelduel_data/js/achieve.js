@@ -65,6 +65,11 @@ function CardBadges() {
     new badge_def({ Name: AbHealCross, Pic: T.T_Bdg38 }),
     new badge_def({ Name: AbCrackHeart, Pic: T.T_Bdg39 }),
     new badge_def({ Name: AbSkyTower, Pic: T.T_Bdg40 }),
+    // (web) ボムドク
+    new badge_def({ Name: AbBomb, Pic: T.T_Bdg41 }),
+    new badge_def({ Name: AbBombSilver, Pic: T.T_Bdg42 }),
+    new badge_def({ Name: AbBombGold, Pic: T.T_Bdg43 }),
+    new badge_def({ Name: AbBombKing, Pic: T.T_Bdg44 }),
   ];
 }
 
@@ -105,6 +110,8 @@ const AchHeroWins = 16;      // + the hero id (16..23)
 // (stats from 100 on are counted by CardAchValue3)
 const AchBossWins = 100;
 const AchTowerBest = 101;    // (web) the highest floor of 無限の塔 reached (save TowerBest)
+const AchBombBest = 102;     // (web) the highest ボムドク stage cleared (save BombBest)
+const AchBombPerfect = 103;  // (web) ボムドク clears without a miss (save BombPerfect)
 const AchFeat = 200;         // (web) + a Feat* index: save Feats[K] (CardMatchStats counts them after every match)
 
 // (web) the match feats: save Feats[K] is a count of wins (W) or the best of one match / turn (B)
@@ -211,12 +218,22 @@ const CardAchs = [
   new card_ach({ Stat: AchTowerBest, Need: 10, Title: 84, Diff: AchNormal }),
   new card_ach({ Stat: AchTowerBest, Need: 30, Title: 85, Badge: 36, Diff: AchHard }),
   new card_ach({ Stat: AchTowerBest, Need: 50, Title: 86, Badge: 40, Diff: AchExtreme }),
+  // (web) ボムドク (titles 87.., badges 41..44)
+  new card_ach({ Stat: AchBombBest, Need: 10, Title: 87, Diff: AchEasy }),
+  new card_ach({ Stat: AchBombBest, Need: 50, Title: 88, Diff: AchNormal }),
+  new card_ach({ Stat: AchBombBest, Need: 100, Title: 89, Badge: 41, Diff: AchNormal }),
+  new card_ach({ Stat: AchBombBest, Need: 300, Title: 90, Badge: 42, Diff: AchHard }),
+  new card_ach({ Stat: AchBombBest, Need: 500, Title: 91, Badge: 43, Diff: AchExtreme }),
+  new card_ach({ Stat: AchBombBest, Need: 1000, Title: 92, Badge: 44, Diff: AchExtreme }),
+  new card_ach({ Stat: AchBombPerfect, Need: 50, Title: 93, Diff: AchHard }),
 ];
 
 // the text of an achievement (「野良対戦-通常で3連勝する」)
 function CardAchName(A, Lib) {
   if (A.Stat >= AchFeat) return AcFeat(A.Stat - AchFeat, A.Need);
   if (A.Stat === AchTowerBest) return AcTower(A.Need);
+  if (A.Stat === AchBombBest) return AcBomb(A.Need);
+  if (A.Stat === AchBombPerfect) return AcBombPerfect(A.Need);
   if (A.Stat === AchBossWins) return AcBossWins(A.Need);
   if (A.Stat >= AchHeroWins) {
     const Hd = At(Lib.Heroes, A.Stat - AchHeroWins);
@@ -253,6 +270,8 @@ function CardAchNameOf2(St, N) {
 function CardAchValue(S, DB, St) {
   if (St >= AchFeat) return At(S.Feats, St - AchFeat) ?? 0;
   if (St === AchTowerBest) return S.TowerBest;
+  if (St === AchBombBest) return S.BombBest;
+  if (St === AchBombPerfect) return S.BombPerfect;
   if (St === AchBossWins) return S.BossWins;
   if (St >= AchHeroWins) return At(S.HeroWins, St - AchHeroWins) ?? 0;
   if (St === AchTutorial) return S.Tutorial >= 2 ? 1 : 0;
@@ -1150,6 +1169,8 @@ function AcTurnKills(N) { return `1ターンで相手のモンスターを${N}�
 function AcTurnFace(N) { return `1ターンで相手プレイヤーに${N}ダメージ以上与える`; }
 const AcBossPerfect = "CPU戦（最恐）に1度もダメージを受けずに勝利する";
 function AcTower(N) { return `無限の塔で${N}階に到達する`; }
+function AcBomb(N) { return `ボムドクでステージ${N}をクリアする`; }
+function AcBombPerfect(N) { return `ボムドクでノーミスクリアを${N}回する`; }
 
 const AtBeginner = "駆け出し";
 const AtStreak3 = "連勝街道";
@@ -1239,6 +1260,14 @@ const AtBossPerfect = "最恐を超えし者";
 const AtTower10 = "塔の挑戦者";
 const AtTower30 = "塔の覇者";
 const AtTower50 = "天空の支配者";
+// (web) ボムドク
+const AtBomb10 = "爆弾処理見習い";
+const AtBomb50 = "爆弾処理班";
+const AtBomb100 = "ボムスイーパー";
+const AtBomb300 = "爆弾処理のプロ";
+const AtBomb500 = "ボムドクマスター";
+const AtBomb1000 = "爆弾の神様";
+const AtBombPerfect = "完全処理";
 
 const AbDuel = "DUEL";
 const AbCandy = "キャンディマン";
@@ -1282,6 +1311,10 @@ const AbDarkCrown = "漆黒の王冠";
 const AbHealCross = "癒しの十字";
 const AbCrackHeart = "ひび割れハート";
 const AbSkyTower = "天空の塔";
+const AbBomb = "ボム";
+const AbBombSilver = "シルバーボム";
+const AbBombGold = "ゴールドボム";
+const AbBombKing = "キングボム";
 
 // (after the messages it uses)
 const CardTitles = [
@@ -1373,4 +1406,12 @@ const CardTitles = [
   AtTower10,
   AtTower30,
   AtTower50,
+  // (web) 87..
+  AtBomb10,
+  AtBomb50,
+  AtBomb100,
+  AtBomb300,
+  AtBomb500,
+  AtBomb1000,
+  AtBombPerfect,
 ];
